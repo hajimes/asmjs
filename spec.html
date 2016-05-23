@@ -1,0 +1,137 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Mocha Tests for Handwritten Asm.js Modules</title>
+  <link href="https://cdn.rawgit.com/mochajs/mocha/2.2.5/mocha.css" rel="stylesheet" />
+</head>
+<body>
+  <div id="mocha"></div>
+
+  <script type="text/javascript" src="./bower_components/jquery/dist/jquery.min.js"></script>
+  <script type="text/javascript" src="./bower_components/expect.js/index.js"></script>
+  <script type="text/javascript" src="./bower_components/mocha/mocha.js"></script>
+<script type="text/javascript" src="./bower_components/chai/chai.js"></script>
+  <script type="text/javascript" src="./main.js"></script>
+
+  <script>
+    mocha.setup('bdd');
+  </script>
+  
+  <script>
+describe('Handwritten asm.js modules', function() {  
+  var expect = chai.expect;
+  
+  describe('has math functions', function() {
+    var heap = {};
+    var u8heap = {};
+    var mod = {};
+
+    heap = new ArrayBuffer(1 << 20);
+    u8heap = new Uint8Array(heap);
+    u32heap = new Uint32Array(heap);
+    f32heap = new Float32Array(heap);
+    mod = myAsmjsModule(window, {}, heap);
+
+    it('for calculating the maximum value in float32s', function() {
+      f32heap[25] = -3.0;
+      f32heap[26] = 1.0;
+      f32heap[27] = 3.0;
+      
+      expect(mod.maxFloat32(25 << 2, 1)).to.closeTo(-3.0, 0.000001);
+      expect(mod.maxFloat32(25 << 2, 2)).to.closeTo(1.0, 0.000001);
+      expect(mod.maxFloat32(25 << 2, 3)).to.closeTo(3.0, 0.000001);
+    });
+
+    it('for logsumexp of float32s', function() {
+      f32heap[25] = 1.0;
+      expect(mod.logsumexp(25 << 2, 1)).to.closeTo(1.0, 0.000001);
+      f32heap[25] = 2.0;
+      expect(mod.logsumexp(25 << 2, 1)).to.closeTo(2.0, 0.000001);
+      f32heap[26] = 2.0;
+      expect(mod.logsumexp(25 << 2, 2)).to.closeTo(2.6931471, 0.000001);
+      f32heap[25] = -10.0;
+      f32heap[26] = 10.0;
+      f32heap[27] = -9.0;
+      expect(mod.logsumexp(25 << 2, 3)).to.closeTo(10.0, 0.000001);
+    });
+  });
+  
+  describe('has a hash function', function() {
+    var heap = {};
+    var u8heap = {};
+    var mod = {};
+
+    heap = new ArrayBuffer(1 << 20);
+    u8heap = new Uint8Array(heap);
+    u32heap = new Uint32Array(heap);
+    mod = myAsmjsModule(window, {}, heap);
+    
+    function putASCII(str, u8heap, pos) {
+      var i = 0;
+      
+      for (i = 0; i < str.length; i += 1) {
+        u8heap[pos + i] = (str.charCodeAt(i) & 0xff);
+      }
+    }
+    
+    it('MurmurHash3_x86_32', function() {
+      // Test vectors suggested by Ian Boyd in 2015
+      // See http://stackoverflow.com/a/31929528
+      var i = 0;
+      var str = '';
+      
+      expect(mod.hash(16, 0, 0)).to.equal(0);
+      expect(mod.hash(16, 0, 1) >>> 0).to.equal(0x514E28B7);
+      expect(mod.hash(16, 0, 0xffffffff) >>> 0).to.equal(0x81F16F39);
+      u32heap[16 >> 2] = 0xffffffff;
+      expect(mod.hash(16, 4, 0) >>> 0).to.equal(0x76293B50);
+      u8heap[16] = 0x21;
+      u8heap[17] = 0x43;
+      u8heap[18] = 0x65;
+      u8heap[19] = 0x87;
+      expect(mod.hash(16, 4, 0) >>> 0).to.equal(0xF55B516B);
+      expect(mod.hash(16, 4, 0x5082EDEE) >>> 0).to.equal(0x2362F9DE);
+      u32heap[16 >> 2] = 0;
+      expect(mod.hash(16, 4, 0) >>> 0).to.equal(0x2362F9DE);
+      expect(mod.hash(16, 3, 0) >>> 0).to.equal(0x85F0B427);
+      expect(mod.hash(16, 2, 0) >>> 0).to.equal(0x30F4C306);
+      expect(mod.hash(16, 1, 0) >>> 0).to.equal(0x514E28B7);
+
+      str = 'Hello, world!';
+      putASCII(str, u8heap, 16);
+      expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).
+        to.equal(0x24884CBA);
+      
+      // for UTF-8 encoding
+      // TestString("ππππππππ", 0x9747b28c, 0xD58063C1);
+      
+      str = '';
+      for (i = 0; i < 256; i += 1) {
+        str += 'a';
+      }
+      putASCII(str, u8heap, 16);
+      expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).to.equal(0x37405BDC);
+
+      str = 'abc';
+      putASCII(str, u8heap, 16);
+      expect(mod.hash(16, str.length, 0) >>> 0).to.equal(0xB3DD93FA);
+      str = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq';
+      putASCII(str, u8heap, 16);
+      expect(mod.hash(16, str.length, 0) >>> 0).to.equal(0xEE925B90);
+
+      str = 'The quick brown fox jumps over the lazy dog';
+      putASCII(str, u8heap, 16);
+      expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).
+        to.equal(0x2FA826CD);
+      
+    });
+  });
+});
+  </script>
+  
+  <script>
+    mocha.checkLeaks();
+    mocha.run();
+  </script>
+</body>
+</html>
