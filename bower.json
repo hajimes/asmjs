@@ -12,9 +12,12 @@
     "bower_components"
   ],
   "devDependencies": {
+    "benchmark": "2.1.0",
     "chai": "3.5.0",
+    "d3": "3.5.17",
     "expect.js": "0.3.1",
     "jquery": "2.2.4",
+    "lodash": "4.13.1",
     "mocha": "2.4.5"
   }
 }

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Benchmark for MurmurHash3 Implementations</title>
+  </head>
+  <body>
+    <div id="benchmark-results">
+    </div>
+    <script src="../bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="../bower_components/lodash/dist/lodash.min.js"></script>
+    <script src="../bower_components/benchmark/benchmark.js"></script>
+    <script src="./murmurhash3_gc.js"></script>
+    <script src="./murmurhash3_simple_rp.js"> </script>
+    <script src="./murmurhash3_unrolled_rp.js"></script>
+    <script type="text/javascript">
+(function() {
+  'use strict';
+  
+  var $bechmarkDiv = $('#benchmark-results');
+  
+  var suite = new Benchmark.Suite();
+
+  var str = '';
+  var i = 0;
+
+  var heap = [];
+  var u8heap = [];
+  var mod = {};
+
+  function putASCII(str, u8heap, pos) {
+    var i = 0;
+    
+    for (i = 0; i < str.length; i += 1) {
+      u8heap[pos + i] = (str.charCodeAt(i) & 0xff);
+    }
+  }
+  
+  // Based on jQuery
+  function loadAsmModule(url) {
+    var head = document.getElementsByTagName('head')[0] ||
+      document.documentElement;
+    var script = document.createElement('script');
+    script.src = url;
+    document.body.appendChild(script);
+  
+    var done = false;
+
+    // Attach handlers for all browsers
+    script.onload = script.onreadystatechange = function() {
+      if (!done && (!this.readyState ||
+        this.readyState === 'loaded' || this.readyState === 'complete')) {
+          done = true;
+
+          // Handle memory leak in IE
+          script.onload = script.onreadystatechange = null;
+          if (head && script.parentNode) {
+            head.removeChild(script);
+          }
+
+          benchmark();
+        }
+    };
+
+    head.insertBefore(script, head.firstChild);
+  }
+  
+  function benchmark() {
+    heap = new ArrayBuffer(1 << 16);
+    u8heap = new Uint8Array(heap);
+    mod = myAsmjsModule(window, {}, heap);
+
+    putASCII(str, u8heap, 0);
+    suite
+    .add('MurmurHash3 by asm.js without memory allocation time', function() {
+      mod.hash(0, str.length, 0) >>> 0;
+    })
+    .add('MurmurHash3 by asm.js including memory allocation time', function() {
+      putASCII(str, u8heap, 0);
+      mod.hash(0, str.length, 0) >>> 0;
+    })
+    .add('MurmurHash3 by Gary Court\'s implementation', function() {
+      murmurhash3_32_gc(str, 0);
+    })
+    .add('MurmurHash3 by Roland Pihlakas\' "simple" implementation', function() {
+      murmurhash3_32_simple_rp(str, 0);
+    })
+    .add('MurmurHash3 by Roland Pihlakas\' "unrolled" implementation', function() {
+      murmurhash3_32_rp(str, 0);
+    })
+    .on('cycle', function(event) {
+      $bechmarkDiv.append('<p>' + String(event.target) + '</p>');
+    })
+    .on('complete', function() {
+      $bechmarkDiv.append('<p>Fastest is ' +
+        this.filter('fastest').map('name') + '</p>');
+    })
+    .run({'async': true});
+  }
+  
+  
+  // main
+  for (i = 0; i < 512; i += 1) {
+    str += 'abcdefgh';
+  }
+  loadAsmModule('../main.js');  
+})();
+    </script>
+  </body>
+</html>
