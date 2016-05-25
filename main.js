@@ -541,6 +541,8 @@
     }
     
     /**
+     * Based on ConvertUTF.c by Unicode, Inc.
+     *
      * @param {number} inPP - byte offset to a byte offset to uint16s
      * @param {number} inEnd - byte offset to the end of inputs
      * @param {number} outPP - byte offset to a byte offset to uint8s

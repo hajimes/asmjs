@@ -140,17 +140,45 @@ describe('This handwritten asm.js module', function() {
       var inP = 100;
       var inEnd = 0;
       var outPP = 1000;
+      var outP = 2000;
       var outEnd = 3000;
+      var errorCode = 0;
       
+      // ASCII conversion
       str = 'abc';
       putUtf16(str, u16heap, inP);
       u32heap[0 >> 2] = inP;
-      u32heap[outPP >> 2] = 2000;
+      u32heap[outPP >> 2] = outP;
       inEnd = inP + str.length * 2;
+      errorCode = mod.convertUtf16toUtf8(inPP, inEnd, outPP, outEnd);
+      expect(errorCode).to.equal(0);
+      expect(u8heap[outP]).to.equal(97);
+      expect(u8heap[outP + 1]).to.equal(98);
+      expect(u8heap[outP + 2]).to.equal(99);
+      expect(u32heap[inPP >> 2]).to.equal(inEnd);
+      expect(u32heap[outPP >> 2]).to.equal(outP + 3);
 
-      // ASCII conversion
-      mod.convertUtf16toUtf8(inPP, inEnd, outPP, outEnd);
-      expect(u8heap[2000]).to.equal(97);
+
+      // Multi-byte characters
+      // hiragana characters occupy 2 bytes in UTF-16 and 3 bytes in UTF-8
+      str = 'あいう'; // [12354, 12356, 12358] in code points
+      inP = inEnd;
+      inEnd = inP + str.length * 2;
+      outP = u32heap[outPP >> 2];
+      putUtf16(str, u16heap, inP);
+      errorCode = mod.convertUtf16toUtf8(inPP, inEnd, outPP, outEnd);
+      expect(errorCode).to.equal(0);
+      expect(u8heap.subarray(outP, outP + 3)).to.deep.equal(
+        new Uint8Array([0xe3, 0x81, 0x82])
+      );
+      outP += 3;
+      expect(u8heap.subarray(outP, outP + 3)).to.deep.equal(
+        new Uint8Array([0xe3, 0x81, 0x84])
+      );
+      outP += 3;
+      expect(u8heap.subarray(outP, outP + 3)).to.deep.equal(
+        new Uint8Array([0xe3, 0x81, 0x86])
+      );
       
       // TODO: add more tests
     });
