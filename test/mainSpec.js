@@ -1,36 +1,35 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Mocha Tests for Handwritten Asm.js Modules</title>
-  <link href="./bower_components/mocha/mocha.css" rel="stylesheet" />
-</head>
-<body>
-  <div id="mocha"></div>
+describe('This handwritten asm.js module', function() {
+  'use strict';
 
-  <script type="text/javascript" src="./bower_components/jquery/dist/jquery.min.js"></script>
-  <script type="text/javascript" src="./bower_components/expect.js/index.js"></script>
-  <script type="text/javascript" src="./bower_components/mocha/mocha.js"></script>
-<script type="text/javascript" src="./bower_components/chai/chai.js"></script>
-  <script type="text/javascript" src="./main.js"></script>
+  var chai = {};
+  var expect = {};
 
-  <script>
-    mocha.setup('bdd');
-  </script>
+  var myAsmjsModule = {};
+
+  var heap = {};
+  var u8heap = {};
+  var u16heap = {};
+  var u32heap = {};
+  var f32heap = {};
+  var mod = {};
+  var root = {};
   
-  <script>
-describe('This handwritten asm.js module', function() {  
-  var expect = chai.expect;
+  if (typeof window === 'undefined') {
+    root = global;
+    chai = require('chai');
+    myAsmjsModule = require('../main');
+  } else {
+    root = window;
+    chai = window.chai;
+    myAsmjsModule = window.myAsmjsModule;
+  }
+  expect = chai.expect;  
   
   describe('implements ufmap', function() {
-    var heap = {};
-    var u8heap = {};
-    var mod = {};
-
     heap = new ArrayBuffer(1 << 20);
     u8heap = new Uint8Array(heap);
     u32heap = new Uint32Array(heap);
-    mod = myAsmjsModule(window, {}, heap);
+    mod = myAsmjsModule(root, {}, heap);
     
     it('a hash map for uint32 keys and float32 values', function() {
       var p = 100;
@@ -80,7 +79,7 @@ describe('This handwritten asm.js module', function() {
     u8heap = new Uint8Array(heap);
     u32heap = new Uint32Array(heap);
     f32heap = new Float32Array(heap);
-    mod = myAsmjsModule(window, {}, heap);
+    mod = myAsmjsModule(root, {}, heap);
 
     it('for calculating the maximum value in float32s', function() {
       f32heap[25] = -3.0;
@@ -107,18 +106,12 @@ describe('This handwritten asm.js module', function() {
   });
   
   describe('handles unicode:', function() {
-    var heap = {};
-    var u8heap = {};
-    var u16heap = {};
-    var u32heap = {};
-    var mod = {};
-
     beforeEach(function() {      
       heap = new ArrayBuffer(1 << 20);
       u8heap = new Uint8Array(heap);
       u16heap = new Uint16Array(heap);
       u32heap = new Uint32Array(heap);
-      mod = myAsmjsModule(window, {}, heap);
+      mod = myAsmjsModule(root, {}, heap);
     });
     
     // Endian dependent
@@ -207,15 +200,11 @@ describe('This handwritten asm.js module', function() {
   });
   
   describe('has a collection of utility functions', function() {
-    var heap = {};
-    var u8heap = {};
-    var mod = {};
-
     heap = new ArrayBuffer(1 << 20);
     u8heap = new Uint8Array(heap);
     u16heap = new Uint16Array(heap);
     u32heap = new Uint32Array(heap);
-    mod = myAsmjsModule(window, {}, heap);
+    mod = myAsmjsModule(root, {}, heap);
     
     function putASCII(str, u8heap, pos) {
       var i = 0;
@@ -293,11 +282,3 @@ describe('This handwritten asm.js module', function() {
     });
   });
 });
-  </script>
-  
-  <script>
-    mocha.checkLeaks();
-    mocha.run();
-  </script>
-</body>
-</html>
