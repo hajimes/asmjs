@@ -507,26 +507,22 @@
       // tail
       k1 = 0;
 
-      if ((tailLength | 0) == 3) {
-       k1 = (k1 ^ (u8heap[(p + 2) >> 0] << 16)) | 0;
-      }
+      switch (tailLength | 0) {
+        case 3:
+          k1 = (k1 ^ (u8heap[(p + 2) >> 0] << 16)) | 0;
+          // fall through
+        case 2:
+          k1 = (k1 ^ (u8heap[(p + 1) >> 0] << 8)) | 0;
+          // fall through
+        case 1:
+          k1 = (k1 ^ (u8heap[p >> 0] | 0)) | 0;
+          k1 = imul(k1, 0xcc9e2d51) >>> 0;
 
-      if ((tailLength | 0) >= 2) {
-       k1 = (k1 ^ (u8heap[(p + 1) >> 0] << 8)) | 0;
-      }
+          k1 = (k1 << 15) | (k1 >>> 17);
 
-      if ((tailLength | 0) >= 1) {
-       k1 = (k1 ^ (u8heap[p >> 0] | 0)) | 0;
-      }
+          k1 = imul(k1, 0x1b873593) >>> 0;
 
-      if ((k1 | 0) != 0) {
-       k1 = imul(k1, 0xcc9e2d51) >>> 0;
-
-       k1 = (k1 << 15) | (k1 >>> 17);
-
-       k1 = imul(k1, 0x1b873593) >>> 0;
-
-       h1 = (h1 ^ k1) | 0;
+          h1 = (h1 ^ k1) | 0;
       }
 
       // finalization
