@@ -206,13 +206,14 @@ describe('This handwritten asm.js module', function() {
     });
   });
   
-  describe('has a hash function', function() {
+  describe('has a collection of utility functions', function() {
     var heap = {};
     var u8heap = {};
     var mod = {};
 
     heap = new ArrayBuffer(1 << 20);
     u8heap = new Uint8Array(heap);
+    u16heap = new Uint16Array(heap);
     u32heap = new Uint32Array(heap);
     mod = myAsmjsModule(window, {}, heap);
     
@@ -274,6 +275,21 @@ describe('This handwritten asm.js module', function() {
       expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).
         to.equal(0x2FA826CD);
       
+    });
+    
+    it('endian checking', function() {
+      // Internally this function uses the first 2 bytes in the heap during
+      // checking. The following lines test if the original value is safely
+      // reverted to the heap.
+      u16heap[0] = 0x1315;
+      mod.isLittleEndian();
+      expect(u16heap[0]).to.equal(0x1315);
+      
+      // big-endian
+      // expect(mod.isLittleEndian()).to.equal(0);
+
+      // little-endian
+      // expect(mod.isLittleEndian()).to.equal(1);
     });
   });
 });

@@ -834,7 +834,31 @@
       
       return result | 0;
     }
-        
+    
+    /**
+     * Check if the current environment is little-endian or not.
+     *
+     * @returns {number} - 1 if little-endian otherwise 0
+     */
+    function isLittleEndian() {
+      /*
+       * Type annotations
+       */
+      var c = 0;
+      var result = 0;
+      
+      /*
+       * Main
+       */
+      c = u16heap[0 >> 1] | 0;
+      u8heap[0 >> 0] = 0;
+      u8heap[1 >> 0] = 1;
+      result = u16heap[0 >> 1] >>> 8;
+      u16heap[0 >> 1] = c | 0;
+      
+      return result | 0;
+    }
+    
     return {
       ufmap_create: ufmap_create,
       ufmap_has: ufmap_has,
@@ -845,7 +869,8 @@
       logsumexp: logsumexp,
       uc_convertUtf16toUtf8: uc_convertUtf16toUtf8,
       uc_convertUtf8toUtf16: uc_convertUtf8toUtf16,
-      hash: hash
+      hash: hash,
+      isLittleEndian: isLittleEndian
     };
   }
   
