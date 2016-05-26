@@ -1381,7 +1381,7 @@
      * Uses exactly (numberOfStates * 4) bytes at freeP. They are not required 
      * to be initialized to 0.
      */
-    function crf_updateBackwardScores(featureScoresP, numberOfStates,
+    function crf_updateBackwardScores(numberOfStates,
         finalTime, freeP, outP) {
       /*
        * Type annotations
@@ -1403,52 +1403,56 @@
       var score = 0.0;
       var p = 0;
       var nextP = 0;
+      var t = 0;
+      var nosBytes = 0;
 
       /*
        * Main
        */
+      nosBytes = numberOfStates << 2;
       nextP = outP;
       
+      // backwardScores[finalTime - 1][cur] = 0
+      t = imul(numberOfStates << 2, finalTime - 1);
+      outP = (outP + t) | 0;
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-        // forwardScores[0][cur] = featureScores[0][cur][0];
-        score = +F4[p >> 2];
-        F4[outP >> 2] = F4[p >> 2];
-
-        p = (p + (numberOfStates << 2)) | 0;
+        F4[outP >> 2] = 0.0;
         outP = (outP + 4) | 0;
       }
 
+      outP = (outP - (nosBytes << 2)) | 0;
       for (time = (finalTime - 2) | 0; (time | 0) >= 0;
           time = (time - 1) | 0) {  
         for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-          // forwardScores[time][cur] = logsumexp(
-          //   featureScores[time][0][cur] + forwardScores[time _ 1][0],
-          //   featureScores[time][0][cur] + forwardScores[time - 1][0],
+          // backwardScores[time][cur] = logsumexp(
+          //   backwardScores[time + 1][0][cur] + backwardScores[time + 1][0],
+          //   backwardScores[time + 1][1][cur] + backwardScores[time + 1][1],
           //   ...
           // )
           for (next = 0; (next | 0) < (numberOfStates | 0);
               next = (next + 1) | 0) {
             // featureScores[time][cur][prev]
             featureScore = +F4[p >> 2];
-            // forwardScores[time + 1][next]
+            // backwardScores[time + 1][next]
             nextScore = +F4[nextP >> 2];
             
             score = featureScore + nextScore;
             
-            F4[(freeP + (next << 2)) >> 2] = score;
+            F4[freeP >> 2] = score;
             
             p = (p + 4) | 0;
             nextP = (nextP + 4) | 0;
+            freeP = (freeP + 4) | 0;
           } 
-          // revert prevP to forwardScores[time - 1][prev]
-          nextP = (next - numberOfStates << 2) | 0;
-          
+          freeP = (freeP - nosBytes) | 0;
+                    
           F4[outP >> 2] = +logsumexp(freeP, numberOfStates);
  
+          // set nextP to the byte offset of backwardScores[time][0]
+          nextP = (nextP - (nosBytes << 2)) | 0;
           outP = (outP + 4) | 0;
         }
-        //  prevP to forwardScores[time][0]
-        nextP = (nextP + numberOfStates << 2) | 0;
+        outP = (outP - (nosBytes << 2)) | 0;
       }
     }
     
