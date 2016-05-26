@@ -7,12 +7,28 @@ describe('This handwritten asm.js module', function() {
   var myAsmjsModule = {};
 
   var heap = {};
-  var u8heap = {};
-  var u16heap = {};
-  var u32heap = {};
-  var f32heap = {};
+  var U1 = {};
+  var U2 = {};
+  var U4 = {};
+  var F4 = {};
   var mod = {};
   var root = {};
+  
+  function putUint32(u4, p, uint32s) {
+    var i = 0;
+    
+    for (i = 0; i < uint32s.length; i += 1) {
+      u4[(p + (i << 2)) >> 2] = uint32s[i];
+    }
+  }
+  
+  function putFloat(f4, p, floats) {
+    var i = 0;
+    
+    for (i = 0; i < floats.length; i += 1) {
+      f4[(p + (i << 2)) >> 2] = floats[i];
+    }
+  }
   
   if (typeof window === 'undefined') {
     root = global;
@@ -25,12 +41,16 @@ describe('This handwritten asm.js module', function() {
   }
   expect = chai.expect;  
   
-  describe('implements ufmap', function() {
+  beforeEach(function() {      
     heap = new ArrayBuffer(1 << 20);
-    u8heap = new Uint8Array(heap);
-    u32heap = new Uint32Array(heap);
+    U1 = new Uint8Array(heap);
+    U2 = new Uint16Array(heap);
+    U4 = new Uint32Array(heap);
+    F4 = new Float32Array(heap);
     mod = myAsmjsModule(root, {}, heap);
-    
+  });
+
+  describe('implements ufmap', function() {
     it('a hash map for uint32 keys and float32 values', function() {
       var p = 100;
       var tableSize = 1 << 16;
@@ -71,20 +91,10 @@ describe('This handwritten asm.js module', function() {
   });
   
   describe('has math functions', function() {
-    var heap = {};
-    var u8heap = {};
-    var mod = {};
-
-    heap = new ArrayBuffer(1 << 20);
-    u8heap = new Uint8Array(heap);
-    u32heap = new Uint32Array(heap);
-    f32heap = new Float32Array(heap);
-    mod = myAsmjsModule(root, {}, heap);
-
     it('for calculating the maximum value in float32s', function() {
-      f32heap[25] = -3.0;
-      f32heap[26] = 1.0;
-      f32heap[27] = 3.0;
+      F4[25] = -3.0;
+      F4[26] = 1.0;
+      F4[27] = 3.0;
       
       expect(mod.maxFloat32(25 << 2, 1)).to.closeTo(-3.0, 0.000001);
       expect(mod.maxFloat32(25 << 2, 2)).to.closeTo(1.0, 0.000001);
@@ -92,36 +102,72 @@ describe('This handwritten asm.js module', function() {
     });
 
     it('for logsumexp of float32s', function() {
-      f32heap[25] = 1.0;
+      F4[25] = 1.0;
       expect(mod.logsumexp(25 << 2, 1)).to.closeTo(1.0, 0.000001);
-      f32heap[25] = 2.0;
+      F4[25] = 2.0;
       expect(mod.logsumexp(25 << 2, 1)).to.closeTo(2.0, 0.000001);
-      f32heap[26] = 2.0;
+      F4[26] = 2.0;
       expect(mod.logsumexp(25 << 2, 2)).to.closeTo(2.6931471, 0.000001);
-      f32heap[25] = -10.0;
-      f32heap[26] = 10.0;
-      f32heap[27] = -9.0;
+      F4[25] = -10.0;
+      F4[26] = 10.0;
+      F4[27] = -9.0;
       expect(mod.logsumexp(25 << 2, 3)).to.closeTo(10.0, 0.000001);
     });
   });
   
-  describe('handles unicode:', function() {
-    beforeEach(function() {      
-      heap = new ArrayBuffer(1 << 20);
-      u8heap = new Uint8Array(heap);
-      u16heap = new Uint16Array(heap);
-      u32heap = new Uint32Array(heap);
-      mod = myAsmjsModule(root, {}, heap);
+  describe('has vector math functions:', function() {
+    it('dot product between a sparse vec and a dense vec', function() {
+      var x = [];
+      var index = [];
+      var y = [];
+      var xP = 0;
+      var indexP = 500;
+      var yP = 1000;
+      var outP = 2000;      
+      
+      x = [1.0, 0.5];
+      index = [2, 0];
+      y = [1.0, -1.5, 2.0, 0.5, 1.0];
+      putFloat(F4, xP, x);
+      putUint32(U4, indexP, index);
+      putFloat(F4, yP, y);
+
+      mod.vec_susdot(x.length, xP, indexP, yP, outP);
+      expect(F4[outP >> 2]).to.closeTo(2.5, 0.000001);
+
+      F4[outP >> 2] = 10.0;
+      mod.vec_susdot(1, xP, indexP, yP, outP);
+      expect(F4[outP >> 2]).to.closeTo(2.0, 0.000001);
+
+      F4[outP >> 2] = 10.0;
+      mod.vec_susdot(0, xP, indexP, yP, outP);
+      expect(F4[outP >> 2]).to.closeTo(0.0, 0.000001);
+      
+      F4[outP >> 2] = 10.0;
+      mod.vec_susdot(-1, xP, indexP, yP, outP);
+      expect(F4[outP >> 2]).to.closeTo(0.0, 0.000001);
+      
+      
+      x = [1.0, 0.5, -1.5];
+      index = [2, 0, 2];
+      y = [1.0, -1.5, 2.0, 0.5, 1.0];
+      putFloat(F4, xP, x);
+      putUint32(U4, indexP, index);
+      putFloat(F4, yP, y);
+      mod.vec_susdot(x.length, xP, indexP, yP, outP);
+      expect(F4[outP >> 2]).to.closeTo(-0.5, 0.000001);
     });
-    
+  });
+  
+  describe('handles unicode:', function() {
     // Endian dependent
-    function putUtf16(str, u16heap, pos) {
+    function putUtf16(str, U2, pos) {
       var i = 0;
       var ch = 0;
       
       for (i = 0; i < str.length; i += 1) {
         ch = str.charCodeAt(i);
-        u16heap[pos >> 1] = ch;
+        U2[pos >> 1] = ch;
         pos += 2;
       }
     }
@@ -138,36 +184,36 @@ describe('This handwritten asm.js module', function() {
       
       // ASCII conversion
       str = 'abc';
-      putUtf16(str, u16heap, inP);
-      u32heap[0 >> 2] = inP;
-      u32heap[outPP >> 2] = outP;
+      putUtf16(str, U2, inP);
+      U4[0 >> 2] = inP;
+      U4[outPP >> 2] = outP;
       inEnd = inP + str.length * 2;
       errorCode = mod.uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd);
       expect(errorCode).to.equal(0);
-      expect(u8heap[outP]).to.equal(97);
-      expect(u8heap[outP + 1]).to.equal(98);
-      expect(u8heap[outP + 2]).to.equal(99);
-      expect(u32heap[inPP >> 2]).to.equal(inEnd);
-      expect(u32heap[outPP >> 2]).to.equal(outP + 3);
+      expect(U1[outP]).to.equal(97);
+      expect(U1[outP + 1]).to.equal(98);
+      expect(U1[outP + 2]).to.equal(99);
+      expect(U4[inPP >> 2]).to.equal(inEnd);
+      expect(U4[outPP >> 2]).to.equal(outP + 3);
 
       // Multi-byte characters
       // hiragana characters occupy 2 bytes in UTF-16 and 3 bytes in UTF-8
       str = 'あいう'; // [12354, 12356, 12358] in code points
       inP = inEnd;
       inEnd = inP + str.length * 2;
-      outP = u32heap[outPP >> 2];
-      putUtf16(str, u16heap, inP);
+      outP = U4[outPP >> 2];
+      putUtf16(str, U2, inP);
       errorCode = mod.uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd);
       expect(errorCode).to.equal(0);
-      expect(u8heap.subarray(outP, outP + 3)).to.deep.equal(
+      expect(U1.subarray(outP, outP + 3)).to.deep.equal(
         new Uint8Array([0xe3, 0x81, 0x82])
       );
       outP += 3;
-      expect(u8heap.subarray(outP, outP + 3)).to.deep.equal(
+      expect(U1.subarray(outP, outP + 3)).to.deep.equal(
         new Uint8Array([0xe3, 0x81, 0x84])
       );
       outP += 3;
-      expect(u8heap.subarray(outP, outP + 3)).to.deep.equal(
+      expect(U1.subarray(outP, outP + 3)).to.deep.equal(
         new Uint8Array([0xe3, 0x81, 0x86])
       );
       
@@ -181,36 +227,29 @@ describe('This handwritten asm.js module', function() {
       var outPP = 1000;
       var outP = 2000;
       var outEnd = 3000;
-      var errorCode = 0;
+      var errorCode = 0;      
       
-      
-      u32heap[0 >> 2] = inP;
-      u32heap[outPP >> 2] = outP;
-      u8heap[inP] = 0xe3;
-      u8heap[inP + 1] = 0x81;
-      u8heap[inP + 2] = 0x82;
+      U4[0 >> 2] = inP;
+      U4[outPP >> 2] = outP;
+      U1[inP] = 0xe3;
+      U1[inP + 1] = 0x81;
+      U1[inP + 2] = 0x82;
       inEnd = inP + 3;
       errorCode = mod.uc_convertUtf8toUtf16(inPP, inEnd, outPP, outEnd);
       expect(errorCode).to.equal(0);
-      expect(u32heap[inPP >> 2]).to.equal(103);
-      expect(u16heap[outP >> 1]).to.equal(12354);
+      expect(U4[inPP >> 2]).to.equal(103);
+      expect(U2[outP >> 1]).to.equal(12354);
       
       // TODO: add more tests
     });
   });
   
   describe('has a collection of utility functions', function() {
-    heap = new ArrayBuffer(1 << 20);
-    u8heap = new Uint8Array(heap);
-    u16heap = new Uint16Array(heap);
-    u32heap = new Uint32Array(heap);
-    mod = myAsmjsModule(root, {}, heap);
-    
-    function putASCII(str, u8heap, pos) {
+    function putASCII(str, U1, pos) {
       var i = 0;
       
       for (i = 0; i < str.length; i += 1) {
-        u8heap[pos + i] = (str.charCodeAt(i) & 0xff);
+        U1[pos + i] = (str.charCodeAt(i) & 0xff);
       }
     }
     
@@ -223,22 +262,22 @@ describe('This handwritten asm.js module', function() {
       expect(mod.hash(16, 0, 0)).to.equal(0);
       expect(mod.hash(16, 0, 1) >>> 0).to.equal(0x514E28B7);
       expect(mod.hash(16, 0, 0xffffffff) >>> 0).to.equal(0x81F16F39);
-      u32heap[16 >> 2] = 0xffffffff;
+      U4[16 >> 2] = 0xffffffff;
       expect(mod.hash(16, 4, 0) >>> 0).to.equal(0x76293B50);
-      u8heap[16] = 0x21;
-      u8heap[17] = 0x43;
-      u8heap[18] = 0x65;
-      u8heap[19] = 0x87;
+      U1[16] = 0x21;
+      U1[17] = 0x43;
+      U1[18] = 0x65;
+      U1[19] = 0x87;
       expect(mod.hash(16, 4, 0) >>> 0).to.equal(0xF55B516B);
       expect(mod.hash(16, 4, 0x5082EDEE) >>> 0).to.equal(0x2362F9DE);
-      u32heap[16 >> 2] = 0;
+      U4[16 >> 2] = 0;
       expect(mod.hash(16, 4, 0) >>> 0).to.equal(0x2362F9DE);
       expect(mod.hash(16, 3, 0) >>> 0).to.equal(0x85F0B427);
       expect(mod.hash(16, 2, 0) >>> 0).to.equal(0x30F4C306);
       expect(mod.hash(16, 1, 0) >>> 0).to.equal(0x514E28B7);
 
       str = 'Hello, world!';
-      putASCII(str, u8heap, 16);
+      putASCII(str, U1, 16);
       expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).
         to.equal(0x24884CBA);
       
@@ -249,36 +288,70 @@ describe('This handwritten asm.js module', function() {
       for (i = 0; i < 256; i += 1) {
         str += 'a';
       }
-      putASCII(str, u8heap, 16);
+      putASCII(str, U1, 16);
       expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).to.equal(0x37405BDC);
 
       str = 'abc';
-      putASCII(str, u8heap, 16);
+      putASCII(str, U1, 16);
       expect(mod.hash(16, str.length, 0) >>> 0).to.equal(0xB3DD93FA);
       str = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq';
-      putASCII(str, u8heap, 16);
+      putASCII(str, U1, 16);
       expect(mod.hash(16, str.length, 0) >>> 0).to.equal(0xEE925B90);
 
       str = 'The quick brown fox jumps over the lazy dog';
-      putASCII(str, u8heap, 16);
+      putASCII(str, U1, 16);
       expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).
         to.equal(0x2FA826CD);
       
     });
     
     it('endian checking', function() {
-      // Internally this function uses the first 2 bytes in the heap during
-      // checking. The following lines test if the original value is safely
-      // reverted to the heap.
-      u16heap[0] = 0x1315;
-      mod.isLittleEndian();
-      expect(u16heap[0]).to.equal(0x1315);
-      
       // big-endian
       // expect(mod.isLittleEndian()).to.equal(0);
 
       // little-endian
       // expect(mod.isLittleEndian()).to.equal(1);
+      
+      // Internally this function uses the first 2 bytes in the heap during
+      // checking. The following lines test if the original value is safely
+      // reverted to the heap.
+      U2[0] = 0x1315;
+      mod.isLittleEndian();
+      expect(U2[0]).to.equal(0x1315);
+    });
+  });
+  
+  describe('provides leanrning for training CRF models', function() {
+    it('implements feature hashing', function() {
+      var x = [];
+      var index = [];
+      var xP = 0;
+      var indexP = 500;
+      var outValueP = 2000;
+      var outIndexP = 3000;
+      var i = 0;
+      
+      x = [1.0, 0.5, -2.0, 0.5, -1.0];
+      index = [2, 0, 42, 100, 255];
+      putFloat(F4, xP, x);
+      putUint32(U4, indexP, index);
+
+      mod.crf_featureHashing(x.length,
+        xP, indexP, 0, 0xff, outValueP, outIndexP);
+      for (i = 0; i < x.length; i += 1) {
+        expect(U4[(outIndexP + i << 2) >> 2]).to.be.within(0, 0xff);
+      }
+
+      for (i = 0; i < x.length; i += 1) {
+        expect(Math.abs(F4[(outValueP + (i << 2)) >> 2])).to.
+          closeTo(Math.abs(x[i]), 0.000001);
+      }
+      
+      // MurmurHashing 255 with the seed 0 returns a negative value.
+      // In such a case, the sign of its value is inverted.
+      expect(F4[(outValueP + (4 << 2)) >> 2]).to.equal(1.0);
+      
+      // TODO: Add more tests
     });
   });
 });

@@ -32,6 +32,15 @@
     var u32heap = new stdlib.Uint32Array(heap);
     var f32heap = new stdlib.Float32Array(heap);
     
+    var I1 = new stdlib.Int8Array(heap);
+    var I2 = new stdlib.Int16Array(heap);
+    var I4 = new stdlib.Int32Array(heap);
+    var U1 = new stdlib.Uint8Array(heap);
+    var U2 = new stdlib.Uint16Array(heap);
+    var U4 = new stdlib.Uint32Array(heap);
+    var F4 = new stdlib.Float32Array(heap);
+    var F8 = new stdlib.Float64Array(heap);
+    
    /********************
     * ufmap
     *
@@ -859,6 +868,190 @@
       return result | 0;
     }
     
+    
+    /********************
+     * Vector functions
+     ********************/
+    /**
+     * Returns the dot product between a sparse vector x and a dense vector y.
+     * Unlike the original Sparse BLAS, repeated indices in x are allowed.
+     */
+    function vec_susdot(nz, xP, indexP, yP, outP) {
+      /*
+       * Type annotations
+       */
+      nz = nz | 0;
+      xP = xP | 0;
+      indexP = indexP | 0;
+      yP = yP | 0;
+      outP = outP | 0;
+     
+      /*
+       * Local variables
+       */
+      var result = 0.0;
+      var end = 0;
+      var index = 0;
+      var value = 0.0;
+
+      /*
+       * Main
+       */
+      end = (indexP + (nz << 2)) | 0;
+      while ((indexP | 0) < (end | 0)) {
+        index = u32heap[indexP >> 2] | 0;
+        value = +f32heap[xP >> 2];
+        
+        result = +(result + value * +f32heap[(yP + (index << 2)) >> 2]);
+        
+        indexP = (indexP + 4) | 0;
+        xP = (xP + 4) | 0;
+      }
+      
+      f32heap[outP >> 2] = result;
+    }
+    
+    /********************
+     * CRF and machine learning-related functions
+     ********************/
+    /**
+     * Each instance is structured as
+     *
+     * +---+---+=====+========+=========+
+     * |IID|FTM| NZS | VALUES | INDICES |
+     * +---+---+=====+========+=========+
+     *
+     * IID: instance id
+     * FTM: uint32, the time of the final state of a markov path
+     * NZS: uint32[FTM]
+     * VALUES: float32[FTM][NZS[i]] for i in [0, FTM)
+     * VALUES: uint32[FTM][NZS[i]] for i in [0, FTM)
+     */
+    /**
+     * Reduce the dimensionality of a sparse vectory by using the unbiased
+     * feature hashing algorithm (Weinberger et al., 2009).
+     *
+     * Note that the resulting sparse vector may repeat the same index.
+     * For example, {index: [1, 10, 100], value: [1.0, 2.0, 3.0]} can be hashed
+     * to {index: [2, 4, 2], value: [-1.0, 2.0, 3.0]}.
+     * Repeated indices are not allowed in several standards such as
+     * Sparse BLAS (see Section 3.4.3 of the BLAS Technical Forum standard)
+     * but are ok if all you need is dot product, since dotting is
+     * distributive (a * (b + c) = a * b + a * c).
+     */
+    function crf_featureHashing(nz, valueP, indexP, seed, mask,
+      outValueP, outIndexP) {
+      /*
+       * Type annotations
+       */
+      nz = nz | 0;
+      valueP = valueP | 0;
+      indexP = indexP | 0;
+      seed = seed | 0;
+      mask = mask | 0;
+      outValueP = outValueP | 0;
+      outIndexP = outIndexP | 0;
+      
+      /*
+       * Local variables
+       */
+      var i = 0;
+      var hashValue = 0;
+      var sign = 0.0;
+      var value = 0.0;
+      var index = 0;
+
+      /*
+       * Main
+       */
+      for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
+        value = +F4[valueP >> 2];
+        hashValue = hash(indexP, 1, seed) | 0;
+        sign = +((hashValue >> 31) | 1);
+        value = sign * value;
+        // console.log(value);
+        index = (hashValue & mask) | 0;
+
+        F4[outValueP >> 2] = value;
+        U4[outIndexP >> 2] = index;
+        
+        valueP = (valueP + 4) | 0;
+        indexP = (indexP + 4) | 0;
+        outValueP = (outValueP + 4) | 0;
+        outIndexP = (outIndexP + 4) | 0;
+      }
+    }
+        
+    /**
+     * Updates a sequence of state scores.
+     *
+     * A sequence of state scores is a 2-dimensional array
+     * float[finalTime][numberOfStates].
+     * score[i][j] represents the state score where the current time is i and
+     * the current state is j.
+     *
+     * @param {number} nz - 
+     * @param {number} weightP - byte offset to a dense weight vector
+     * @param {number} freeP - byte offset to a free working space
+     */
+    function crf_updateStateScores(instanceP, weightP, numberOfStates,
+      freeP, outP) {
+      /*
+       * Type annotations
+       */
+      instanceP = instanceP | 0;
+      weightP = weightP | 0;
+      numberOfStates = numberOfStates | 0;
+      freeP = freeP | 0;
+      outP = outP | 0;
+      
+      /*
+       * Local variables
+       */
+      var i = 0;
+      var p = 0;
+      var end = 0;
+      var valueP = 0;
+      var indexP = 0;
+      var nzP = 0;
+      var nz = 0;
+      var finalTime = 0;
+      
+      finalTime = U4[(instanceP + 4) >> 2] | 0;
+      nzP = (instanceP + 8) | 0;
+      end = (nzP + finalTime << 2) | 0;
+      
+      /*
+       * Main
+       */
+      while ((nzP | 0) < (end | 0)) {
+        nz = U4[nzP >> 2] | 0;
+        // vec_featureHashing();
+        for (i = 0; (i | 0) < (numberOfStates | 0); i = (i + 1) | 0) {
+          valueP = freeP | 0;
+          indexP = (freeP + (nz << 2)) | 0;
+          vec_susdot(nz, valueP, indexP, weightP, outP);
+        }
+        nzP = (nzP + 4) | 0;
+        outP = (outP + 4) | 0;
+      }
+      
+      // var p = 0;
+      // var end = 0;
+      //
+      // time = stateFeaturesP;
+      // end = (time + (n << 2)) | 0;
+      //
+      // for (time = 0; (time | 0) < (end | 0); time = (time + 1) | 0) {
+      //   p = u32heap[time >> 2];
+      //
+      //   CRF_hashing_dot(weightP, p, numberOfStates);
+      //   vec_susdot
+      //
+      //   scoresP = (scoresP + 12) | 0;
+      // }
+    }
+    
     return {
       ufmap_create: ufmap_create,
       ufmap_has: ufmap_has,
@@ -867,6 +1060,8 @@
       ufmap_size: ufmap_size,
       maxFloat32: maxFloat32,
       logsumexp: logsumexp,
+      vec_susdot: vec_susdot,
+      crf_featureHashing: crf_featureHashing,
       uc_convertUtf16toUtf8: uc_convertUtf16toUtf8,
       uc_convertUtf8toUtf16: uc_convertUtf8toUtf16,
       hash: hash,
