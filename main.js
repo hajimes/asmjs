@@ -1250,9 +1250,6 @@
       biasScore = +F4[biasScoreP >> 2];
       
       for (; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-        stateScore = +F4[(stateScoreP + srP) >> 2];
-        
-        
         // stateScores[0][cur]
         stateScore = +F4[(stateScoreP + srP) >> 2];
         // transitionScores[0][cur]
@@ -1331,7 +1328,7 @@
        */
       prevP = outP;
       
-      for (; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
         // forwardScores[0][cur] = featureScores[0][cur][0];
         score = +F4[p >> 2];
         F4[outP >> 2] = F4[p >> 2];
@@ -1370,6 +1367,186 @@
         }
         // advance prevP to forwardScores[time][0]
         prevP = (prev + numberOfStates << 2) | 0;
+      }
+    }
+    
+    /**
+     * Updates backward scores.
+     *
+     * A sequence of backward scores is a 2-dimensional array
+     * float[finalTime][numberOfStates].
+     *
+     * Exactly (finalTime * numberOfStates * 4) bytes will be written into outP.
+     *
+     * Uses exactly (numberOfStates * 4) bytes at freeP. They are not required 
+     * to be initialized to 0.
+     */
+    function crf_updateBackwardScores(featureScoresP, numberOfStates,
+        finalTime, freeP, outP) {
+      /*
+       * Type annotations
+       */
+      featureScoresP = featureScoresP | 0;
+      numberOfStates = numberOfStates | 0;
+      finalTime = finalTime | 0;
+      freeP = freeP | 0;
+      outP = outP | 0;
+
+      /*
+       * Local variables
+       */
+      var time = 1;
+      var cur = 0;
+      var next = 0;
+      var featureScore = 0.0;
+      var nextScore = 0.0;
+      var score = 0.0;
+      var p = 0;
+      var nextP = 0;
+
+      /*
+       * Main
+       */
+      nextP = outP;
+      
+      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        // forwardScores[0][cur] = featureScores[0][cur][0];
+        score = +F4[p >> 2];
+        F4[outP >> 2] = F4[p >> 2];
+
+        p = (p + (numberOfStates << 2)) | 0;
+        outP = (outP + 4) | 0;
+      }
+
+      for (time = (finalTime - 2) | 0; (time | 0) >= 0;
+          time = (time - 1) | 0) {  
+        for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+          // forwardScores[time][cur] = logsumexp(
+          //   featureScores[time][0][cur] + forwardScores[time _ 1][0],
+          //   featureScores[time][0][cur] + forwardScores[time - 1][0],
+          //   ...
+          // )
+          for (next = 0; (next | 0) < (numberOfStates | 0);
+              next = (next + 1) | 0) {
+            // featureScores[time][cur][prev]
+            featureScore = +F4[p >> 2];
+            // forwardScores[time + 1][next]
+            nextScore = +F4[nextP >> 2];
+            
+            score = featureScore + nextScore;
+            
+            F4[(freeP + (next << 2)) >> 2] = score;
+            
+            p = (p + 4) | 0;
+            nextP = (nextP + 4) | 0;
+          } 
+          // revert prevP to forwardScores[time - 1][prev]
+          nextP = (next - numberOfStates << 2) | 0;
+          
+          F4[outP >> 2] = +logsumexp(freeP, numberOfStates);
+ 
+          outP = (outP + 4) | 0;
+        }
+        //  prevP to forwardScores[time][0]
+        nextP = (nextP + numberOfStates << 2) | 0;
+      }
+    }
+    
+    function crf_getNormalizationFactor(forwardScoreP,
+        finalTime, numberOfStates) {
+      /*
+       * Type annotations
+       */
+      forwardScoreP = forwardScoreP | 0;
+      finalTime = finalTime | 0;
+      numberOfStates = numberOfStates | 0;
+
+      /*
+       * Local variables
+       */
+      var t = 0;
+
+      /*
+       * Main
+       */
+      t = imul(numberOfStates << 2, finalTime - 1);
+      forwardScoreP = (forwardScoreP + t) | 0;
+      return +logsumexp(forwardScoreP, numberOfStates);
+    }
+    
+    
+    /**
+     * Updates a table of joint scores, overwriting feature scores.
+     */
+    function updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
+      numberOfStates, finalTime, normalizationFactor) {
+      /*
+       * Type annotations
+       */
+      featureScoreP = featureScoreP | 0;
+      forwardScoreP = forwardScoreP | 0;
+      backwardScoreP = backwardScoreP | 0;
+      numberOfStates = numberOfStates | 0;
+      finalTime = finalTime | 0;
+      normalizationFactor = +normalizationFactor;
+
+      /*
+       * Local variables
+       */
+      var outP = 0;
+      var time = 0;
+      var cur = 0;
+      var prev = 0;
+      var score = 0.0;
+      var forwardScore = 0.0;
+      var backwardScore = 0.0;
+      var nosBytes = 0;
+        
+      /*
+       * Main
+       */
+      outP = featureScoreP; // overwrite
+      nosBytes = numberOfStates << 2;
+      
+      // score[0][cur][0] = featureScores[0][cur][0] +
+      //   backwardScores[0][cur] - normalizationFactor
+      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        backwardScore = +F4[backwardScoreP >> 2];
+
+        score = +F4[outP >> 2];
+        score = score + backwardScore - normalizationFactor;
+        F4[outP >> 2] = score;
+        
+        backwardScoreP = (backwardScoreP + nosBytes) | 0;
+        outP = (outP + nosBytes) | 0;
+      }
+      
+      // score[time][cur][prev] = featureScores[time][cur][prev] +
+      //   forwardScores[time - 1][prev]
+      //   backwardScores[time][cur]
+      //   - normalizationFactor
+      for (time = 1; (time | 0) < (finalTime | 0); time = (time + 1) | 0) {
+        for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+          backwardScore = +F4[backwardScoreP >> 2];
+
+          for (prev = 0; (prev | 0) < (numberOfStates | 0);
+              prev = (prev + 1) | 0) {       
+
+            forwardScore = +F4[forwardScoreP >> 2];
+
+            score = +F4[outP >> 2];
+            score = score + forwardScore + backwardScore -
+              normalizationFactor;
+            F4[outP >> 2] = score;
+            
+            forwardScoreP = (forwardScoreP + 4) | 0;
+            outP = (outP + 4) | 0;
+          }
+          
+          forwardScoreP = (forwardScoreP - nosBytes) | 0;
+        }
+        forwardScoreP = (forwardScoreP + nosBytes) | 0;
+        backwardScoreP = (backwardScoreP + 4) | 0;
       }
     }
     
