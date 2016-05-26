@@ -912,7 +912,7 @@
     }
     
     /********************
-     * CRF and machine learning-related functions
+     * Linear-CRF and machine learning-related functions
      ********************/
     /**
      * Each instance is structured as
@@ -927,9 +927,152 @@
      * VALUES: float32[FTM][NZS[i]] for i in [0, FTM)
      * VALUES: uint32[FTM][NZS[i]] for i in [0, FTM)
      */
+    
+    /**
+     * Performs temporary updating for the first order information and
+     * second order information of AdaGrady with a gradient.
+     * Actual values will be calculated lazily.
+     *
+     * @param {number} nz - number of non-zero elements in a gradient
+     * @param {number} xP - byte offset to float values of a gradient
+     * @param {number} indexP - byte offset to uint32 indices of a gradient
+     * @param {number} foiP - byte offset to a float dense vec 1st order info
+     * @param {number} soiP - byte offset to a float dense vec 2nd order info
+     */
+    function crf_adagradUpdateTemp(nz, xP, indexP, foiP, soiP) {
+      /*
+       * Type annotations
+       */
+      nz = nz | 0;
+      xP = xP | 0;
+      indexP = indexP | 0;
+      foiP = foiP | 0;
+      soiP = soiP | 0;
+
+      /*
+       * Local variables
+       */
+      var end = 0;
+      var index = 0;
+      var value = 0.0;
+      var p1 = 0;
+      var p2 = 0;
+
+      /*
+       * Main
+       */
+      end = (indexP + (nz << 2)) | 0;
+      while ((indexP | 0) < (end | 0)) {
+        index = U4[indexP >> 2] | 0;
+        value = +F4[xP >> 2];
+                
+        p1 = (foiP + (index << 2)) | 0;
+        p2 = (soiP + (index << 2)) | 0;
+        
+        F4[p1 >> 2] = +F4[p1 >> 2] + value;
+        F4[p2 >> 2] = +F4[p2 >> 2] + value * value;
+        
+        indexP = (indexP + 4) | 0;
+        xP = (xP + 4) | 0;
+      }
+    }
+    
+    function crf_adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
+      round, delta, eta, lambda) {
+      /*
+       * Type annotations
+       */
+      nz = nz | 0;
+      indexP = indexP | 0;
+      foiP = foiP | 0;
+      soiP = soiP | 0;
+      weightP = weightP | 0;
+      round = +round;
+      delta = +delta;
+      eta = +eta;
+      lambda = +lambda;
+
+      /*
+       * Local variables
+       */
+      var end = 0;
+      var index = 0;
+      var value = 0.0;
+      var p1 = 0;
+      var p2 = 0;
+      var p3 = 0;
+      
+      /*
+       * Main
+       */
+      end = (indexP + (nz << 2)) | 0;
+      while ((indexP | 0) < (end | 0)) {
+        index = U4[indexP >> 2] | 0;
+                
+        p1 = (foiP + (index << 2)) | 0;
+        p2 = (soiP + (index << 2)) | 0;
+        p3 = (weightP + (index << 2)) | 0;
+        
+        F4[p3 >> 2] = +crf_adagradLazyValue(
+          +F4[p1 >> 2], +F4[p2 >> 2],
+          round, delta, eta, lambda
+        );
+
+        indexP = (indexP + 4) | 0;        
+      }
+    }
+    
+    /**
+     * Lazily calculates an updated value for AdaGrad-L1.
+     */
+    function crf_adagradLazyValue(fov, sov, round, delta, eta, lambda) {
+      /*
+       * Type annotations
+       */
+      fov = +fov;
+      sov = +sov;
+      round = +round;
+      delta = +delta;
+      eta = +eta;
+      lambda = +lambda;
+      
+      /*
+       * Local variables
+       */
+      var result = 0.0;
+      
+      /*
+       * Main
+       */
+      if (fov == 0.0) {
+        return 0.0;
+      }
+
+      result = abs(fov) / round;
+      result = result - lambda;
+      result = max(0.0, result);
+
+      if (result == 0.0) {
+       return 0.0;
+      }
+
+      if (fov > 0.0) {
+       result = result * -1.0;
+      }
+
+      result = result * eta * round;
+
+      result = result / (delta + sqrt(sov));
+
+      return +result;
+    }
+
     /**
      * Reduce the dimensionality of a sparse vectory by using the unbiased
      * feature hashing algorithm (Weinberger et al., 2009).
+     *
+     * Exactly (nz * 4) bytes will be written into outValueP,
+     * as well as into outIndexP.
      *
      * Note that the resulting sparse vector may repeat the same index.
      * For example, {index: [1, 10, 100], value: [1.0, 2.0, 3.0]} can be hashed
@@ -981,8 +1124,18 @@
         outIndexP = (outIndexP + 4) | 0;
       }
     }
-        
+
     /**
+     * A sequence of transition scores is a 2-dimensional array
+     * float[numberOfStates + 1][numberOfStates].
+     * score[0][j] represents the transition score from a (hypothetical) initial
+     * state to the state j. score[i][j] represents the transition score
+     * from the state j to state i (NOT from i to j).
+     */
+
+    /**
+     * // Not completed yet
+     *
      * Updates a sequence of state scores.
      *
      * A sequence of state scores is a 2-dimensional array
@@ -1050,6 +1203,174 @@
       //
       //   scoresP = (scoresP + 12) | 0;
       // }
+    }
+    
+    /**
+     * Updates feature scores.
+     *
+     * A sequence of feature scores is a 3-dimensional array
+     * float[finalTime][numberOfStates][numberOfStates].
+     * If i = 0, score[0][j][0] represents the state score where the current
+     * time is 0, the current state is j, and the previous time is a
+     * (hypothetical) initial state.
+     * If i > 0, score[i][j][k] represents the state score where the current
+     * time is i, the current state is j, and the previous time is k.
+     *
+     * Exactly (finalTime * (numberOfStates ^ 2) * 4) bytes will be written
+     * into outP.
+     */
+    function crf_updateFeatureScores(biasScoreP, transitionScoreP,
+      stateScoreP, numberOfStates, finalTime, outP) {
+      /*
+       * Type annotations
+       */
+      biasScoreP = biasScoreP | 0;
+      transitionScoreP = transitionScoreP | 0;
+      stateScoreP = stateScoreP | 0;
+      numberOfStates = numberOfStates | 0;
+      finalTime = finalTime | 0;
+      outP = outP | 0;
+
+      /*
+       * Local variables
+       */
+      var time = 0;
+      var cur = 0;
+      var prev = 0;
+      var score = 0.0;
+      var stateScore = 0.0;
+      var transitionScore = 0.0;
+      var biasScore = 0.0;
+      var srP = 0; // relative byte offset from the start of state scores
+      var trP = 0; // relative byte offset from the start of transition scores
+        
+      /*
+       * Main
+       */
+      biasScore = +F4[biasScoreP >> 2];
+      
+      for (; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        stateScore = +F4[(stateScoreP + srP) >> 2];
+        
+        
+        // stateScores[0][cur]
+        stateScore = +F4[(stateScoreP + srP) >> 2];
+        // transitionScores[0][cur]
+        transitionScore = +F4[(transitionScoreP + trP) >> 2];
+        score = stateScore + transitionScore + biasScore;
+        
+        F4[outP >> 2] = score;
+        
+        srP = (srP + 4) | 0;
+        trP = (trP + 4) | 0;
+        outP = (outP + (numberOfStates << 2)) | 0;
+      }
+      
+      for (time = 1; (time | 0) < (finalTime | 0); time = (time + 1) | 0) {
+        trP = 0;
+        
+        for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+          stateScore = +F4[(stateScoreP + srP) >> 2];
+          
+          for (prev = 0; (prev | 0) < (numberOfStates | 0);
+              prev = (prev + 1) | 0) {
+            transitionScore = +F4[(transitionScoreP + trP) >> 2];
+            
+            score = stateScore + transitionScore + biasScore;
+            
+            F4[outP >> 2] = score;
+            
+            outP = (outP + 4) | 0;
+            trP = (trP + 4) | 0;
+          }
+          
+          trP = (trP + 4) | 0;
+          srP = (srP + 4) | 0;
+          outP = (outP + 4) | 0;
+        }
+      }
+          
+    }
+    
+    /**
+     * Updates forward scores.
+     *
+     * A sequence of forward scores is a 2-dimensional array
+     * float[finalTime][numberOfStates].
+     *
+     * Exactly (finalTime * numberOfStates * 4) bytes will be written into outP.
+     *
+     * Uses exactly (numberOfStates * 4) bytes at freeP. They are not required 
+     * to be initialized to 0.
+     */
+    function crf_updateForwardScores(featureScoresP, numberOfStates,
+        finalTime, freeP, outP) {
+      /*
+       * Type annotations
+       */
+      featureScoresP = featureScoresP | 0;
+      numberOfStates = numberOfStates | 0;
+      finalTime = finalTime | 0;
+      freeP = freeP | 0;
+      outP = outP | 0;
+
+      /*
+       * Local variables
+       */
+      var time = 1;
+      var cur = 0;
+      var prev = 0;
+      var featureScore = 0.0;
+      var previousScore = 0.0;
+      var score = 0.0;
+      var p = 0;
+      var prevP = 0;
+
+      /*
+       * Main
+       */
+      prevP = outP;
+      
+      for (; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        // forwardScores[0][cur] = featureScores[0][cur][0];
+        score = +F4[p >> 2];
+        F4[outP >> 2] = F4[p >> 2];
+
+        p = (p + (numberOfStates << 2)) | 0;
+        outP = (outP + 4) | 0;
+      }
+
+      for (time = 1; (time | 0) < (finalTime | 0); time = (time + 1) | 0) {  
+        for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+          // forwardScores[time][cur] = logsumexp(
+          //   featureScores[time][cur][0] + forwardScores[time - 1][0],
+          //   featureScores[time][cur][1] + forwardScores[time - 1][1],
+          //   ...
+          // )
+          for (prev = 0; (prev | 0) < (numberOfStates | 0);
+              prev = (prev + 1) | 0) {
+            // featureScores[time][cur][prev]
+            featureScore = +F4[p >> 2];
+            // forwardScores[time - 1][prev]
+            previousScore = +F4[prevP >> 2];
+            
+            score = featureScore + previousScore;
+            
+            F4[(freeP + (prev << 2)) >> 2] = score;
+            
+            p = (p + 4) | 0;
+            prevP = (prevP + 4) | 0;
+          } 
+          // revert prevP to forwardScores[time - 1][prev]
+          prevP = (prev - numberOfStates << 2) | 0;
+          
+          F4[outP >> 2] = +logsumexp(freeP, numberOfStates);
+ 
+          outP = (outP + 4) | 0;
+        }
+        // advance prevP to forwardScores[time][0]
+        prevP = (prev + numberOfStates << 2) | 0;
+      }
     }
     
     return {
