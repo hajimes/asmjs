@@ -407,8 +407,10 @@ describe('This handwritten asm.js module', function() {
       outP += 4;
       
       // Check if resulting values are in the range of ordinary numbers
+      // Also they should be nonzero in this case
       for (i = numberOfStates; i < numberOfStates * chainLength; i += 1) {
         expect(_.isNumber(F4[outP >> 2])).to.be.true;
+        expect(F4[outP >> 2]).not.to.equal(0.0);
         outP += 4;
       }
       
