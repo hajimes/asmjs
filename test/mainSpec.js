@@ -262,6 +262,9 @@ describe('This handwritten asm.js module', function() {
     it('MurmurHash3_x86_32', function() {
       // Test vectors suggested by Ian Boyd in 2015
       // See http://stackoverflow.com/a/31929528
+      // Note that this test fails in big-endian environments
+      // because MurmurHash3_x86_32 is not endian-independent
+      
       var i = 0;
       var str = '';
       
@@ -336,6 +339,7 @@ describe('This handwritten asm.js module', function() {
       var outValueP = 2000;
       var outIndexP = 3000;
       var i = 0;
+      var dimension = 0x100;
       
       x = [1.0, 0.5, -2.0, 0.5, -1.0];
       index = [2, 0, 42, 100, 255];
@@ -343,9 +347,10 @@ describe('This handwritten asm.js module', function() {
       putUint32(U4, indexP, index);
 
       mod.crf_featureHashing(x.length,
-        xP, indexP, 0, 0x100, outValueP, outIndexP);
+        xP, indexP, 0, dimension, outValueP, outIndexP);
       for (i = 0; i < x.length; i += 1) {
-        expect(U4[(outIndexP + i << 2) >> 2]).to.be.within(0, 0xff);
+        expect(U4[(outIndexP + i << 2) >> 2]).to.be.
+          within(0, dimension - 1);
       }
 
       for (i = 0; i < x.length; i += 1) {
@@ -356,6 +361,60 @@ describe('This handwritten asm.js module', function() {
       // MurmurHashing 255 with the seed 0 returns a negative value.
       // In such a case, the sign of its value is inverted.
       expect(F4[(outValueP + (4 << 2)) >> 2]).to.equal(1.0);
+      
+      // TODO: Add more tests
+    });
+    
+    it('feature hashing for a multiclass sequence', function() {
+      var nz = [];
+      var x = [];
+      var index = [];
+      var nzP = 5000;
+      var xP = 0;
+      var indexP = 500;
+      var outValueP = 2000;
+      var outIndexP = 3000;
+      var numberOfClasses = 3;
+      var pathLength = 2;
+      var dimension = 0x100;
+      var i = 0;
+      var j = 0;
+      var k = 0;
+      var p = 0;
+      var p2 = 0;
+      
+      nz = [
+        3,
+        4
+      ];
+      x = [
+        1.0, 0.5, -2.0, 
+        0.5, -1.0, 1.0, 4.0
+      ];
+      index = [
+        2, 0, 42,
+        100, 255, 2, 10
+      ];
+
+      putUint32(U4, nzP, nz);
+      putFloat(F4, xP, x);
+      putUint32(U4, indexP, index);
+
+      mod.crf_featureHashingSequence(
+        nzP, xP, indexP,
+        numberOfClasses, pathLength, dimension, outValueP, outIndexP);
+
+      for (i = 0, p = 0, p2 = 0; i < pathLength; i += 1) {
+        for (j = 0; j < numberOfClasses; j += 1) {
+          for (k = 0; k < nz[i]; k += 1) {
+            expect(Math.abs(F4[(outValueP + (p << 2)) >> 2])).to.
+              closeTo(Math.abs(x[p2 + k]), 0.000001);
+            p += 1;
+          }
+        }
+        p2 += nz[i];
+      }
+      expect(F4[(outValueP + (p << 2)) >> 2]).to.equal(0.0);
       
       // TODO: Add more tests
     });
@@ -419,7 +478,6 @@ describe('This handwritten asm.js module', function() {
       expect(F4[outP >> 2]).to.equal(0.0);
 
       mod.crf_updateForwardScores(inP, numberOfStates, chainLength, tmpP, outP);
-
     });
     
     it('computing a normalization factor', function() {

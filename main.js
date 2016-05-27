@@ -90,9 +90,9 @@
     *
     * `tableSize` must be a power of 2. No validation is employed.
     *
-    * @param {number} p - byte offset
-    * @param {number} tableSize - size of table
-    * @param {number} maxNumberOfKeys - unsigned 32-bit integer
+    * @param {int} p - byte offset
+    * @param {int} tableSize - size of table
+    * @param {int} maxNumberOfKeys - unsigned 32-bit integer
     *   to specify the maximum number of keys
     */
    function ufmap_create(p, tableSize, maxNumberOfKeys) {
@@ -130,8 +130,8 @@
     * When the key is not found, the first 32-bit of TMP will be 0.
     * The second 32-bit of TMP will be ...
     *
-    * @param {number} p - byte offset
-    * @param {number} key - 32-bit unsigned integer
+    * @param {int} p - byte offset
+    * @param {int} key - 32-bit unsigned integer
     */
    function _ufmap_find(p, key) {
      /*
@@ -187,8 +187,8 @@
    }
 
    /**
-    * @param {number} p - byte offset
-    * @param {number} key - 32-bit unsigned integer
+    * @param {int} p - byte offset
+    * @param {signed} key - 32-bit unsigned integer
     */
    function ufmap_has(p, key) {
      /*
@@ -219,13 +219,13 @@
    }
 
    /**
-    * Updates the value by the following formula
+    * Updates the value by the following formula in 32-bit precision
     * map[key] = coef * map[key] + value
     *
-    * @param {number} p - byte offset
-    * @param {number} key - 32-bit unsigned integer
-    * @param {number} value - 64-bit float
-    * @param {number} coef - 64-bit float
+    * @param {int} p - byte offset
+    * @param {int} key - 32-bit unsigned integer
+    * @param {double} value - 64-bit float
+    * @param {double} coef - 64-bit float
     */
    function ufmap_add(p, key, value, coef) {
      /*
@@ -299,8 +299,8 @@
    }
    
    /**
-    * @param {number} p - byte offset
-    * @param {number} key - 32-bit unsigned integer
+    * @param {int} p - byte offset
+    * @param {int} key - 32-bit unsigned integer
     */
    function ufmap_get(p, key) {
      /*
@@ -340,8 +340,8 @@
    /**
     * Returns the number of entries contained in this map.
     *
-    * @param {number} p - byte offset
-    * @returns {number} - size 
+    * @param {int} p - byte offset
+    * @returns {signed} - size 
     */
    function ufmap_size(p) {
      /*
@@ -368,9 +368,9 @@
      * Returns the largest number of one or more 32-bit floats.
      * If the specified length is less than 1, the behavior is undefined.
      *
-     * @param {number} p - byte offset
-     * @param {number} len - length
-     * @returns {number} - max value
+     * @param {int} p - byte offset
+     * @param {int} len - length
+     * @returns {double} - max value
      */
     function maxFloat32(p, len) {
      /*
@@ -408,9 +408,9 @@
      * Returns the logsumexp of one or more 32-bit floats.
      * Always 0.0 if the specified length is less than 1.
      *
-     * @param {number} p - byte offset
-     * @param {number} len - length
-     * @returns {number} - result of logsumexp
+     * @param {int} p - byte offset
+     * @param {int} len - length
+     * @returns {double} - result of logsumexp
      */
     function logsumexp(p, len) {
      /*
@@ -457,10 +457,10 @@
     *
     * Use ">>> 0" to convert its result to an unsigned integer.
     *
-    * @param {number} p - byte offset to the start of a byte sequence
-    * @param {number} len - length of the specified byte sequence
-    * @param {number} seed - unsigned 32-bit integer used as a seed
-    * @returns {number} - signed 32-bit hash value
+    * @param {int} p - byte offset to the start of a byte sequence
+    * @param {int} len - length of the specified byte sequence
+    * @param {int} seed - unsigned 32-bit integer used as a seed
+    * @returns {signed} - signed 32-bit hash value
     */
     function hash(p, len, seed) {    
      /*
@@ -549,8 +549,8 @@
     
     
     /**
-     * @parma {number} b - first byte of a utf-8 sequence
-     * @returns {number} - number of trailing bytes for the sequence
+     * @parma {int} b - first byte of a utf-8 sequence
+     * @returns {signed} - number of trailing bytes for the sequence
      */
     function uc_trailingBytesForUtf8(b) {
       /*
@@ -581,11 +581,11 @@
      * Based on ConvertUTF.c by Unicode, Inc.
      * Endian dependent.
      *
-     * @param {number} inPP - byte offset to a byte offset to uint16s
-     * @param {number} inEnd - byte offset to the end of inputs
-     * @param {number} outPP - byte offset to a byte offset to uint8s
-     * @param {number} outEnd - byte offset to the end of outputs
-     * @returns {number} - error code
+     * @param {int} inPP - byte offset to a byte offset to uint16s
+     * @param {int} inEnd - byte offset to the end of inputs
+     * @param {int} outPP - byte offset to a byte offset to uint8s
+     * @param {int} outEnd - byte offset to the end of outputs
+     * @returns {signed} - error code
      */
     function uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd) {
       /*
@@ -712,11 +712,11 @@
      * Based on ConvertUTF.c by Unicode, Inc.
      * Endian dependent.
      *
-     * @param {number} inPP - byte offset to a byte offset to uint16s
-     * @param {number} inEnd - byte offset to the end of inputs
-     * @param {number} outPP - byte offset to a byte offset to uint8s
-     * @param {number} outEnd - byte offset to the end of outputs
-     * @returns {number} - error code
+     * @param {int} inPP - byte offset to a byte offset to uint16s
+     * @param {int} inEnd - byte offset to the end of inputs
+     * @param {int} outPP - byte offset to a byte offset to uint8s
+     * @param {int} outEnd - byte offset to the end of outputs
+     * @returns {signed} - error code
      */
     function uc_convertUtf8toUtf16(inPP, inEnd, outPP, outEnd) {
       /*
@@ -845,11 +845,11 @@
     /**
      * Check if the current environment is little-endian or not.
      *
-     * @returns {number} - 1 if little-endian otherwise 0
+     * @returns {signed} - 1 if little-endian otherwise 0
      */
     function isLittleEndian() {
       /*
-       * Type annotations
+       * Local variables
        */
       var c = 0;
       var result = 0;
@@ -915,26 +915,38 @@
     /**
      * Each instance is structured as
      *
-     * +---+---+---+=====+========+=========+
-     * |IID|PLN|STP| NZS | VALUES | INDICES |
-     * +---+---+---+=====+========+=========+
+     * +---+---+---+---+---+---+
+     * |IID|PLN|STP|NZP|VLP|IXP|
+     * +---+---+---+---+---+---+
      *
      * IID: instance id
-     * PLN: uint32, the length of a Markov path
+     * PLN: uint32, the length of a path
      * STP: byte offset to textual information about features. 0 if not exsting
-     * NZS: uint32[PLN]
+     * NZP: byte offset to NZS
+     * VLP: byte offset to VALUES
+     * IND: byte offset to INDICES
+     *
+     * NZS: NZP[i] contains the number of non-zero elements at the position i
      * VALUES: float32[PLN][NZS[i]] for i in [0, PLN)
      * INDICES: uint32[PLN][NZS[i]] for i in [0, PLN)
+     *
+     * Each instance header occupies 24 bytes
      */
-    function crf_trainOnline(numberOfStates, dim, round,
+    
+    // Incomplete
+    function crf_trainOnline(numberOfStates, dimension, round,
+        foiP, soiP, weightP,
         delta, eta, lambda,
         instanceP, tmpP, hashMapP) {
       /*
        * Type annotations
        */
       numberOfStates = numberOfStates | 0;
-      dim = dim | 0;
+      dimension = dimension | 0;
       round = round | 0;
+      foiP = foiP | 0;
+      soiP = soiP | 0;
+      weightP = weightP | 0;
       delta = +delta;
       eta = +eta;
       lambda = +lambda;
@@ -945,19 +957,90 @@
       /*
        * Local variables
        */
-      var pathLength = 0;
+      var i = 0;
+      var p = 0;
+      var nzP = 0;
+      var totalNz = 0;
+      var chainLength = 0;
+      var valueP = 0;
+      var indexP = 0;
+      var outValueP = 0;
+      var outIndexP = 0;
+      var biasScoreP = 0;
+      var transitionScoreP = 0;
+      var transitionScoreTableSize = 0;
+      var stateScoreP = 0;
+      var featureScoreP = 0;
+      var featureScoreTableSize = 0;
+      var forwardScoreP = 0;
+      var backwardScoreP = 0;
+      var normalizationFactor = 0.0;
       
       /*
        * Main
        */
-      pathLength = U4[(instanceP + 4) >> 2] | 0;
+      
+      //
+      // memory allocations
+      //      
+      p = tmpP;
+      outValueP = p;
+      p = (p + 16384) | 0; // allocate 16kb
+      outIndexP = p;
+      p = (p + 16384) | 0; // allocate 16kb
+      
+      // Uses the first element of a weight vector as a bias term
+      biasScoreP = weightP;
 
-      // crf_featureHashingMulticlass(instance, numberOfStates, dim, tmpP);
+      transitionScoreP = (weightP + 4) | 0;
+      transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+      stateScoreP = (weightP + 4 + (transitionScoreTableSize << 2)) | 0;  
+      
+      // Uses the path length of an instance as a Markov chain length
+      chainLength = U4[(instanceP + 4) >> 2] | 0;
+      valueP = U4[(instanceP + 16) >> 2] | 0;
+      indexP = U4[(instanceP + 20) >> 2] | 0;
+      nzP = U4[(instanceP + 12) >> 2] | 0;
+      for (i = 0; (i | 0) < (chainLength | 0); i = (i + 1) | 0) {
+        totalNz = (totalNz + (U4[nzP >> 2] | 0)) | 0;
+        nzP = (nzP + 4) | 0;
+      }
+      
+      featureScoreTableSize = (imul(chainLength, numberOfStates),
+        numberOfStates);
+
+      featureScoreP = (outIndexP + (featureScoreTableSize << 2)) | 0;
+      
       //
-      // crf_updateFeatureScores(bias, , transitionScoreP,
-      //   stateScoreP, numberOfStates, pathLength, outP);
+      // main
       //
-      // crf_updateFeatur
+      crf_featureHashingSequence(nzP, valueP, indexP,
+        numberOfStates, chainLength, dimension, outValueP, outIndexP);
+        
+      // update bias and transition scores positions
+      for (i = 0; (i | 0) < ((featureScoreTableSize + 1) | 0);
+          i = (i + 1) | 0) {
+        crf_adagradUpdateLazyAt(i, foiP, soiP, weightP,
+          +(round | 0), delta, eta, lambda);
+      }
+// crf_adagrad_update
+//        crf_adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
+  //              round, delta, eta, lambda);
+      crf_updateStateScores(nzP, valueP, indexP, weightP,
+        numberOfStates, chainLength, stateScoreP);
+      crf_updateFeatureScores(biasScoreP, transitionScoreP,
+        stateScoreP, numberOfStates, chainLength, featureScoreP);
+      crf_updateForwardScores(featureScoreP, numberOfStates,
+        chainLength, tmpP, forwardScoreP);
+      crf_updateBackwardScores(featureScoreP, numberOfStates,
+        chainLength, tmpP, backwardScoreP);
+      normalizationFactor = +crf_getNormalizationFactor(forwardScoreP,
+        numberOfStates, chainLength);
+      crf_updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
+        numberOfStates, chainLength, normalizationFactor);
+      // crf_updateGradient();
+      // crf_adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
+      // crf_sufferLoss();
     }
     
     /**
@@ -965,11 +1048,11 @@
      * second order information of AdaGrady with a gradient.
      * Actual values will be calculated lazily.
      *
-     * @param {number} nz - number of non-zero elements in a gradient
-     * @param {number} xP - byte offset to float values of a gradient
-     * @param {number} indexP - byte offset to uint32 indices of a gradient
-     * @param {number} foiP - byte offset to a float dense vec 1st order info
-     * @param {number} soiP - byte offset to a float dense vec 2nd order info
+     * @param {int} nz - number of non-zero elements in a gradient
+     * @param {int} xP - byte offset to float values of a gradient
+     * @param {int} indexP - byte offset to uint32 indices of a gradient
+     * @param {int} foiP - byte offset to a float dense vec 1st order info
+     * @param {int} soiP - byte offset to a float dense vec 2nd order info
      */
     function crf_adagradUpdateTemp(nz, xP, indexP, foiP, soiP) {
       /*
@@ -1040,18 +1123,47 @@
       end = (indexP + (nz << 2)) | 0;
       while ((indexP | 0) < (end | 0)) {
         index = U4[indexP >> 2] | 0;
-                
-        p1 = (foiP + (index << 2)) | 0;
-        p2 = (soiP + (index << 2)) | 0;
-        p3 = (weightP + (index << 2)) | 0;
-        
-        F4[p3 >> 2] = +crf_adagradLazyValue(
-          +F4[p1 >> 2], +F4[p2 >> 2],
-          round, delta, eta, lambda
-        );
+
+        crf_adagradUpdateLazyAt(index, foiP, soiP, weightP,
+          round, delta, eta, lambda);
 
         indexP = (indexP + 4) | 0;        
       }
+    }
+    
+    function crf_adagradUpdateLazyAt(index, foiP, soiP, weightP,
+        round, delta, eta, lambda) {
+      /*
+       * Type annotations
+       */
+      index = index | 0;
+      foiP = foiP | 0;
+      soiP = soiP | 0;
+      weightP = weightP | 0;
+      round = +round;
+      delta = +delta;
+      eta = +eta;
+      lambda = +lambda;
+      
+      /*
+       * Local variables
+       */
+      var relativeByteOffset = 0;
+      var p1 = 0;
+      var p2 = 0;
+      var p3 = 0;
+      
+      /*
+       * Main
+       */
+      relativeByteOffset = index << 2; 
+      p1 = (foiP + relativeByteOffset) | 0;
+      p2 = (soiP + relativeByteOffset) | 0;
+      p3 = (weightP + relativeByteOffset) | 0;
+      F4[p3 >> 2] = +crf_adagradLazyValue(
+        +F4[p1 >> 2], +F4[p2 >> 2],
+        round, delta, eta, lambda
+      );
     }
     
     /**
@@ -1159,14 +1271,23 @@
       }
     }
 
-    function crf_featureHashingMulticlass(instanceP, numberOfClasses, dimension,
-      outValueP, outIndexP) {
-
+    /**
+     * Applies feature hashing to an instance for each class/position and
+     * generate new sparse vectors
+     *
+     * If the sum of nzs is x, x * numberOfClasses will be written to
+     * each outValueP and 
+     */
+    function crf_featureHashingSequence(nzP, valueP, indexP,
+      numberOfClasses, pathLength, dimension, outValueP, outIndexP) {
       /*
        * Type annotations
        */
-      instanceP = instanceP | 0;
+      nzP = nzP | 0;
+      valueP = valueP | 0;
+      indexP = indexP | 0;
       numberOfClasses = numberOfClasses | 0;
+      pathLength = pathLength | 0;
       dimension = dimension | 0;
       outValueP = outValueP | 0;
       outIndexP = outIndexP | 0;
@@ -1175,39 +1296,29 @@
        * Local variables
        */
       var i = 0;
-      var pathLength = 0;
-      var nzsP = 0;
-      var valueP = 0;
-      var indexP = 0;
       var nz = 0;
       var end = 0;
-      var mask = 0;
 
       /*
        * Main
        */
-      mask = (dimension - 1) | 0;
-      pathLength = U4[(instanceP + 4) >> 2] | 0;
-      nzsP = (instanceP + 12) | 0;
-      end = (nzsP + (pathLength << 2)) | 0;
+      end = (nzP + (pathLength << 2)) | 0;
 
-      while ((nzsP | 0) < (end | 0)) {
-        nz = U4[nzsP >> 2] | 0;
-        for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
-          crf_featureHashing(nz, valueP, indexP, i, mask,
+      while ((nzP | 0) < (end | 0)) {
+        nz = U4[nzP >> 2] | 0;
+
+        for (i = 0; (i | 0) < (numberOfClasses | 0); i = (i + 1) | 0) {
+          crf_featureHashing(nz, valueP, indexP, i, dimension,
             outValueP, outIndexP);
           outValueP = (outValueP + (nz << 2)) | 0;
           outIndexP = (outIndexP + (nz << 2)) | 0;
         }
 
-        nzsP = (nzsP + 4) | 0;
+        nzP = (nzP + 4) | 0;
         valueP = (valueP + (nz << 2)) | 0;
         indexP = (indexP + (nz << 2)) | 0;
       }
-
-      valueP = (instanceP + 12 + (pathLength << 2)) | 0;
     }
-
 
     /**
      * A sequence of transition scores is a 2-dimensional array
@@ -1218,28 +1329,26 @@
      */
 
     /**
-     * // Not completed yet
+     * Updates a table of state scores.
      *
-     * Updates a sequence of state scores.
-     *
-     * A sequence of state scores is a 2-dimensional array
-     * float[pathLength][numberOfStates].
+     * A table of state scores is a 2-dimensional array
+     * float[chainLength][numberOfStates].
      * score[i][j] represents the state score where the current time is i and
      * the current state is j.
      *
-     * @param {number} nz - 
-     * @param {number} weightP - byte offset to a dense weight vector
-     * @param {number} tmpP - byte offset to a free working space
+     * Exactly (chainLength * numberOfStates) bytes will be written into outP.
      */
-    function crf_updateStateScores(instanceP, weightP, numberOfStates,
-      tmpP, outP) {
+    function crf_updateStateScores(nzP, valueP, indexP, weightP,
+      numberOfStates, chainLength, outP) {
       /*
        * Type annotations
        */
-      instanceP = instanceP | 0;
+      nzP = nzP | 0;
+      valueP = valueP | 0;
+      indexP = indexP | 0;
       weightP = weightP | 0;
       numberOfStates = numberOfStates | 0;
-      tmpP = tmpP | 0;
+      chainLength = chainLength | 0;
       outP = outP | 0;
       
       /*
@@ -1248,63 +1357,42 @@
       var i = 0;
       var p = 0;
       var end = 0;
-      var valueP = 0;
-      var indexP = 0;
-      var nzP = 0;
       var nz = 0;
-      var pathLength = 0;
-      
-      pathLength = U4[(instanceP + 4) >> 2] | 0;
-      nzP = (instanceP + 8) | 0;
-      end = (nzP + pathLength << 2) | 0;
+      var nzBytes = 0;
       
       /*
        * Main
        */
+      end = (nzP + chainLength << 2) | 0;
       while ((nzP | 0) < (end | 0)) {
         nz = U4[nzP >> 2] | 0;
-        // vec_featureHashing();
         for (i = 0; (i | 0) < (numberOfStates | 0); i = (i + 1) | 0) {
-          valueP = tmpP | 0;
-          indexP = (tmpP + (nz << 2)) | 0;
           vec_susdot(nz, valueP, indexP, weightP, outP);
+          outP = (outP + 4) | 0;
         }
         nzP = (nzP + 4) | 0;
-        outP = (outP + 4) | 0;
+        nzBytes = nz << 2;
+        valueP = (valueP + nzBytes) | 0;
+        indexP = (indexP + nzBytes) | 0;
       }
-      
-      // var p = 0;
-      // var end = 0;
-      //
-      // time = stateFeaturesP;
-      // end = (time + (n << 2)) | 0;
-      //
-      // for (time = 0; (time | 0) < (end | 0); time = (time + 1) | 0) {
-      //   p = U4[time >> 2];
-      //
-      //   CRF_hashing_dot(weightP, p, numberOfStates);
-      //   vec_susdot
-      //
-      //   scoresP = (scoresP + 12) | 0;
-      // }
     }
     
     /**
-     * Updates feature scores.
+     * Updates a table of feature scores.
      *
-     * A sequence of feature scores is a 3-dimensional array
-     * float[pathLength][numberOfStates][numberOfStates].
+     * A table of feature scores is a 3-dimensional array
+     * float[chainLength][numberOfStates][numberOfStates].
      * If i = 0, score[0][j][0] represents the state score where the current
      * time is 0, the current state is j, and the previous time is a
      * (hypothetical) initial state.
      * If i > 0, score[i][j][k] represents the state score where the current
      * time is i, the current state is j, and the previous time is k.
      *
-     * Exactly (pathLength * (numberOfStates ^ 2) * 4) bytes will be written
+     * Exactly (chainLength * (numberOfStates ^ 2) * 4) bytes will be written
      * into outP.
      */
     function crf_updateFeatureScores(biasScoreP, transitionScoreP,
-      stateScoreP, numberOfStates, pathLength, outP) {
+      stateScoreP, numberOfStates, chainLength, outP) {
       /*
        * Type annotations
        */
@@ -1312,7 +1400,7 @@
       transitionScoreP = transitionScoreP | 0;
       stateScoreP = stateScoreP | 0;
       numberOfStates = numberOfStates | 0;
-      pathLength = pathLength | 0;
+      chainLength = chainLength | 0;
       outP = outP | 0;
 
       /*
@@ -1347,7 +1435,7 @@
         outP = (outP + (numberOfStates << 2)) | 0;
       }
       
-      for (time = 1; (time | 0) < (pathLength | 0); time = (time + 1) | 0) {
+      for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
         trP = 0;
         
         for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
@@ -1383,11 +1471,11 @@
      * outP. Uses exactly (numberOfStates * 4) bytes at tmpP. They are not
      * required to be initialized to 0.
      * 
-     * @param {number} featureScoresP - byte offset to a table of feature scores
-     * @param {number} numberOfStates - number of the states of a Markov chain
-     * @param {number} chainLength - length of a Markov chain
-     * @parma {number} tmpP - byte offset to working space
-     * @param {number} outP - byte offset where the output will be written
+     * @param {int} featureScoresP - byte offset to a table of feature scores
+     * @param {int} numberOfStates - number of the states of a Markov chain
+     * @param {int} chainLength - length of a Markov chain
+     * @parma {int} tmpP - byte offset to working space
+     * @param {int} outP - byte offset where the output will be written
      */
     function crf_updateForwardScores(featureScoresP, numberOfStates,
         chainLength, tmpP, outP) {
@@ -1475,11 +1563,11 @@
      * into outP. Uses exactly (numberOfStates * 4) bytes at tmpP. They are not
      * required to be initialized to 0.
      *
-     * @param {number} featureScoresP - byte offset to a table of feature scores
-     * @param {number} numberOfStates - number of the states of a Markov chain
-     * @param {number} chainLength - length of a Markov chain
-     * @parma {number} tmpP - byte offset to working space
-     * @param {number} outP - byte offset where the output will be written
+     * @param {int} featureScoresP - byte offset to a table of feature scores
+     * @param {int} numberOfStates - number of the states of a Markov chain
+     * @param {int} chainLength - length of a Markov chain
+     * @parma {int} tmpP - byte offset to working space
+     * @param {int} outP - byte offset where the output will be written
      */
     function crf_updateBackwardScores(featureScoresP, numberOfStates,
         chainLength, tmpP, outP) {
@@ -1586,8 +1674,8 @@
     /**
      * Updates a table of joint scores, overwriting feature scores.
      */
-    function updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
-      numberOfStates, pathLength, normalizationFactor) {
+    function crf_updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
+      numberOfStates, chainLength, normalizationFactor) {
       /*
        * Type annotations
        */
@@ -1595,7 +1683,7 @@
       forwardScoreP = forwardScoreP | 0;
       backwardScoreP = backwardScoreP | 0;
       numberOfStates = numberOfStates | 0;
-      pathLength = pathLength | 0;
+      chainLength = chainLength | 0;
       normalizationFactor = +normalizationFactor;
 
       /*
@@ -1633,7 +1721,7 @@
       //   forwardScores[time - 1][prev]
       //   backwardScores[time][cur]
       //   - normalizationFactor
-      for (time = 1; (time | 0) < (pathLength | 0); time = (time + 1) | 0) {
+      for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
         for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
           backwardScore = +F4[backwardScoreP >> 2];
 
@@ -1668,6 +1756,7 @@
       logsumexp: logsumexp,
       vec_susdot: vec_susdot,
       crf_featureHashing: crf_featureHashing,
+      crf_featureHashingSequence: crf_featureHashingSequence,
       crf_updateForwardScores: crf_updateForwardScores,
       crf_getNormalizationFactor: crf_getNormalizationFactor,
       uc_convertUtf16toUtf8: uc_convertUtf16toUtf8,
