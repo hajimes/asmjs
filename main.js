@@ -25,12 +25,6 @@
     var log = stdlib.Math.log;
     var max = stdlib.Math.max;
     var sqrt = stdlib.Math.sqrt;
-  
-    var i32heap = new stdlib.Int32Array(heap);
-    var u8heap = new stdlib.Uint8Array(heap);
-    var u16heap = new stdlib.Uint16Array(heap);
-    var u32heap = new stdlib.Uint32Array(heap);
-    var f32heap = new stdlib.Float32Array(heap);
     
     var I1 = new stdlib.Int8Array(heap);
     var I2 = new stdlib.Int16Array(heap);
@@ -117,12 +111,12 @@
      /*
       * Main
       */
-     u32heap[(p + 8) >> 2] = tableSize;
-     u32heap[(p + 12) >> 2] = 0;
-     u32heap[(p + 16) >> 2] = maxNumberOfKeys;
+     U4[(p + 8) >> 2] = tableSize;
+     U4[(p + 12) >> 2] = 0;
+     U4[(p + 16) >> 2] = maxNumberOfKeys;
      linkedListP = (32 + tableSize) | 0;
-     u32heap[(p + 20) >> 2] = linkedListP;
-     u32heap[(p + 24) >> 2] = linkedListP;
+     U4[(p + 20) >> 2] = linkedListP;
+     U4[(p + 24) >> 2] = linkedListP;
    }
    
    /**
@@ -167,28 +161,28 @@
       */
      tmp1P = (p + TMP1) | 0;
 
-     mask = ((u32heap[(p + TBS) >> 2] | 0) - 1) >>> 0;
-     u32heap[tmp1P >> 2] = key;
+     mask = ((U4[(p + TBS) >> 2] | 0) - 1) >>> 0;
+     U4[tmp1P >> 2] = key;
      hashValue = hash(tmp1P, 1, SEED) | 0;
 
      prevP = (TABLE_START + (hashValue & mask)) | 0;
-     nextP = u32heap[(p + prevP) >> 2] | 0;
+     nextP = U4[(p + prevP) >> 2] | 0;
      
      // while (nextP is not empty and key is not matched)
      while (((nextP | 0) != 0) & ((k >>> 0) != (key >>> 0))) {
        entryP = nextP;
-       k = u32heap[(p + entryP) >> 2] | 0;
+       k = U4[(p + entryP) >> 2] | 0;
        prevP = entryP;
-       nextP = u32heap[((p + entryP + 8) | 0) >> 2] | 0;
+       nextP = U4[((p + entryP + 8) | 0) >> 2] | 0;
      }
      
-     u32heap[(p + TMP2) >> 2] = prevP | 0;
+     U4[(p + TMP2) >> 2] = prevP | 0;
 
      if ((k | 0) == (key | 0)) {
        // Key matched
-       u32heap[tmp1P >> 2] = entryP | 0;
+       U4[tmp1P >> 2] = entryP | 0;
      } else {
-       u32heap[tmp1P >> 2] = 0;
+       U4[tmp1P >> 2] = 0;
      }
    }
 
@@ -214,7 +208,7 @@
       * Main
       */
      _ufmap_find(p, key);
-     matched = u32heap[(p + TMP1) >> 2] | 0;
+     matched = U4[(p + TMP1) >> 2] | 0;
      
      if ((matched | 0) != 0) {
        // Key matched
@@ -271,36 +265,36 @@
      frpP = (p + FRP) | 0;
      
      _ufmap_find(p, key);
-     entryP = u32heap[(p + TMP1) >> 2] | 0;
-     prevP = u32heap[(p + TMP2) >> 2] | 0;
+     entryP = U4[(p + TMP1) >> 2] | 0;
+     prevP = U4[(p + TMP2) >> 2] | 0;
 
      if ((entryP | 0) != 0) {
        // Key matched
        valueAbsP = (p + entryP + 4) | 0;
-       v = +f32heap[valueAbsP >> 2];
+       v = +F4[valueAbsP >> 2];
        v = coef * v + value;
-       f32heap[valueAbsP >> 2] = v;
+       F4[valueAbsP >> 2] = v;
        return;
      }
 
-     currentSize = u32heap[lenP >> 2] >>> 0;
-     maximumNumberOfKeys = u32heap[mnkP >> 2] >>> 0;
+     currentSize = U4[lenP >> 2] >>> 0;
+     maximumNumberOfKeys = U4[mnkP >> 2] >>> 0;
      
      if ((currentSize >>> 0) == (maximumNumberOfKeys >>> 0)) {       
        return;
      }
 
      // Add a new entry
-     freeAbsP = (p + (u32heap[frpP >> 2] | 0)) | 0;
-     u32heap[(p + prevP) >> 2] = (freeAbsP - p) | 0;
-     u32heap[freeAbsP >> 2] = key;
+     freeAbsP = (p + (U4[frpP >> 2] | 0)) | 0;
+     U4[(p + prevP) >> 2] = (freeAbsP - p) | 0;
+     U4[freeAbsP >> 2] = key;
      freeAbsP = (freeAbsP + 4) | 0;
-     f32heap[freeAbsP >> 2] = value;
+     F4[freeAbsP >> 2] = value;
      freeAbsP = (freeAbsP + 4) | 0;
-     u32heap[frpP >> 2] = (freeAbsP - p) | 0;
+     U4[frpP >> 2] = (freeAbsP - p) | 0;
 
      // increment the number of entries
-     u32heap[lenP >> 2]
+     U4[lenP >> 2]
        = (currentSize + 1) >>> 0;
    }
    
@@ -331,13 +325,13 @@
       * Main
       */
      _ufmap_find(p, key);
-     matched = u32heap[(p + TMP1) >> 2] | 0;
+     matched = U4[(p + TMP1) >> 2] | 0;
      entryP = (p + matched) | 0;
-     prevP = (p + (u32heap[(p + TMP2) >> 2] | 0)) | 0;
+     prevP = (p + (U4[(p + TMP2) >> 2] | 0)) | 0;
 
      if ((matched | 0) != 0) {
        // Key matched
-       return +f32heap[(entryP + 4) >> 2];
+       return +F4[(entryP + 4) >> 2];
      }
      
      return 0.0;
@@ -363,7 +357,7 @@
      /*
       * Main
       */
-     return u32heap[(p + LEN) >> 2] | 0;
+     return U4[(p + LEN) >> 2] | 0;
    }
     
     /********************
@@ -396,11 +390,11 @@
       * Main
       */
       end = (p + (len << 2)) | 0;
-      result = +f32heap[p >> 2];
+      result = +F4[p >> 2];
       p = (p + 4) | 0;
     
       for (; (p | 0) < (end | 0); p = (p + 4) | 0) {
-        v = +f32heap[p >> 2];
+        v = +F4[p >> 2];
 
         if (v >= result) {
           result = v;
@@ -444,7 +438,7 @@
       end = (p + (len << 2)) | 0;
     
       for (; (p | 0) < (end | 0); p = (p + 4) | 0) {
-        v = +f32heap[p >> 2];
+        v = +F4[p >> 2];
 
         // exp(-20) = 2.06e-9, machine epsilon for float32 = 5.96e-08
         if (v - maxValue > -16.0) {
@@ -501,7 +495,7 @@
       end = (p + bodyLength) | 0;
       // console.log(from + ' ' + tailLength + ' ' + end);
       while ((p | 0) < (end | 0)) {
-       k1 = u32heap[p >> 2] | 0;
+       k1 = U4[p >> 2] | 0;
        p = (p + 4) | 0;
 
        k1 = imul(k1, 0xcc9e2d51) >>> 0;
@@ -522,13 +516,13 @@
 
       switch (tailLength | 0) {
         case 3:
-          k1 = (k1 ^ (u8heap[(p + 2) >> 0] << 16)) | 0;
+          k1 = (k1 ^ (U1[(p + 2) >> 0] << 16)) | 0;
           // fall through
         case 2:
-          k1 = (k1 ^ (u8heap[(p + 1) >> 0] << 8)) | 0;
+          k1 = (k1 ^ (U1[(p + 1) >> 0] << 8)) | 0;
           // fall through
         case 1:
-          k1 = (k1 ^ (u8heap[p >> 0] | 0)) | 0;
+          k1 = (k1 ^ (U1[p >> 0] | 0)) | 0;
           k1 = imul(k1, 0xcc9e2d51) >>> 0;
 
           k1 = (k1 << 15) | (k1 >>> 17);
@@ -627,17 +621,17 @@
       /*
        * Main
        */
-      inP = u32heap[inPP >> 2] | 0;
-      outP = u32heap[outPP >> 2] | 0;      
+      inP = U4[inPP >> 2] | 0;
+      outP = U4[outPP >> 2] | 0;      
       while ((inP | 0) < (inEnd | 0)) {
-        ch = u16heap[inP >> 1] | 0;
+        ch = U2[inP >> 1] | 0;
         inP = (inP + 2) | 0;
         
         // check if ch is a high surrogate
         if (((ch | 0) >= (SUR_HIGH_START | 0)) &
               ((ch | 0) <= (SUR_HIGH_END | 0))) {
           if ((inP | 0) < (inEnd | 0)) {
-            ch2 = u16heap[inP >> 1] | 0;
+            ch2 = U2[inP >> 1] | 0;
             
             // check if ch2 is a low surrogate
             if (((ch2 | 0) >= (SUR_LOW_START | 0)) &
@@ -652,7 +646,7 @@
             return ERROR_SOURCE_ILLEGAL | 0;
           }
           
-          u8heap[outP >> 0] = ch;
+          U1[outP >> 0] = ch;
         } // end if surroge
         
         // How many bytes will the result require?
@@ -678,17 +672,17 @@
         switch (bytesToWrite | 0) {
           case 4:
             outP = (outP - 1) | 0;
-            u8heap[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
+            U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
             ch = ch >> 6;
             // fall through
           case 3:
             outP = (outP - 1) | 0;
-            u8heap[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
+            U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
             ch = ch >> 6;
             // fall through
           case 2:
             outP = (outP - 1) | 0;
-            u8heap[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
+            U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
             ch = ch >> 6;
             // fall through
           case 1:
@@ -703,13 +697,13 @@
               firstByteMask = 0xf0;
             }
 
-            u8heap[outP >> 0] = (ch | firstByteMask);
+            U1[outP >> 0] = (ch | firstByteMask);
         } // end switch
         outP = (outP + bytesToWrite) | 0;
       } // end while
       
-      u32heap[inPP >> 2] = inP | 0;
-      u32heap[outPP >> 2] = outP | 0;
+      U4[inPP >> 2] = inP | 0;
+      U4[outPP >> 2] = outP | 0;
       
       return 0;
     }
@@ -755,11 +749,11 @@
       /*
        * Main
        */
-      inP = u32heap[inPP >> 2] | 0;
-      outP = u32heap[outPP >> 2] | 0;  
+      inP = U4[inPP >> 2] | 0;
+      outP = U4[outPP >> 2] | 0;  
       while ((inP | 0) < (inEnd | 0)) {
         ch = 0;
-        v = u8heap[inP >> 0] | 0;
+        v = U1[inP >> 0] | 0;
         extraBytesToRead = uc_trailingBytesForUtf8(v) | 0;
         if ((extraBytesToRead | 0) >= ((inEnd - inP) | 0)) {
           result = ERROR_SOURCE_EXHAUSTED | 0;
@@ -770,25 +764,25 @@
                 
         switch (extraBytesToRead | 0) {
           case 3:
-            v = u8heap[inP >> 0] | 0;
+            v = U1[inP >> 0] | 0;
             ch = (ch + v) | 0;
             inP = (inP + 1) | 0;
             ch = ch << 6;
             // fall through
           case 2:
-            v = u8heap[inP >> 0] | 0;
+            v = U1[inP >> 0] | 0;
             ch = (ch + v) | 0;
             inP = (inP + 1) | 0;
             ch = ch << 6;
             // fall through
           case 1:
-            v = u8heap[inP >> 0] | 0;
+            v = U1[inP >> 0] | 0;
             ch = (ch + v) | 0;
             inP = (inP + 1) | 0;
             ch = ch << 6;
             // fall through
           case 0:
-            v = u8heap[inP >> 0] | 0;
+            v = U1[inP >> 0] | 0;
             ch = (ch + v) | 0;
             inP = (inP + 1) | 0;
         }
@@ -819,7 +813,7 @@
             result = ERROR_SOURCE_ILLEGAL = 3;
             break;
           } else {
-            u16heap[outP >> 1] = ch | 0;
+            U2[outP >> 1] = ch | 0;
             outP = (outP + 2) | 0;
           }
         } else if ((ch | 0) > 0x10ffff) {
@@ -835,15 +829,15 @@
             break;
           }
           ch = (ch - HALF_BASE) | 0;
-          u16heap[outP >> 1] = ((ch >> HALF_SHIFT) + SUR_HIGH_START) | 0;
+          U2[outP >> 1] = ((ch >> HALF_SHIFT) + SUR_HIGH_START) | 0;
           outP = (outP + 2) | 0;
-          u16heap[outP >> 1] = ((ch & HALF_MASK) + SUR_LOW_START) | 0;
+          U2[outP >> 1] = ((ch & HALF_MASK) + SUR_LOW_START) | 0;
         }
         
       } // end while
       
-      u32heap[inPP >> 2] = inP | 0;
-      u32heap[outPP >> 2] = outP | 0;
+      U4[inPP >> 2] = inP | 0;
+      U4[outPP >> 2] = outP | 0;
       
       return result | 0;
     }
@@ -863,11 +857,11 @@
       /*
        * Main
        */
-      c = u16heap[0 >> 1] | 0;
-      u8heap[0 >> 0] = 0;
-      u8heap[1 >> 0] = 1;
-      result = u16heap[0 >> 1] >>> 8;
-      u16heap[0 >> 1] = c | 0;
+      c = U2[0 >> 1] | 0;
+      U1[0 >> 0] = 0;
+      U1[1 >> 0] = 1;
+      result = U2[0 >> 1] >>> 8;
+      U2[0 >> 1] = c | 0;
       
       return result | 0;
     }
@@ -903,16 +897,16 @@
        */
       end = (indexP + (nz << 2)) | 0;
       while ((indexP | 0) < (end | 0)) {
-        index = u32heap[indexP >> 2] | 0;
-        value = +f32heap[xP >> 2];
+        index = U4[indexP >> 2] | 0;
+        value = +F4[xP >> 2];
         
-        result = +(result + value * +f32heap[(yP + (index << 2)) >> 2]);
+        result = +(result + value * +F4[(yP + (index << 2)) >> 2]);
         
         indexP = (indexP + 4) | 0;
         xP = (xP + 4) | 0;
       }
       
-      f32heap[outP >> 2] = result;
+      F4[outP >> 2] = result;
     }
     
     /********************
@@ -951,17 +945,17 @@
       /*
        * Local variables
        */
-      var finalTime = 0;
+      var pathLength = 0;
       
       /*
        * Main
        */
-      finalTime = U4[(instanceP + 4) >> 2] | 0;
+      pathLength = U4[(instanceP + 4) >> 2] | 0;
 
       // crf_featureHashingMulticlass(instance, numberOfStates, dim, tmpP);
       //
       // crf_updateFeatureScores(bias, , transitionScoreP,
-      //   stateScoreP, numberOfStates, finalTime, outP);
+      //   stateScoreP, numberOfStates, pathLength, outP);
       //
       // crf_updateFeatur
     }
@@ -1181,7 +1175,7 @@
        * Local variables
        */
       var i = 0;
-      var finalTime = 0;
+      var pathLength = 0;
       var nzsP = 0;
       var valueP = 0;
       var indexP = 0;
@@ -1193,9 +1187,9 @@
        * Main
        */
       mask = (dimension - 1) | 0;
-      finalTime = U4[(instanceP + 4) >> 2] | 0;
+      pathLength = U4[(instanceP + 4) >> 2] | 0;
       nzsP = (instanceP + 12) | 0;
-      end = (nzsP + (finalTime << 2)) | 0;
+      end = (nzsP + (pathLength << 2)) | 0;
 
       while ((nzsP | 0) < (end | 0)) {
         nz = U4[nzsP >> 2] | 0;
@@ -1211,7 +1205,7 @@
         indexP = (indexP + (nz << 2)) | 0;
       }
 
-      valueP = (instanceP + 12 + (finalTime << 2)) | 0;
+      valueP = (instanceP + 12 + (pathLength << 2)) | 0;
     }
 
 
@@ -1229,23 +1223,23 @@
      * Updates a sequence of state scores.
      *
      * A sequence of state scores is a 2-dimensional array
-     * float[finalTime][numberOfStates].
+     * float[pathLength][numberOfStates].
      * score[i][j] represents the state score where the current time is i and
      * the current state is j.
      *
      * @param {number} nz - 
      * @param {number} weightP - byte offset to a dense weight vector
-     * @param {number} freeP - byte offset to a free working space
+     * @param {number} tmpP - byte offset to a free working space
      */
     function crf_updateStateScores(instanceP, weightP, numberOfStates,
-      freeP, outP) {
+      tmpP, outP) {
       /*
        * Type annotations
        */
       instanceP = instanceP | 0;
       weightP = weightP | 0;
       numberOfStates = numberOfStates | 0;
-      freeP = freeP | 0;
+      tmpP = tmpP | 0;
       outP = outP | 0;
       
       /*
@@ -1258,11 +1252,11 @@
       var indexP = 0;
       var nzP = 0;
       var nz = 0;
-      var finalTime = 0;
+      var pathLength = 0;
       
-      finalTime = U4[(instanceP + 4) >> 2] | 0;
+      pathLength = U4[(instanceP + 4) >> 2] | 0;
       nzP = (instanceP + 8) | 0;
-      end = (nzP + finalTime << 2) | 0;
+      end = (nzP + pathLength << 2) | 0;
       
       /*
        * Main
@@ -1271,8 +1265,8 @@
         nz = U4[nzP >> 2] | 0;
         // vec_featureHashing();
         for (i = 0; (i | 0) < (numberOfStates | 0); i = (i + 1) | 0) {
-          valueP = freeP | 0;
-          indexP = (freeP + (nz << 2)) | 0;
+          valueP = tmpP | 0;
+          indexP = (tmpP + (nz << 2)) | 0;
           vec_susdot(nz, valueP, indexP, weightP, outP);
         }
         nzP = (nzP + 4) | 0;
@@ -1286,7 +1280,7 @@
       // end = (time + (n << 2)) | 0;
       //
       // for (time = 0; (time | 0) < (end | 0); time = (time + 1) | 0) {
-      //   p = u32heap[time >> 2];
+      //   p = U4[time >> 2];
       //
       //   CRF_hashing_dot(weightP, p, numberOfStates);
       //   vec_susdot
@@ -1299,18 +1293,18 @@
      * Updates feature scores.
      *
      * A sequence of feature scores is a 3-dimensional array
-     * float[finalTime][numberOfStates][numberOfStates].
+     * float[pathLength][numberOfStates][numberOfStates].
      * If i = 0, score[0][j][0] represents the state score where the current
      * time is 0, the current state is j, and the previous time is a
      * (hypothetical) initial state.
      * If i > 0, score[i][j][k] represents the state score where the current
      * time is i, the current state is j, and the previous time is k.
      *
-     * Exactly (finalTime * (numberOfStates ^ 2) * 4) bytes will be written
+     * Exactly (pathLength * (numberOfStates ^ 2) * 4) bytes will be written
      * into outP.
      */
     function crf_updateFeatureScores(biasScoreP, transitionScoreP,
-      stateScoreP, numberOfStates, finalTime, outP) {
+      stateScoreP, numberOfStates, pathLength, outP) {
       /*
        * Type annotations
        */
@@ -1318,7 +1312,7 @@
       transitionScoreP = transitionScoreP | 0;
       stateScoreP = stateScoreP | 0;
       numberOfStates = numberOfStates | 0;
-      finalTime = finalTime | 0;
+      pathLength = pathLength | 0;
       outP = outP | 0;
 
       /*
@@ -1353,7 +1347,7 @@
         outP = (outP + (numberOfStates << 2)) | 0;
       }
       
-      for (time = 1; (time | 0) < (finalTime | 0); time = (time + 1) | 0) {
+      for (time = 1; (time | 0) < (pathLength | 0); time = (time + 1) | 0) {
         trP = 0;
         
         for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
@@ -1388,6 +1382,12 @@
      * Exactly (chainLength * numberOfStates * 4) bytes will be written into
      * outP. Uses exactly (numberOfStates * 4) bytes at tmpP. They are not
      * required to be initialized to 0.
+     * 
+     * @param {number} featureScoresP - byte offset to a table of feature scores
+     * @param {number} numberOfStates - number of the states of a Markov chain
+     * @param {number} chainLength - length of a Markov chain
+     * @parma {number} tmpP - byte offset to working space
+     * @param {number} outP - byte offset where the output will be written
      */
     function crf_updateForwardScores(featureScoresP, numberOfStates,
         chainLength, tmpP, outP) {
@@ -1469,22 +1469,27 @@
      * Updates backward scores.
      *
      * A sequence of backward scores is a 2-dimensional array
-     * float[finalTime][numberOfStates].
+     * float[chainLength][numberOfStates].
      *
-     * Exactly (finalTime * numberOfStates * 4) bytes will be written into outP.
+     * Exactly (chainLength * numberOfStates * 4) bytes will be written
+     * into outP. Uses exactly (numberOfStates * 4) bytes at tmpP. They are not
+     * required to be initialized to 0.
      *
-     * Uses exactly (numberOfStates * 4) bytes at freeP. They are not required 
-     * to be initialized to 0.
+     * @param {number} featureScoresP - byte offset to a table of feature scores
+     * @param {number} numberOfStates - number of the states of a Markov chain
+     * @param {number} chainLength - length of a Markov chain
+     * @parma {number} tmpP - byte offset to working space
+     * @param {number} outP - byte offset where the output will be written
      */
     function crf_updateBackwardScores(featureScoresP, numberOfStates,
-        finalTime, freeP, outP) {
+        chainLength, tmpP, outP) {
       /*
        * Type annotations
        */
       featureScoresP = featureScoresP | 0;
       numberOfStates = numberOfStates | 0;
-      finalTime = finalTime | 0;
-      freeP = freeP | 0;
+      chainLength = chainLength | 0;
+      tmpP = tmpP | 0;
       outP = outP | 0;
 
       /*
@@ -1507,8 +1512,8 @@
       nosBytes = numberOfStates << 2;
       nextP = outP;
       
-      // backwardScores[finalTime - 1][cur] = 0
-      t = imul(numberOfStates << 2, finalTime - 1);
+      // backwardScores[chainLength - 1][cur] = 0
+      t = imul(numberOfStates << 2, chainLength - 1);
       outP = (outP + t) | 0;
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
         F4[outP >> 2] = 0.0;
@@ -1516,7 +1521,7 @@
       }
 
       outP = (outP - (nosBytes << 2)) | 0;
-      for (time = (finalTime - 2) | 0; (time | 0) >= 0;
+      for (time = (chainLength - 2) | 0; (time | 0) >= 0;
           time = (time - 1) | 0) {  
         for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
           // backwardScores[time][cur] = logsumexp(
@@ -1533,15 +1538,15 @@
             
             score = featureScore + nextScore;
             
-            F4[freeP >> 2] = score;
+            F4[tmpP >> 2] = score;
             
             p = (p + 4) | 0;
             nextP = (nextP + 4) | 0;
-            freeP = (freeP + 4) | 0;
+            tmpP = (tmpP + 4) | 0;
           } 
-          freeP = (freeP - nosBytes) | 0;
+          tmpP = (tmpP - nosBytes) | 0;
                     
-          F4[outP >> 2] = +logsumexp(freeP, numberOfStates);
+          F4[outP >> 2] = +logsumexp(tmpP, numberOfStates);
  
           // set nextP to the byte offset of backwardScores[time][0]
           nextP = (nextP - (nosBytes << 2)) | 0;
@@ -1582,7 +1587,7 @@
      * Updates a table of joint scores, overwriting feature scores.
      */
     function updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
-      numberOfStates, finalTime, normalizationFactor) {
+      numberOfStates, pathLength, normalizationFactor) {
       /*
        * Type annotations
        */
@@ -1590,7 +1595,7 @@
       forwardScoreP = forwardScoreP | 0;
       backwardScoreP = backwardScoreP | 0;
       numberOfStates = numberOfStates | 0;
-      finalTime = finalTime | 0;
+      pathLength = pathLength | 0;
       normalizationFactor = +normalizationFactor;
 
       /*
@@ -1628,7 +1633,7 @@
       //   forwardScores[time - 1][prev]
       //   backwardScores[time][cur]
       //   - normalizationFactor
-      for (time = 1; (time | 0) < (finalTime | 0); time = (time + 1) | 0) {
+      for (time = 1; (time | 0) < (pathLength | 0); time = (time + 1) | 0) {
         for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
           backwardScore = +F4[backwardScoreP >> 2];
 
