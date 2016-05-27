@@ -922,18 +922,16 @@
      * Each instance is structured as
      *
      * +---+---+---+=====+========+=========+
-     * |IID|FTM|STP| NZS | VALUES | INDICES |
+     * |IID|PLN|STP| NZS | VALUES | INDICES |
      * +---+---+---+=====+========+=========+
      *
      * IID: instance id
-     * FTM: uint32, the time of the final state of a Markov path
+     * PLN: uint32, the length of a Markov path
      * STP: byte offset to textual information about features. 0 if not exsting
-     * NZS: uint32[FTM]
-     * VALUES: float32[FTM][NZS[i]] for i in [0, FTM)
-     * INDICES: uint32[FTM][NZS[i]] for i in [0, FTM)
+     * NZS: uint32[PLN]
+     * VALUES: float32[PLN][NZS[i]] for i in [0, PLN)
+     * INDICES: uint32[PLN][NZS[i]] for i in [0, PLN)
      */
-
-
     function crf_trainOnline(numberOfStates, dim, round,
         delta, eta, lambda,
         instanceP, tmpP, hashMapP) {
@@ -1385,21 +1383,20 @@
      * Updates forward scores.
      *
      * A sequence of forward scores is a 2-dimensional array
-     * float[finalTime][numberOfStates].
+     * float[chainLength][numberOfStates].
      *
-     * Exactly (finalTime * numberOfStates * 4) bytes will be written into outP.
-     *
-     * Uses exactly (numberOfStates * 4) bytes at tmpP. They are not required 
-     * to be initialized to 0.
+     * Exactly (chainLength * numberOfStates * 4) bytes will be written into
+     * outP. Uses exactly (numberOfStates * 4) bytes at tmpP. They are not
+     * required to be initialized to 0.
      */
     function crf_updateForwardScores(featureScoresP, numberOfStates,
-        finalTime, tmpP, outP) {
+        chainLength, tmpP, outP) {
       /*
        * Type annotations
        */
       featureScoresP = featureScoresP | 0;
       numberOfStates = numberOfStates | 0;
-      finalTime = finalTime | 0;
+      chainLength = chainLength | 0;
       tmpP = tmpP | 0;
       outP = outP | 0;
 
@@ -1418,6 +1415,11 @@
       /*
        * Main
        */
+      if ((chainLength | 0) <= 0) {
+        return;
+      }
+      
+      p = featureScoresP;
       prevP = outP;
       
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
@@ -1428,8 +1430,9 @@
         p = (p + (numberOfStates << 2)) | 0;
         outP = (outP + 4) | 0;
       }
+      
 
-      for (time = 1; (time | 0) < (finalTime | 0); time = (time + 1) | 0) {  
+      for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {  
         for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
           // forwardScores[time][cur] = logsumexp(
           //   featureScores[time][cur][0] + forwardScores[time - 1][0],
@@ -1549,13 +1552,13 @@
     }
     
     function crf_getNormalizationFactor(forwardScoreP,
-        numberOfStates, finalTime) {
+        numberOfStates, chainLength) {
       /*
        * Type annotations
        */
       forwardScoreP = forwardScoreP | 0;
-      finalTime = finalTime | 0;
       numberOfStates = numberOfStates | 0;
+      chainLength = chainLength | 0;
 
       /*
        * Local variables
@@ -1565,11 +1568,11 @@
       /*
        * Main
        */
-      if ((finalTime | 0) <= 0) {
+      if ((chainLength | 0) <= 0) {
         return 0.0;
       }
       
-      t = imul(numberOfStates << 2, finalTime - 1);
+      t = imul(numberOfStates << 2, chainLength - 1);
       forwardScoreP = (forwardScoreP + t) | 0;
 
       return +logsumexp(forwardScoreP, numberOfStates);
@@ -1660,6 +1663,7 @@
       logsumexp: logsumexp,
       vec_susdot: vec_susdot,
       crf_featureHashing: crf_featureHashing,
+      crf_updateForwardScores: crf_updateForwardScores,
       crf_getNormalizationFactor: crf_getNormalizationFactor,
       uc_convertUtf16toUtf8: uc_convertUtf16toUtf8,
       uc_convertUtf8toUtf16: uc_convertUtf8toUtf16,

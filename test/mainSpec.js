@@ -3,6 +3,7 @@ describe('This handwritten asm.js module', function() {
 
   var chai = {};
   var expect = {};
+  var _ = {};
 
   var myAsmjsModule = {};
 
@@ -33,10 +34,12 @@ describe('This handwritten asm.js module', function() {
   if (typeof window === 'undefined') {
     root = global;
     chai = require('chai');
+    _ = require('lodash');
     myAsmjsModule = require('../main');
   } else {
     root = window;
     chai = window.chai;
+    _ = window._;
     myAsmjsModule = window.myAsmjsModule;
   }
   expect = chai.expect;  
@@ -324,8 +327,8 @@ describe('This handwritten asm.js module', function() {
     });
   });
   
-  describe('provides methods to train CRF models', function() {
-    it('implementing feature hashing', function() {
+  describe('provides methods to train CRF models such as', function() {
+    it('feature hashing', function() {
       var x = [];
       var index = [];
       var xP = 0;
@@ -357,25 +360,82 @@ describe('This handwritten asm.js module', function() {
       // TODO: Add more tests
     });
     
-    it('able to compute a normalization factor', function() {
+    it('forward score calculation', function() {
+      var i = 0;
+
+      var a = 1.0;
+      var b = -1.0;
+      
+      var featureScores = [
+        a, 2.0, b, 0.5,
+        1.0, -1.0, 1.0, 1.0,
+        1.0, 1.0, -1.0, 1.0,        
+      ];
+      var numberOfStates = 2;
+      var chainLength = 3;
+      var inP = 1000;
+      var outP = 3000;
+      var tmpP = 2000;
+      
+      putFloat(F4, inP, featureScores);
+
+      // do nothing if either # of states or chain length is less than 1
+      mod.crf_updateForwardScores(inP, -1, chainLength, tmpP, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      mod.crf_updateForwardScores(inP, 0, chainLength, tmpP, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      mod.crf_updateForwardScores(inP, numberOfStates, 0, tmpP, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);      
+      mod.crf_updateForwardScores(inP, numberOfStates, -1, tmpP, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);      
+            
+      mod.crf_updateForwardScores(inP, numberOfStates, chainLength, tmpP, outP);
+
+      // The first (numberOfStates) bytes are the same as 
+      // featureScores[0][i][0] for i in [0, numberOfStates)
+      expect(F4[outP >> 2]).to.equal(a);
+      outP += 4;
+      expect(F4[outP >> 2]).to.equal(b);
+      outP += 4;
+      
+      // Check if resulting values are in the range of ordinary numbers
+      for (i = numberOfStates; i < numberOfStates * chainLength; i += 1) {
+        expect(_.isNumber(F4[outP >> 2])).to.be.true;
+        outP += 4;
+      }
+      
+      // The method uses exactly (numberOfStates * chainLength) bytes
+      // so bytes after that should remain 0
+      expect(F4[outP >> 2]).to.equal(0.0);
+
+      mod.crf_updateForwardScores(inP, numberOfStates, chainLength, tmpP, outP);
+
+    });
+    
+    it('computing a normalization factor', function() {
       var forwardScores = [1.0, 2.0, -1.0, 0.5, 1.0, -1.0];
       var numberOfStates = 2;
-      var pathLength = 3;
+      var chainLength = 3;
       var inP = 1000;
-      var outP = 0;
-      var tmpP = 2000;
       var nf = 0.0;
       
       putFloat(F4, inP, forwardScores);
       
-      nf = mod.crf_getNormalizationFactor(inP, numberOfStates, pathLength);
+      nf = mod.crf_getNormalizationFactor(inP, numberOfStates, chainLength);
       
-      // logsumexp(1.0, -1.0)
       expect(nf).to.closeTo(1.126928, 0.00001);
 
-      nf = mod.crf_getNormalizationFactor(inP, 0, pathLength);
+      nf = mod.crf_getNormalizationFactor(inP, 0, chainLength);
       expect(nf).to.closeTo(0, 0.00001);
-      nf = mod.crf_getNormalizationFactor(inP, -1, pathLength);
+      nf = mod.crf_getNormalizationFactor(inP, -1, chainLength);
       expect(nf).to.closeTo(0, 0.00001);
 
       nf = mod.crf_getNormalizationFactor(inP, numberOfStates, 0);
