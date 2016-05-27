@@ -112,6 +112,9 @@ describe('This handwritten asm.js module', function() {
       F4[26] = 10.0;
       F4[27] = -9.0;
       expect(mod.logsumexp(25 << 2, 3)).to.closeTo(10.0, 0.000001);
+
+      expect(mod.logsumexp(25 << 2, 0)).to.closeTo(0.0, 0.000001);
+      expect(mod.logsumexp(25 << 2, -1)).to.closeTo(0.0, 0.000001);
     });
   });
   
@@ -321,8 +324,8 @@ describe('This handwritten asm.js module', function() {
     });
   });
   
-  describe('provides leanrning for training CRF models', function() {
-    it('implements feature hashing', function() {
+  describe('provides methods to train CRF models', function() {
+    it('implementing feature hashing', function() {
       var x = [];
       var index = [];
       var xP = 0;
@@ -337,7 +340,7 @@ describe('This handwritten asm.js module', function() {
       putUint32(U4, indexP, index);
 
       mod.crf_featureHashing(x.length,
-        xP, indexP, 0, 0xff, outValueP, outIndexP);
+        xP, indexP, 0, 0x100, outValueP, outIndexP);
       for (i = 0; i < x.length; i += 1) {
         expect(U4[(outIndexP + i << 2) >> 2]).to.be.within(0, 0xff);
       }
@@ -352,6 +355,33 @@ describe('This handwritten asm.js module', function() {
       expect(F4[(outValueP + (4 << 2)) >> 2]).to.equal(1.0);
       
       // TODO: Add more tests
+    });
+    
+    it('able to compute a normalization factor', function() {
+      var forwardScores = [1.0, 2.0, -1.0, 0.5, 1.0, -1.0];
+      var numberOfStates = 2;
+      var pathLength = 3;
+      var inP = 1000;
+      var outP = 0;
+      var tmpP = 2000;
+      var nf = 0.0;
+      
+      putFloat(F4, inP, forwardScores);
+      
+      nf = mod.crf_getNormalizationFactor(inP, numberOfStates, pathLength);
+      
+      // logsumexp(1.0, -1.0)
+      expect(nf).to.closeTo(1.126928, 0.00001);
+
+      nf = mod.crf_getNormalizationFactor(inP, 0, pathLength);
+      expect(nf).to.closeTo(0, 0.00001);
+      nf = mod.crf_getNormalizationFactor(inP, -1, pathLength);
+      expect(nf).to.closeTo(0, 0.00001);
+
+      nf = mod.crf_getNormalizationFactor(inP, numberOfStates, 0);
+      expect(nf).to.closeTo(0, 0.00001);
+      nf = mod.crf_getNormalizationFactor(inP, numberOfStates, -1);
+      expect(nf).to.closeTo(0, 0.00001);
     });
   });
 });
