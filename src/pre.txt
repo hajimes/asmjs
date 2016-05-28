@@ -1,0 +1,36 @@
+// UMD pattern
+// see https://github.com/umdjs/umd/blob/master/templates/returnExports.js
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define([], factory);
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        module.exports = factory();
+    } else {
+        // Browser globals (root is window)
+        root.myAsmjsModule = factory();
+  }
+}(this, function () {
+  'use strict';
+  
+  function myAsmjsModule(stdlib, foreign, heap) {
+    'use asm';
+
+    var abs = stdlib.Math.abs;
+    var exp = stdlib.Math.exp;
+    var imul = stdlib.Math.imul;
+    var log = stdlib.Math.log;
+    var max = stdlib.Math.max;
+    var sqrt = stdlib.Math.sqrt;
+    
+    var I1 = new stdlib.Int8Array(heap);
+    var I2 = new stdlib.Int16Array(heap);
+    var I4 = new stdlib.Int32Array(heap);
+    var U1 = new stdlib.Uint8Array(heap);
+    var U2 = new stdlib.Uint16Array(heap);
+    var U4 = new stdlib.Uint32Array(heap);
+    var F4 = new stdlib.Float32Array(heap);
+    var F8 = new stdlib.Float64Array(heap);
