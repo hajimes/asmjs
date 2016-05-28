@@ -10,9 +10,12 @@ import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
 import isLittleEndian from './util/isLittleEndian';
 import crf_featureHashing from './crf/featureHashing';
 import crf_featureHashingSequence from './crf/featureHashingSequence';
+import crf_updateFeatureScores from './crf/updateFeatureScores';
 import crf_updateForwardScores from './crf/updateForwardScores';
+import crf_updateBackwardScores from './crf/updateBackwardScores';
 import crf_getNormalizationFactor from './crf/getNormalizationFactor';
 import crf_trainOnline from './crf/trainOnline';
+import crf_updateMarginalProbabilities from './crf/updateMarginalProbabilities';
 
 var EXPORTS = {
   ufmap_create: ufmap.ufmap_create,
@@ -31,7 +34,10 @@ var EXPORTS = {
   crf_trainOnline: crf_trainOnline,
   crf_featureHashing: crf_featureHashing,
   crf_featureHashingSequence: crf_featureHashingSequence,
+  crf_updateFeatureScores: crf_updateFeatureScores,
   crf_updateForwardScores: crf_updateForwardScores,
+  crf_updateBackwardScores: crf_updateBackwardScores,
+  crf_updateMarginalProbabilities: crf_updateMarginalProbabilities,
   crf_getNormalizationFactor: crf_getNormalizationFactor,
   isLittleEndian: isLittleEndian
 };

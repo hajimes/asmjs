@@ -7,6 +7,9 @@ describe('This handwritten asm.js module', function() {
 
   var myAsmjsModule = {};
 
+  var exp = Math.exp;
+  var log = Math.log;
+
   var heap = {};
   var I4 = {};
   var U1 = {};
@@ -445,19 +448,106 @@ describe('This handwritten asm.js module', function() {
       // TODO: Add more tests
     });
     
-    it('forward score calculation', function() {
+    
+    it('feature score calculation', function() {
       var i = 0;
-
-      var a = 1.0;
-      var b = -1.0;
-      
-      var featureScores = [
-        a, 2.0, b, 0.5,
-        1.0, -1.0, 1.0, 1.0,
-        1.0, 1.0, -1.0, 1.0,        
-      ];
       var numberOfStates = 2;
       var chainLength = 3;
+
+      var biasScore = [0.1];
+      var transitionScores = [
+        1.0, -1.0,
+        0.5, 2.0,
+        -1.5, 0.5
+      ];
+      var stateScores = [
+        0.5, -2.0,
+        1.0, 1.5,
+        2.0, -1.0
+      ];
+      
+      // for i = 0, featureScores[0][0][k] =
+      //   transitionScores[0][k] + stateScores[0][k] + bias
+      // for i >= 1, featureScores[i][j][k] =
+      //   transitionScores[j + 1][k] + stateScores[i][k] + bias
+      var expectedFeatureScores = [
+        1.6, -2.9, 0.0, 0.0,
+        1.6, 3.6, -0.4, 2.1,
+        2.6, 1.1, 0.6, -0.4
+      ];
+
+      var biasScoreP = 1000;
+      var transitionScoreP = 5000;
+      var stateScoreP = 10000;
+      var outP = 20000;
+      
+      putFloat(F4, biasScoreP, biasScore);
+      putFloat(F4, transitionScoreP, transitionScores);
+      putFloat(F4, stateScoreP, stateScores);
+      
+      // do nothing if either # of states or chain length is less than 1
+      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+        stateScoreP, 0, chainLength, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+        stateScoreP, -1, chainLength, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+        stateScoreP, numberOfStates, 0, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+        stateScoreP, numberOfStates, -1, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      
+      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+        stateScoreP, numberOfStates, chainLength, outP);
+      
+      for (i = 0; i < numberOfStates * numberOfStates * chainLength; i += 1) {
+        expect(F4[outP >> 2]).to.closeTo(expectedFeatureScores[i], 0.00001);
+        outP += 4;
+      }
+      // The method uses exactly (numberOfStates * chainLength) bytes
+      // so bytes after that should remain 0
+      expect(F4[outP >> 2]).to.closeTo(0.0, 0.00001);
+    });
+    
+    it('forward score calculation', function() {
+      var i = 0;
+      var numberOfStates = 2;
+      var chainLength = 3;
+
+      // NaN is deliberately included here to test for ensuring that the
+      // elements of these positions are not involved during computation.
+      var featureScores = [
+        1.8, 2.0, NaN, NaN,
+        1.5, 1.2, 1.3, 1.4,
+        2.0, 2.0, 1.5, 3.5,
+      ];
+
+      // forwardScores[time][cur] = logsumexp(
+      //   featureScores[time][0][cur] + forwardScores[time - 1][0],
+      //   featureScores[time][1][cur] + forwardScores[time - 1][1],
+      //   ...
+      // )
+      var expectedForwardScores = [
+        1.8, 2.0,
+        log(exp(1.8 + 1.5) + exp(2.0 + 1.3)),
+          log(exp(1.8 + 1.2) + exp(2.0 + 1.4)),
+        0, 0,
+      ];
+      expectedForwardScores[4] =  log(exp(expectedForwardScores[2] + 2.0) +
+        exp(expectedForwardScores[3] + 1.5));
+      expectedForwardScores[5] =  log(exp(expectedForwardScores[2] + 2.0) +
+        exp(expectedForwardScores[3] + 3.5));
+
       var inP = 1000;
       var outP = 3000;
       var tmpP = 2000;
@@ -476,38 +566,90 @@ describe('This handwritten asm.js module', function() {
       mod.crf_updateForwardScores(inP, numberOfStates, 0, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
-      expect(F4[(outP + 4) >> 2]).to.equal(0.0);      
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
       mod.crf_updateForwardScores(inP, numberOfStates, -1, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
-      expect(F4[(outP + 4) >> 2]).to.equal(0.0);      
-            
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+
       mod.crf_updateForwardScores(inP, numberOfStates, chainLength, tmpP, outP);
 
-      // The first (numberOfStates) bytes are the same as 
-      // featureScores[0][i][0] for i in [0, numberOfStates)
-      expect(F4[outP >> 2]).to.equal(a);
-      outP += 4;
-      expect(F4[outP >> 2]).to.equal(b);
-      outP += 4;
-      
-      // Check if resulting values are in the range of ordinary numbers
-      // Also they should be nonzero in this case
-      for (i = numberOfStates; i < numberOfStates * chainLength; i += 1) {
-        expect(_.isNumber(F4[outP >> 2])).to.be.true;
-        expect(F4[outP >> 2]).not.to.equal(0.0);
+      for (i = 0; i < numberOfStates * chainLength; i += 1) {
+        expect(F4[outP >> 2]).to.closeTo(expectedForwardScores[i], 0.00001);
         outP += 4;
       }
-      
       // The method uses exactly (numberOfStates * chainLength) bytes
       // so bytes after that should remain 0
-      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[outP >> 2]).to.closeTo(0.0, 0.00001);
+    });
+    
+    it('backward score calculation', function() {
+      var i = 0;
+      var numberOfStates = 2;
+      var chainLength = 3;
+      
+      // NaN is deliberately included here to test for ensuring that the
+      // elements of these positions are not involved during computation.
+      var featureScores = [
+        1.8, 2.0, NaN, NaN,
+        1.5, 1.2, 1.3, 1.4,
+        log(2.0), log(2.0), log(1.5), log(3.5),        
+      ];
+      
+      // backwardScores[time][cur] = logsumexp(
+      //   featureScores[time + 1][cur][0] + backwardScores[time + 1][0],
+      //   featureScores[time + 1][cur][1] + backwardScores[time + 1][1],
+      //   ...
+      // )
+      var expectedBackwardScores = [
+        log(exp(1.5 + log(4.0)) + exp(1.2 + log(5.0))),
+          log(exp(1.3 + log(4.0)) + exp(1.4 + log(5.0))),
+        log(4.0), log(5.0),
+        0.0, 0.0
+      ];
+      var inP = 1000;
+      var outP = 3000;
+      var tmpP = 2000;
+      
+      putFloat(F4, inP, featureScores);
 
-      mod.crf_updateForwardScores(inP, numberOfStates, chainLength, tmpP, outP);
+      // This function does nothing if either # of states or chain length is
+      // less than 1
+      mod.crf_updateBackwardScores(inP, -1, chainLength, tmpP, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      mod.crf_updateBackwardScores(inP, 0, chainLength, tmpP, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      mod.crf_updateBackwardScores(inP, numberOfStates, 0, tmpP, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
+      mod.crf_updateBackwardScores(inP, numberOfStates, -1, tmpP, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      expect(F4[(outP - 4) >> 2]).to.equal(0.0);
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);  
+
+
+      mod.crf_updateBackwardScores(inP, numberOfStates,
+        chainLength, tmpP, outP);
+      for (i = 0; i < numberOfStates * chainLength; i += 1) {
+        expect(F4[outP >> 2]).to.closeTo(expectedBackwardScores[i], 0.00001);
+        outP += 4;
+      }
+      // The method uses exactly (numberOfStates * chainLength) bytes
+      // so bytes after that should remain 0
+      expect(F4[outP >> 2]).to.closeTo(0.0, 0.00001);
     });
     
     it('computing a normalization factor', function() {
-      var forwardScores = [1.0, 2.0, -1.0, 0.5, 1.0, -1.0];
+      var forwardScores = [
+        1.0, 2.0,
+        -1.0, 0.5,
+        1.0, -1.0
+      ];
       var numberOfStates = 2;
       var chainLength = 3;
       var inP = 1000;
@@ -528,6 +670,51 @@ describe('This handwritten asm.js module', function() {
       expect(nf).to.closeTo(0, 0.00001);
       nf = mod.crf_getNormalizationFactor(inP, numberOfStates, -1);
       expect(nf).to.closeTo(0, 0.00001);
+    });
+    
+    it('computing marginal probabilities from joint in log-scale', function() {
+      var i = 0;
+      var numberOfStates = 2;
+      var chainLength = 3;
+
+      var LOG01 = log(0.1);
+      var LOG02 = log(0.2);
+      var LOG005 = log(0.05);
+
+      // NaN is deliberately included here to test for ensuring that the
+      // elements of these positions are not involved during computation.
+      var jointInLog = [
+        LOG01, LOG005, NaN, NaN,
+        LOG005, LOG01, LOG01, LOG01,
+        LOG01, LOG01, LOG02, LOG01
+      ];
+      
+      /*
+       * A table of marginal probabilities is
+       * float[numberOfStates + 1][numberOfStates].
+       * score[0][j] represents a marginal from the (hypothetical) initial state
+       * to the state j. For i >= 1, score[i][j] represents a marginal from the
+       * state (i - 1) to the state j.
+       */
+      var expectedMarginal = [
+        0.1, 0.05,
+        0.15, 0.2,
+        0.3, 0.2
+      ];
+      
+      var jointInLogP = 1000;
+      var outP = 10000;
+      
+      putFloat(F4, jointInLogP, jointInLog);
+      
+      mod.crf_updateMarginalProbabilities(jointInLogP, numberOfStates,
+        chainLength, outP);
+        
+      for (i = 0; i < numberOfStates * (numberOfStates + 1); i += 1) {
+        expect(F4[outP >> 2]).to.closeTo(expectedMarginal[i], 0.00001);
+        outP += 4;
+      }
+      expect(F4[outP >> 2]).to.closeTo(0.0, 0.00001);
     });
   });
 });

@@ -1,7 +1,7 @@
 /**
  * Check if the current environment is little-endian or not.
  *
- * @returns {signed} - 1 if little-endian otherwise 0
+ * @returns {signed} - 1 if little-endian, otherwise 0
  */
 export default function isLittleEndian() {
   /*

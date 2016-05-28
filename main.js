@@ -943,7 +943,7 @@ function convertUtf8toUtf16(inPP, inEnd, outPP, outEnd) {
 /**
  * Check if the current environment is little-endian or not.
  *
- * @returns {signed} - 1 if little-endian otherwise 0
+ * @returns {signed} - 1 if little-endian, otherwise 0
  */
 function isLittleEndian() {
   /*
@@ -1074,27 +1074,129 @@ function featureHashingSequence(nzP, valueP, indexP,
 }
 
 /**
- * Updates forward scores.
+ * Updates a table of feature scores.
  *
- * A sequence of forward scores is a 2-dimensional array
+ * A feature score is a dot product between a weight vector and
+ * a feature vector. We pre-calculate dot products for transition-type features
+ * and state-type features separately, and then combine the results here to
+ * obtain correct dot products.
+ *
+ * A table of feature scores is a 3-dimensional array
+ * float[chainLength][numberOfStates][numberOfStates].
+ * If i = 0, score[0][0][k] represents the state score where the current
+ * time is 0, the previous state is a (hypothetical) initial state,
+ * and the current state is k,
+ * If i > 0, score[i][j][k] represents the state score where the current
+ * time is i, and the previous state is j, and the current state is k.
+ *
+ * Exactly (chainLength * (numberOfStates ^ 2) * 4) bytes will be written
+ * into outP.
+ */
+function updateFeatureScores(biasScoreP, transitionScoreP,
+  stateScoreP, numberOfStates, chainLength, outP) {
+  /*
+   * Type annotations
+   */
+  biasScoreP = biasScoreP | 0;
+  transitionScoreP = transitionScoreP | 0;
+  stateScoreP = stateScoreP | 0;
+  numberOfStates = numberOfStates | 0;
+  chainLength = chainLength | 0;
+  outP = outP | 0;
+
+  /*
+   * Local variables
+   */
+  var time = 0;
+  var cur = 0;
+  var prev = 0;
+  var score = 0.0;
+  var stateScore = 0.0;
+  var transitionScore = 0.0;
+  var biasScore = 0.0;
+  var stateScorePSave = 0;
+  var transitionScorePSave = 0;
+  var nosBytes = 0;
+    
+  /*
+   * Main
+   */
+  if (((numberOfStates | 0) <= 0) | ((chainLength | 0) <= 0)) {
+    return;
+  }
+
+  nosBytes = numberOfStates << 2;
+  biasScore = +F4[biasScoreP >> 2];
+  
+  for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+    // stateScores[0][cur]
+    stateScore = +F4[stateScoreP >> 2];
+    // transitionScores[0][cur]
+    transitionScore = +F4[transitionScoreP >> 2];
+
+    score = stateScore + transitionScore + biasScore;
+    
+    F4[outP >> 2] = score;
+    
+    stateScoreP = (stateScoreP + 4) | 0;
+    transitionScoreP = (transitionScoreP + 4) | 0;
+    outP = (outP + 4) | 0;
+  }
+  
+  outP = (outP + ((imul(numberOfStates, numberOfStates - 1) << 2))) | 0;
+  
+  for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
+    transitionScorePSave = transitionScoreP;
+    
+    for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+      stateScorePSave = stateScoreP;
+
+      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        // stateScores[time][cur]
+        stateScore = +F4[stateScoreP >> 2];
+      
+        // transitionScores[prev + 1][cur]
+        transitionScore = +F4[transitionScoreP >> 2];
+        
+        score = stateScore + transitionScore + biasScore;
+        
+        F4[outP >> 2] = score;
+        
+        stateScoreP = (stateScoreP + 4) | 0;
+        transitionScoreP = (transitionScoreP + 4) | 0;
+        outP = (outP + 4) | 0;
+      }
+      
+      stateScoreP = stateScorePSave;
+    }
+
+    stateScoreP = (stateScoreP + nosBytes) | 0;    
+    transitionScoreP = transitionScorePSave;
+  }     
+}
+
+/**
+ * Updates a table of forward scores.
+ *
+ * A table of forward scores is a 2-dimensional array
  * float[chainLength][numberOfStates].
  *
  * Exactly (chainLength * numberOfStates * 4) bytes will be written into
  * outP. Uses exactly (numberOfStates * 4) bytes at tmpP. They are not
  * required to be initialized to 0.
  * 
- * @param {int} featureScoresP - byte offset to a table of feature scores
+ * @param {int} featureScoreP - byte offset to a table of feature scores
  * @param {int} numberOfStates - number of the states of a Markov chain
  * @param {int} chainLength - length of a Markov chain
  * @parma {int} tmpP - byte offset to working space
  * @param {int} outP - byte offset where the output will be written
  */
-function updateForwardScores(featureScoresP, numberOfStates,
+function updateForwardScores(featureScoreP, numberOfStates,
     chainLength, tmpP, outP) {
   /*
    * Type annotations
    */
-  featureScoresP = featureScoresP | 0;
+  featureScoreP = featureScoreP | 0;
   numberOfStates = numberOfStates | 0;
   chainLength = chainLength | 0;
   tmpP = tmpP | 0;
@@ -1111,57 +1213,178 @@ function updateForwardScores(featureScoresP, numberOfStates,
   var score = 0.0;
   var p = 0;
   var prevP = 0;
+  var prevPSave = 0;
+  var nosBytes = 0;
 
   /*
    * Main
    */
-  if ((chainLength | 0) <= 0) {
+  if (((numberOfStates | 0) <= 0) | ((chainLength | 0) <= 0)) {
     return;
   }
   
-  p = featureScoresP;
+  nosBytes = numberOfStates << 2;
+  p = featureScoreP;
   prevP = outP;
   
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-    // forwardScores[0][cur] = featureScores[0][cur][0];
+    // forwardScores[0][cur] = featureScores[0][0][cur];
     score = +F4[p >> 2];
     F4[outP >> 2] = F4[p >> 2];
 
-    p = (p + (numberOfStates << 2)) | 0;
+    p = (p + 4) | 0;
     outP = (outP + 4) | 0;
   }
   
+  p = (p + (imul(numberOfStates, numberOfStates - 1) << 2)) | 0;
 
+  // forwardScores[time][cur] = logsumexp(
+  //   featureScores[time][0][cur] + forwardScores[time - 1][0],
+  //   featureScores[time][1][cur] + forwardScores[time - 1][1],
+  //   ...
+  // )
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {  
     for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-      // forwardScores[time][cur] = logsumexp(
-      //   featureScores[time][cur][0] + forwardScores[time - 1][0],
-      //   featureScores[time][cur][1] + forwardScores[time - 1][1],
-      //   ...
-      // )
-      for (prev = 0; (prev | 0) < (numberOfStates | 0);
-          prev = (prev + 1) | 0) {
-        // featureScores[time][cur][prev]
+      prevPSave = prevP;
+      for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+        // featureScores[time][prev][cur]
         featureScore = +F4[p >> 2];
         // forwardScores[time - 1][prev]
         previousScore = +F4[prevP >> 2];
         
         score = featureScore + previousScore;
         
-        F4[(tmpP + (prev << 2)) >> 2] = score;
+        F4[tmpP >> 2] = score;
         
-        p = (p + 4) | 0;
+        p = (p + nosBytes) | 0;
         prevP = (prevP + 4) | 0;
+        tmpP = (tmpP + 4) | 0;
       } 
-      // revert prevP to forwardScores[time - 1][prev]
-      prevP = (prev - numberOfStates << 2) | 0;
-      
+      tmpP = (tmpP - nosBytes) | 0;
+
       F4[outP >> 2] = +logsumexpFloat32(tmpP, numberOfStates);
 
+      prevP = prevPSave;
       outP = (outP + 4) | 0;
+      
+      // from featureScores[time][numberOfStates][cur]
+      // to featureScores[time][0][cur + 1]
+      p = (p - imul(nosBytes, numberOfStates) + 4) | 0;
     }
     // advance prevP to forwardScores[time][0]
-    prevP = (prev + numberOfStates << 2) | 0;
+    prevP = (prevP + nosBytes) | 0;
+
+    // Note that featureScores[time][0][numberOfStates]
+    // is the same as featureScores[time][1][0]
+    p = (p + imul(nosBytes, numberOfStates - 1)) | 0;
+  }
+}
+
+/**
+ * Updates a table of backward scores.
+ *
+ * A table of backward scores is a 2-dimensional array
+ * float[chainLength][numberOfStates].
+ *
+ * Exactly (chainLength * numberOfStates * 4) bytes will be written
+ * into outP. Uses exactly (numberOfStates * 4) bytes at tmpP. They are not
+ * required to be initialized to 0.
+ *
+ * @param {int} featureScoreP - byte offset to a table of feature scores
+ * @param {int} numberOfStates - number of the states of a Markov chain
+ * @param {int} chainLength - length of a Markov chain
+ * @parma {int} tmpP - byte offset to working space
+ * @param {int} outP - byte offset where the output will be written
+ */
+function updateBackwardScores(featureScoreP, numberOfStates,
+    chainLength, tmpP, outP) {
+  /*
+   * Type annotations
+   */
+  featureScoreP = featureScoreP | 0;
+  numberOfStates = numberOfStates | 0;
+  chainLength = chainLength | 0;
+  tmpP = tmpP | 0;
+  outP = outP | 0;
+
+  /*
+   * Local variables
+   */
+  var time = 1;
+  var cur = 0;
+  var next = 0;
+  var featureScore = 0.0;
+  var nextScore = 0.0;
+  var score = 0.0;
+  var p = 0;
+  var nextP = 0;
+  var nextPSave = 0;
+  var t = 0;
+  var nosBytes = 0;
+  var nosBytes2 = 0;
+  var featureScoreRelocationBytes = 0;
+  var featureScoreRelocationBytes2 = 0;
+
+  /*
+   * Main
+   */
+  if (((numberOfStates | 0) <= 0) | ((chainLength | 0) <= 0)) {
+    return;
+  }
+  
+  nosBytes = numberOfStates << 2;
+  nosBytes2 = nosBytes << 1;
+  featureScoreRelocationBytes = imul(numberOfStates, numberOfStates) << 2;
+  featureScoreRelocationBytes2 = featureScoreRelocationBytes << 1;
+  
+  // backwardScores[chainLength - 1][cur] = 0
+  t = imul(numberOfStates, chainLength - 1) << 2;
+  outP = (outP + t) | 0;
+  nextP = outP; // save position to use it later
+
+  for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+    F4[outP >> 2] = 0.0;
+    outP = (outP + 4) | 0;
+  }
+
+  outP = (outP - nosBytes2) | 0;
+  p = (featureScoreP + imul(featureScoreRelocationBytes,
+    chainLength - 1)) | 0;
+
+  // backwardScores[time][cur] = logsumexp(
+  //   featureScores[time + 1][cur][0] + backwardScores[time + 1][0],
+  //   featureScores[time + 1][cur][1] + backwardScores[time + 1][1],
+  //   ...
+  // )
+  for (time = (chainLength - 2) | 0; (time | 0) >= 0; time = (time - 1) | 0) {  
+    for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+      nextPSave = nextP;
+
+      for (next = 0; (next | 0) < (numberOfStates | 0); next = (next + 1) | 0) {
+        // featureScores[time][cur][next]
+        featureScore = +F4[p >> 2];
+
+        // backwardScores[time + 1][next]
+        nextScore = +F4[nextP >> 2];
+        
+        score = featureScore + nextScore;
+        
+        F4[tmpP >> 2] = score;
+        
+        p = (p + 4) | 0;
+        nextP = (nextP + 4) | 0;
+        tmpP = (tmpP + 4) | 0;
+      } 
+      tmpP = (tmpP - nosBytes) | 0;
+                
+      F4[outP >> 2] = +logsumexpFloat32(tmpP, numberOfStates);
+
+      nextP = nextPSave;
+      outP = (outP + 4) | 0;
+    }
+    p = (p - featureScoreRelocationBytes2) | 0;
+    nextP = (nextP - nosBytes) | 0;
+    outP = (outP - nosBytes2) | 0;
   }
 }
 
@@ -1280,6 +1503,90 @@ function adagradUpdateLazyAt(index, foiP, soiP, weightP,
   );
 }
 
+function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
+  round, delta, eta, lambda) {
+  /*
+   * Type annotations
+   */
+  nz = nz | 0;
+  indexP = indexP | 0;
+  foiP = foiP | 0;
+  soiP = soiP | 0;
+  weightP = weightP | 0;
+  round = +round;
+  delta = +delta;
+  eta = +eta;
+  lambda = +lambda;
+
+  /*
+   * Local variables
+   */
+  var end = 0;
+  var index = 0;
+  
+  /*
+   * Main
+   */
+  end = (indexP + (nz << 2)) | 0;
+  while ((indexP | 0) < (end | 0)) {
+    index = U4[indexP >> 2] | 0;
+
+    adagradUpdateLazyAt(index, foiP, soiP, weightP,
+      round, delta, eta, lambda);
+
+    indexP = (indexP + 4) | 0;        
+  }
+}
+
+/**
+ * Performs temporary updating for the first order information and
+ * second order information of AdaGrady with a gradient.
+ * Actual values will be calculated lazily.
+ *
+ * @param {int} nz - number of non-zero elements in a gradient
+ * @param {int} xP - byte offset to float values of a gradient
+ * @param {int} indexP - byte offset to uint32 indices of a gradient
+ * @param {int} foiP - byte offset to a float dense vec 1st order info
+ * @param {int} soiP - byte offset to a float dense vec 2nd order info
+ */
+function adagradUpdateTemp(nz, xP, indexP, foiP, soiP) {
+  /*
+   * Type annotations
+   */
+  nz = nz | 0;
+  xP = xP | 0;
+  indexP = indexP | 0;
+  foiP = foiP | 0;
+  soiP = soiP | 0;
+
+  /*
+   * Local variables
+   */
+  var end = 0;
+  var index = 0;
+  var value = 0.0;
+  var p1 = 0;
+  var p2 = 0;
+
+  /*
+   * Main
+   */
+  end = (indexP + (nz << 2)) | 0;
+  while ((indexP | 0) < (end | 0)) {
+    index = U4[indexP >> 2] | 0;
+    value = +F4[xP >> 2];
+            
+    p1 = (foiP + (index << 2)) | 0;
+    p2 = (soiP + (index << 2)) | 0;
+    
+    F4[p1 >> 2] = +F4[p1 >> 2] + value;
+    F4[p2 >> 2] = +F4[p2 >> 2] + value * value;
+    
+    indexP = (indexP + 4) | 0;
+    xP = (xP + 4) | 0;
+  }
+}
+
 /**
  * Updates a table of state scores.
  *
@@ -1325,180 +1632,6 @@ function updateStateScores(nzP, valueP, indexP, weightP,
     nzBytes = nz << 2;
     valueP = (valueP + nzBytes) | 0;
     indexP = (indexP + nzBytes) | 0;
-  }
-}
-
-/**
- * Updates a table of feature scores.
- *
- * A table of feature scores is a 3-dimensional array
- * float[chainLength][numberOfStates][numberOfStates].
- * If i = 0, score[0][j][0] represents the state score where the current
- * time is 0, the current state is j, and the previous time is a
- * (hypothetical) initial state.
- * If i > 0, score[i][j][k] represents the state score where the current
- * time is i, the current state is j, and the previous time is k.
- *
- * Exactly (chainLength * (numberOfStates ^ 2) * 4) bytes will be written
- * into outP.
- */
-function updateFeatureScores(biasScoreP, transitionScoreP,
-  stateScoreP, numberOfStates, chainLength, outP) {
-  /*
-   * Type annotations
-   */
-  biasScoreP = biasScoreP | 0;
-  transitionScoreP = transitionScoreP | 0;
-  stateScoreP = stateScoreP | 0;
-  numberOfStates = numberOfStates | 0;
-  chainLength = chainLength | 0;
-  outP = outP | 0;
-
-  /*
-   * Local variables
-   */
-  var time = 0;
-  var cur = 0;
-  var prev = 0;
-  var score = 0.0;
-  var stateScore = 0.0;
-  var transitionScore = 0.0;
-  var biasScore = 0.0;
-  var srP = 0; // relative byte offset from the start of state scores
-  var trP = 0; // relative byte offset from the start of transition scores
-    
-  /*
-   * Main
-   */
-  biasScore = +F4[biasScoreP >> 2];
-  
-  for (; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-    // stateScores[0][cur]
-    stateScore = +F4[(stateScoreP + srP) >> 2];
-    // transitionScores[0][cur]
-    transitionScore = +F4[(transitionScoreP + trP) >> 2];
-    score = stateScore + transitionScore + biasScore;
-    
-    F4[outP >> 2] = score;
-    
-    srP = (srP + 4) | 0;
-    trP = (trP + 4) | 0;
-    outP = (outP + (numberOfStates << 2)) | 0;
-  }
-  
-  for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
-    trP = 0;
-    
-    for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-      stateScore = +F4[(stateScoreP + srP) >> 2];
-      
-      for (prev = 0; (prev | 0) < (numberOfStates | 0);
-          prev = (prev + 1) | 0) {
-        transitionScore = +F4[(transitionScoreP + trP) >> 2];
-        
-        score = stateScore + transitionScore + biasScore;
-        
-        F4[outP >> 2] = score;
-        
-        outP = (outP + 4) | 0;
-        trP = (trP + 4) | 0;
-      }
-      
-      trP = (trP + 4) | 0;
-      srP = (srP + 4) | 0;
-      outP = (outP + 4) | 0;
-    }
-  }     
-}
-
-/**
- * Updates backward scores.
- *
- * A sequence of backward scores is a 2-dimensional array
- * float[chainLength][numberOfStates].
- *
- * Exactly (chainLength * numberOfStates * 4) bytes will be written
- * into outP. Uses exactly (numberOfStates * 4) bytes at tmpP. They are not
- * required to be initialized to 0.
- *
- * @param {int} featureScoresP - byte offset to a table of feature scores
- * @param {int} numberOfStates - number of the states of a Markov chain
- * @param {int} chainLength - length of a Markov chain
- * @parma {int} tmpP - byte offset to working space
- * @param {int} outP - byte offset where the output will be written
- */
-function updateBackwardScores(featureScoresP, numberOfStates,
-    chainLength, tmpP, outP) {
-  /*
-   * Type annotations
-   */
-  featureScoresP = featureScoresP | 0;
-  numberOfStates = numberOfStates | 0;
-  chainLength = chainLength | 0;
-  tmpP = tmpP | 0;
-  outP = outP | 0;
-
-  /*
-   * Local variables
-   */
-  var time = 1;
-  var cur = 0;
-  var next = 0;
-  var featureScore = 0.0;
-  var nextScore = 0.0;
-  var score = 0.0;
-  var p = 0;
-  var nextP = 0;
-  var t = 0;
-  var nosBytes = 0;
-
-  /*
-   * Main
-   */
-  nosBytes = numberOfStates << 2;
-  nextP = outP;
-  
-  // backwardScores[chainLength - 1][cur] = 0
-  t = imul(numberOfStates << 2, chainLength - 1);
-  outP = (outP + t) | 0;
-  for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-    F4[outP >> 2] = 0.0;
-    outP = (outP + 4) | 0;
-  }
-
-  outP = (outP - (nosBytes << 2)) | 0;
-  for (time = (chainLength - 2) | 0; (time | 0) >= 0;
-      time = (time - 1) | 0) {  
-    for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-      // backwardScores[time][cur] = logsumexp(
-      //   backwardScores[time + 1][0][cur] + backwardScores[time + 1][0],
-      //   backwardScores[time + 1][1][cur] + backwardScores[time + 1][1],
-      //   ...
-      // )
-      for (next = 0; (next | 0) < (numberOfStates | 0);
-          next = (next + 1) | 0) {
-        // featureScores[time][cur][prev]
-        featureScore = +F4[p >> 2];
-        // backwardScores[time + 1][next]
-        nextScore = +F4[nextP >> 2];
-        
-        score = featureScore + nextScore;
-        
-        F4[tmpP >> 2] = score;
-        
-        p = (p + 4) | 0;
-        nextP = (nextP + 4) | 0;
-        tmpP = (tmpP + 4) | 0;
-      } 
-      tmpP = (tmpP - nosBytes) | 0;
-                
-      F4[outP >> 2] = +logsumexpFloat32(tmpP, numberOfStates);
-
-      // set nextP to the byte offset of backwardScores[time][0]
-      nextP = (nextP - (nosBytes << 2)) | 0;
-      outP = (outP + 4) | 0;
-    }
-    outP = (outP - (nosBytes << 2)) | 0;
   }
 }
 
@@ -1575,6 +1708,30 @@ function updateJointScores(featureScoreP, forwardScoreP,
     forwardScoreP = (forwardScoreP + nosBytes) | 0;
     backwardScoreP = (backwardScoreP + 4) | 0;
   }
+  
+  // score[time][prev]][cur] = featureScores[time][prev][cur] +
+  //   forwardScores[time - 1][prev]
+  //   backwardScores[time][cur]
+  //   - normalizationFactor
+  for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
+    for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        backwardScore = +F4[backwardScoreP >> 2];
+        forwardScore = +F4[forwardScoreP >> 2];
+
+        score = +F4[outP >> 2];
+        score = score + forwardScore + backwardScore -
+          normalizationFactor;
+        F4[outP >> 2] = score;
+        
+        outP = (outP + 4) | 0;
+        backwardScoreP = (backwardScoreP + 4) | 0;
+      }
+      backwardScoreP = (backwardScoreP - nosBytes) | 0;
+      forwardScoreP = (forwardScoreP + 4) | 0;
+    }
+    backwardScoreP = (forwardScoreP + (nosBytes << 2)) | 0;
+  }
 }
 
 /**
@@ -1597,14 +1754,6 @@ function updateJointScores(featureScoreP, forwardScoreP,
  *
  * Each instance header occupies 24 bytes
  */
-/**
- * A sequence of transition scores is a 2-dimensional array
- * float[numberOfStates + 1][numberOfStates].
- * score[0][j] represents the transition score from a (hypothetical) initial
- * state to the state j. score[i][j] represents the transition score
- * from the state j to state i (NOT from i to j).
- */
-
 // Incomplete
 function trainOnline(numberOfStates, dimension, round,
     foiP, soiP, weightP,
@@ -1647,14 +1796,24 @@ function trainOnline(numberOfStates, dimension, round,
   var forwardScoreP = 0;
   var backwardScoreP = 0;
   var normalizationFactor = 0.0;
+  var gradientNzP = 0;
+  var gradientValueP = 0;
+  var gradientIndexP = 0;
   
   /*
    * Main
    */
   
   //
-  // memory allocations
-  //      
+  // Memory allocation
+  // outValue: MAX_SPARSE_SIZE (bytes)
+  // outIndex: MAX_SPARSE_SIZE (bytes)
+  // stateScores: (chainLength * numberOfState * 4) bytes
+  // featureScores/jointScores: (chainLength * (numberOfStates ^ 2) * 4) 
+  // forwardScores: (chainLength * numberOfStates * 4) bytes
+  // backwardScores: (chainLength * numberOfStates * 4) bytes
+  // gradient sparse vector: (4 + ... + ...) bytes
+  // temporary working space: (numberOfStates * 4)
   p = tmpP;
   outValueP = p;
   p = (p + 16384) | 0; // allocate 16kb
@@ -1693,9 +1852,9 @@ function trainOnline(numberOfStates, dimension, round,
     adagradUpdateLazyAt(i, foiP, soiP, weightP,
       +(round | 0), delta, eta, lambda);
   }
-// crf_adagrad_update
-//        crf_adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
-//              round, delta, eta, lambda);
+  adagradUpdateLazy(totalNz, indexP, foiP, soiP, weightP,
+    +(round | 0), delta, eta, lambda);
+
   updateStateScores(nzP, valueP, indexP, weightP,
     numberOfStates, chainLength, stateScoreP);
   updateFeatureScores(biasScoreP, transitionScoreP,
@@ -1708,9 +1867,79 @@ function trainOnline(numberOfStates, dimension, round,
     numberOfStates, chainLength);
   updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
     numberOfStates, chainLength, normalizationFactor);
-  // crf_updateGradient();
-  // crf_adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
+  //updateMarginalScores();
+  // updateGradient();
+  adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP, foiP, soiP);
   // crf_sufferLoss();
+}
+
+/**
+ * Computes marginal probabilities from logarithmic joint probabilites.
+ *
+ * A table of marginal probabilities is
+ * float[numberOfStates + 1][numberOfStates].
+ * score[0][j] represents a marginal from the (hypothetical) initial state
+ * to the state j. For i >= 1, score[i][j] represents a marginal from the
+ * state (i - 1) to the state j.
+ *
+ * Unlike joint scores, values in this table represents probabilities in
+ * normal scale, not in logarithmic.
+ *
+ * This function assumes that its output destination is cleared to 0.
+ *
+ * Exactly ((numberOfStates + 1) * numberOfStates) bytes will be written into
+ * outP.
+ */
+function updateMarginalProbabilities(jointScoreP,
+  numberOfStates, chainLength, outP) {
+  /*
+   * Type annotations
+   */
+  jointScoreP = jointScoreP | 0;
+  numberOfStates = numberOfStates | 0;
+  chainLength = chainLength | 0;
+  outP = outP | 0;
+
+  /*
+   * Local variables
+   */
+  var t = 0.0;
+  var jointScore = 0.0;
+  var outPSave = 0;
+  var time = 0;
+  var prev = 0;
+  var cur = 0;
+
+  /*
+   * Main
+   */
+  //
+  // Sum of logarithmic joint probabilities (multiplication in normal scale)
+  //
+  for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+    jointScore = +F4[jointScoreP >> 2];
+    F4[outP >> 2] = exp(jointScore);
+    outP = (outP + 4) | 0;
+    jointScoreP = (jointScoreP + 4) | 0;
+  }
+  outPSave = outP;
+  jointScoreP = (jointScoreP +
+    (imul(numberOfStates - 1, numberOfStates) << 2)) | 0;
+
+  for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
+    for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        jointScore = +F4[jointScoreP >> 2];
+        
+        t = +F4[outP >> 2];
+        F4[outP >> 2] = t + exp(jointScore);
+        
+        jointScoreP = (jointScoreP + 4) | 0;
+        outP = (outP + 4) | 0;
+      }      
+    }
+    outP = outPSave;
+  }
 }
 
 return {
@@ -1730,7 +1959,10 @@ return {
   crf_trainOnline: trainOnline,
   crf_featureHashing: featureHashing,
   crf_featureHashingSequence: featureHashingSequence,
+  crf_updateFeatureScores: updateFeatureScores,
   crf_updateForwardScores: updateForwardScores,
+  crf_updateBackwardScores: updateBackwardScores,
+  crf_updateMarginalProbabilities: updateMarginalProbabilities,
   crf_getNormalizationFactor: getNormalizationFactor,
   isLittleEndian: isLittleEndian
 };

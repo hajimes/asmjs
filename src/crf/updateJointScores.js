@@ -71,4 +71,28 @@ export default function updateJointScores(featureScoreP, forwardScoreP,
     forwardScoreP = (forwardScoreP + nosBytes) | 0;
     backwardScoreP = (backwardScoreP + 4) | 0;
   }
+  
+  // score[time][prev]][cur] = featureScores[time][prev][cur] +
+  //   forwardScores[time - 1][prev]
+  //   backwardScores[time][cur]
+  //   - normalizationFactor
+  for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
+    for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        backwardScore = +F4[backwardScoreP >> 2];
+        forwardScore = +F4[forwardScoreP >> 2];
+
+        score = +F4[outP >> 2];
+        score = score + forwardScore + backwardScore -
+          normalizationFactor;
+        F4[outP >> 2] = score;
+        
+        outP = (outP + 4) | 0;
+        backwardScoreP = (backwardScoreP + 4) | 0;
+      }
+      backwardScoreP = (backwardScoreP - nosBytes) | 0;
+      forwardScoreP = (forwardScoreP + 4) | 0;
+    }
+    backwardScoreP = (forwardScoreP + (nosBytes << 2)) | 0;
+  }
 }

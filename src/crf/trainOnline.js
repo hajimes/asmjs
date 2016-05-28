@@ -1,5 +1,7 @@
 import sumInt32 from '../math/sumInt32';
+import adagradUpdateLazy from './adagradUpdateLazy';
 import adagradUpdateLazyAt from './adagradUpdateLazyAt';
+import adagradUpdateTemp from './adagradUpdateTemp';
 import featureHashingSequence from './featureHashingSequence';
 import updateStateScores from './updateStateScores';
 import updateFeatureScores from './updateFeatureScores';
@@ -28,14 +30,6 @@ import updateJointScores from './updateJointScores';
  *
  * Each instance header occupies 24 bytes
  */
-/**
- * A sequence of transition scores is a 2-dimensional array
- * float[numberOfStates + 1][numberOfStates].
- * score[0][j] represents the transition score from a (hypothetical) initial
- * state to the state j. score[i][j] represents the transition score
- * from the state j to state i (NOT from i to j).
- */
-
 // Incomplete
 export default function trainOnline(numberOfStates, dimension, round,
     foiP, soiP, weightP,
@@ -78,14 +72,24 @@ export default function trainOnline(numberOfStates, dimension, round,
   var forwardScoreP = 0;
   var backwardScoreP = 0;
   var normalizationFactor = 0.0;
+  var gradientNzP = 0;
+  var gradientValueP = 0;
+  var gradientIndexP = 0;
   
   /*
    * Main
    */
   
   //
-  // memory allocations
-  //      
+  // Memory allocation
+  // outValue: MAX_SPARSE_SIZE (bytes)
+  // outIndex: MAX_SPARSE_SIZE (bytes)
+  // stateScores: (chainLength * numberOfState * 4) bytes
+  // featureScores/jointScores: (chainLength * (numberOfStates ^ 2) * 4) 
+  // forwardScores: (chainLength * numberOfStates * 4) bytes
+  // backwardScores: (chainLength * numberOfStates * 4) bytes
+  // gradient sparse vector: (4 + ... + ...) bytes
+  // temporary working space: (numberOfStates * 4)
   p = tmpP;
   outValueP = p;
   p = (p + 16384) | 0; // allocate 16kb
@@ -124,9 +128,9 @@ export default function trainOnline(numberOfStates, dimension, round,
     adagradUpdateLazyAt(i, foiP, soiP, weightP,
       +(round | 0), delta, eta, lambda);
   }
-// crf_adagrad_update
-//        crf_adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
-//              round, delta, eta, lambda);
+  adagradUpdateLazy(totalNz, indexP, foiP, soiP, weightP,
+    +(round | 0), delta, eta, lambda);
+
   updateStateScores(nzP, valueP, indexP, weightP,
     numberOfStates, chainLength, stateScoreP);
   updateFeatureScores(biasScoreP, transitionScoreP,
@@ -139,7 +143,8 @@ export default function trainOnline(numberOfStates, dimension, round,
     numberOfStates, chainLength);
   updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
     numberOfStates, chainLength, normalizationFactor);
-  // crf_updateGradient();
-  // crf_adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
+  //updateMarginalScores();
+  // updateGradient();
+  adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP, foiP, soiP);
   // crf_sufferLoss();
 }
