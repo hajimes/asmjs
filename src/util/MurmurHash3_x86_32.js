@@ -20,11 +20,8 @@ export default function MurmurHash3_x86_32(p, len, seed) {
   * Local variables
   */
   var end = 0;
-  var i = 0;
   var k1 = 0;
-  var k1f = 0.0;
   var h1 = 0;
-  var h1f = 0.0;
   var keyLength = 0;
   var tailLength = 0;
   var bodyLength = 0;
@@ -39,7 +36,6 @@ export default function MurmurHash3_x86_32(p, len, seed) {
 
   // body
   end = (p + bodyLength) | 0;
-  // console.log(from + ' ' + tailLength + ' ' + end);
   while ((p | 0) < (end | 0)) {
    k1 = U4[p >> 2] | 0;
    p = (p + 4) | 0;
@@ -63,10 +59,10 @@ export default function MurmurHash3_x86_32(p, len, seed) {
   switch (tailLength | 0) {
     case 3:
       k1 = (k1 ^ (U1[(p + 2) >> 0] << 16)) | 0;
-      // fall through
+      /* falls through */
     case 2:
       k1 = (k1 ^ (U1[(p + 1) >> 0] << 8)) | 0;
-      // fall through
+      /* falls through */
     case 1:
       k1 = (k1 ^ (U1[p >> 0] | 0)) | 0;
       k1 = imul(k1, 0xcc9e2d51) >>> 0;

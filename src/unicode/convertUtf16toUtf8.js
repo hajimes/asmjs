@@ -26,10 +26,10 @@ export default function uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd) {
   var SUR_LOW_END = 0xdfff;
   var HALF_SHIFT = 10;
   var HALF_BASE = 0x0010000;
-  var HALF_MASK = 0x3ff;
+  // var HALF_MASK = 0x3ff;
   var BYTE_MASK = 0xBF;
   var BYTE_MARK = 0x80;
-  var ERROR_SOURCE_EXHAUSTED = 1;
+  // var ERROR_SOURCE_EXHAUSTED = 1;
   var ERROR_TARGET_EXHAUSTED = 2;
   var ERROR_SOURCE_ILLEGAL = 3;
   var ch = 0;
@@ -95,17 +95,17 @@ export default function uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd) {
         outP = (outP - 1) | 0;
         U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
         ch = ch >> 6;
-        // fall through
+        /* falls through */
       case 3:
         outP = (outP - 1) | 0;
         U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
         ch = ch >> 6;
-        // fall through
+        /* falls through */
       case 2:
         outP = (outP - 1) | 0;
         U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
         ch = ch >> 6;
-        // fall through
+        /* falls through */
       case 1:
         outP = (outP - 1) | 0;
         if ((bytesToWrite | 0) == 1){

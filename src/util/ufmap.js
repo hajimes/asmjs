@@ -1,4 +1,4 @@
-import hash from './MurmurHash3_x86_32'
+import hash from './MurmurHash3_x86_32';
 
 /********************
  * ufmap
@@ -166,7 +166,6 @@ export function ufmap_has(p, key) {
    * Local variables
    */
   var TMP1 = 0;
-  var TMP2 = 0;
   var matched = 0;
 
   /*
@@ -212,11 +211,9 @@ export function ufmap_add(p, key, value, coef) {
   var lenP = 0;
   var mnkP = 0;
   var frpP = 0;
-  var matched = 0;
   var freeAbsP = 0; // byte offset for a new entry
   var entryP = 0;
   var prevP = 0;
-  var nextP = 0;
   var valueAbsP = 0;
   var v = 0.0;
   var currentSize = 0;
@@ -259,8 +256,7 @@ export function ufmap_add(p, key, value, coef) {
   U4[frpP >> 2] = (freeAbsP - p) | 0;
 
   // increment the number of entries
-  U4[lenP >> 2]
-    = (currentSize + 1) >>> 0;
+  U4[lenP >> 2] = (currentSize + 1) >>> 0;
 }
 
 /**
@@ -282,9 +278,6 @@ export function ufmap_get(p, key) {
   var matched = 0;
   var entryP = 0;
   var prevP = 0;
-  var nextP = 0;
-  var k = 0;
-  var v = 0.0;
 
   /*
    * Main

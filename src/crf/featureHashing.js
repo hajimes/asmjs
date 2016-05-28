@@ -1,4 +1,4 @@
-import hash from '../util/MurmurHash3_x86_32'
+import hash from '../util/MurmurHash3_x86_32';
 
 /**
  * Reduce the dimensionality of a sparse vectory by using the unbiased

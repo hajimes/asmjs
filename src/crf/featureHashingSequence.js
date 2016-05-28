@@ -1,4 +1,4 @@
-import featureHashing from './featureHashing'
+import featureHashing from './featureHashing';
 
 /**
  * Applies feature hashing to an instance for each class/position and

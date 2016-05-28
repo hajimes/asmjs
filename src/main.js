@@ -1,16 +1,16 @@
-import maxFloat32 from './math/maxFloat32'
-import logsumexp from './math/logsumexpFloat32'
-import * as ufmap from './util/ufmap.js'
-import hash from './util/MurmurHash3_x86_32'
-import susdot from './math/susdot'
-import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8'
-import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16'
-import isLittleEndian from './util/isLittleEndian'
-import crf_featureHashing from './crf/featureHashing'
-import crf_featureHashingSequence from './crf/featureHashingSequence'
-import crf_updateForwardScores from './crf/updateForwardScores'
-import crf_getNormalizationFactor from './crf/getNormalizationFactor'
-import crf_trainOnline from './crf/trainOnline'
+import maxFloat32 from './math/maxFloat32';
+import logsumexp from './math/logsumexpFloat32';
+import * as ufmap from './util/ufmap.js';
+import hash from './util/MurmurHash3_x86_32';
+import susdot from './math/susdot';
+import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8';
+import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
+import isLittleEndian from './util/isLittleEndian';
+import crf_featureHashing from './crf/featureHashing';
+import crf_featureHashingSequence from './crf/featureHashingSequence';
+import crf_updateForwardScores from './crf/updateForwardScores';
+import crf_getNormalizationFactor from './crf/getNormalizationFactor';
+import crf_trainOnline from './crf/trainOnline';
 
 var EXPORTS = {
   ufmap_create: ufmap.ufmap_create,

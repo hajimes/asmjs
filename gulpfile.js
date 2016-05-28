@@ -4,36 +4,16 @@
   const concat = require('gulp-concat');
   const del = require('del');
   const gulp = require('gulp');
+  const jshint = require('gulp-jshint');
   const replace = require('gulp-replace');
   const rollup = require('rollup').rollup;
   const shell = require('gulp-shell');
+  const stylish = require('jshint-stylish');
   
   const ISTANBUL_COMMAND = './node_modules/istanbul/lib/cli.js' +
     ' cover ./node_modules/mocha/bin/_mocha -- -R spec test/*Spec.js';
-  
-  gulp.task('istanbul', ['build'], shell.task([ISTANBUL_COMMAND]));
-
-  gulp.task('test', ['istanbul']);
 
   gulp.task('build', ['concat-bundle']);
-  
-  gulp.task('concat-bundle', ['reformat-bundle'], () => {
-    return gulp.src([
-        './src/pre.txt',
-        './tmp/main-replaced.js',
-        './src/post.txt'
-      ])
-      .pipe(concat('main.js'))
-      .pipe(gulp.dest('./'));
-  });
-  
-  gulp.task('reformat-bundle', ['bundle'], (cb) => {
-    return gulp.src('./tmp/main-rollupped.js')
-      .pipe(replace('var EXPORTS = ', 'return '))
-      .pipe(replace('export { EXPORTS };', ''))
-      .pipe(concat('main-replaced.js'))
-      .pipe(gulp.dest('./tmp'));
-  });
 
   gulp.task('bundle', () => {
     return rollup({
@@ -47,8 +27,37 @@
       });
     });
   });
-
+  
   gulp.task('clean', callback => {
     del(['coverage'], callback);
   });
+  
+  gulp.task('concat-bundle', ['reformat-bundle'], () => {
+    return gulp.src([
+        './src/pre.txt',
+        './tmp/main-replaced.js',
+        './src/post.txt'
+      ])
+      .pipe(concat('main.js'))
+      .pipe(gulp.dest('./'));
+  });
+  
+  gulp.task('istanbul', ['build', 'jshint'], shell.task([ISTANBUL_COMMAND]));
+
+  gulp.task('jshint', () => {
+    return gulp.src('src/*/*.js')
+      .pipe(jshint())
+      .pipe(jshint.reporter(stylish))
+      .pipe(jshint.reporter('fail'));
+  });
+
+  gulp.task('reformat-bundle', ['bundle'], (cb) => {
+    return gulp.src('./tmp/main-rollupped.js')
+      .pipe(replace('var EXPORTS = ', 'return '))
+      .pipe(replace('export { EXPORTS };', ''))
+      .pipe(concat('main-replaced.js'))
+      .pipe(gulp.dest('./tmp'));
+  });
+
+  gulp.task('test', ['istanbul']);
 })();

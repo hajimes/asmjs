@@ -1,6 +1,6 @@
 {
-  "bitwise": true,
-  "camelcase": true,
+  "bitwise": false,
+  "camelcase": false,
   "curly": true,
   "es3": false,
   "esnext": true,
@@ -16,16 +16,31 @@
   "quotmark": "single",
   "undef": true,
   "unused": true,
-  "strict": "global",
+  "strict": false,
   "trailing": true,
-  "maxparams": 8,
+  "maxparams": 16,
   "maxdepth": 5,
   "maxlen": 240,
   "maxstatements": 1000,
+  "-W041": false,
   "globals": {
     "define": true,
     "require": true,
     "module": true,
-    "max": true
+    "max": true,
+    "abs": true,
+    "exp": true,
+    "imul": true,
+    "log": true,
+    "max": true,
+    "sqrt": true,
+    "I1": true,
+    "I2": true,
+    "I4": true,
+    "U1": true,
+    "U2": true,
+    "U4": true,
+    "F4": true,
+    "F8": true
   }
 }

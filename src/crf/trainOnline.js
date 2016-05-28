@@ -1,11 +1,11 @@
-import adagradUpdateLazyAt from './adagradUpdateLazyAt'
-import featureHashingSequence from './featureHashingSequence'
-import updateStateScores from './updateStateScores'
-import updateFeatureScores from './updateFeatureScores'
-import updateForwardScores from './updateForwardScores'
-import updateBackwardScores from './updateBackwardScores'
-import getNormalizationFactor from './getNormalizationFactor'
-import updateJointScores from './updateJointScores'
+import adagradUpdateLazyAt from './adagradUpdateLazyAt';
+import featureHashingSequence from './featureHashingSequence';
+import updateStateScores from './updateStateScores';
+import updateFeatureScores from './updateFeatureScores';
+import updateForwardScores from './updateForwardScores';
+import updateBackwardScores from './updateBackwardScores';
+import getNormalizationFactor from './getNormalizationFactor';
+import updateJointScores from './updateJointScores';
 
 /**
  * Each instance is structured as

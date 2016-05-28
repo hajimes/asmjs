@@ -1,4 +1,4 @@
-import adagradLazyValue from './adagradLazyValue'
+import adagradLazyValue from './adagradLazyValue';
 
 export default function adagradUpdateLazyAt(index, foiP, soiP, weightP,
     round, delta, eta, lambda) {

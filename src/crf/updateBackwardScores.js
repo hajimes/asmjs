@@ -1,4 +1,4 @@
-import logsumexp from '../math/logsumexpFloat32'
+import logsumexp from '../math/logsumexpFloat32';
 
 /**
  * Updates backward scores.

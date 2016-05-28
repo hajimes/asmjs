@@ -1,4 +1,4 @@
-import adagradUpdateLazyAt from './adagradUpdateLazyAt'
+import adagradUpdateLazyAt from './adagradUpdateLazyAt';
 
 export default function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
   round, delta, eta, lambda) {
@@ -20,10 +20,6 @@ export default function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
    */
   var end = 0;
   var index = 0;
-  var value = 0.0;
-  var p1 = 0;
-  var p2 = 0;
-  var p3 = 0;
   
   /*
    * Main

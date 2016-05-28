@@ -1,4 +1,4 @@
-import trailingBytesForUtf8 from './trailingBytesForUtf8'
+import trailingBytesForUtf8 from './trailingBytesForUtf8';
 
 /**
  * Based on ConvertUTF.c by Unicode, Inc.
@@ -60,19 +60,19 @@ export default function convertUtf8toUtf16(inPP, inEnd, outPP, outEnd) {
         ch = (ch + v) | 0;
         inP = (inP + 1) | 0;
         ch = ch << 6;
-        // fall through
+        /* falls through */
       case 2:
         v = U1[inP >> 0] | 0;
         ch = (ch + v) | 0;
         inP = (inP + 1) | 0;
         ch = ch << 6;
-        // fall through
+        /* falls through */
       case 1:
         v = U1[inP >> 0] | 0;
         ch = (ch + v) | 0;
         inP = (inP + 1) | 0;
         ch = ch << 6;
-        // fall through
+        /* falls through */
       case 0:
         v = U1[inP >> 0] | 0;
         ch = (ch + v) | 0;

@@ -113,11 +113,11 @@ function logsumexpFloat32(p, len) {
 
     // exp(-20) = 2.06e-9, machine epsilon for float32 = 5.96e-08
     if (v - maxValue > -16.0) {
-      result = +(result + +exp(v - maxValue));
+      result = +(result + (+exp(v - maxValue)));
     }
   }
 
-  return +(maxValue + +log(result));
+  return +(maxValue + (+log(result)));
 }
 
 /**
@@ -142,11 +142,8 @@ function MurmurHash3_x86_32(p, len, seed) {
   * Local variables
   */
   var end = 0;
-  var i = 0;
   var k1 = 0;
-  var k1f = 0.0;
   var h1 = 0;
-  var h1f = 0.0;
   var keyLength = 0;
   var tailLength = 0;
   var bodyLength = 0;
@@ -161,7 +158,6 @@ function MurmurHash3_x86_32(p, len, seed) {
 
   // body
   end = (p + bodyLength) | 0;
-  // console.log(from + ' ' + tailLength + ' ' + end);
   while ((p | 0) < (end | 0)) {
    k1 = U4[p >> 2] | 0;
    p = (p + 4) | 0;
@@ -185,10 +181,10 @@ function MurmurHash3_x86_32(p, len, seed) {
   switch (tailLength | 0) {
     case 3:
       k1 = (k1 ^ (U1[(p + 2) >> 0] << 16)) | 0;
-      // fall through
+      /* falls through */
     case 2:
       k1 = (k1 ^ (U1[(p + 1) >> 0] << 8)) | 0;
-      // fall through
+      /* falls through */
     case 1:
       k1 = (k1 ^ (U1[p >> 0] | 0)) | 0;
       k1 = imul(k1, 0xcc9e2d51) >>> 0;
@@ -381,7 +377,6 @@ function ufmap_has(p, key) {
    * Local variables
    */
   var TMP1 = 0;
-  var TMP2 = 0;
   var matched = 0;
 
   /*
@@ -427,11 +422,9 @@ function ufmap_add(p, key, value, coef) {
   var lenP = 0;
   var mnkP = 0;
   var frpP = 0;
-  var matched = 0;
   var freeAbsP = 0; // byte offset for a new entry
   var entryP = 0;
   var prevP = 0;
-  var nextP = 0;
   var valueAbsP = 0;
   var v = 0.0;
   var currentSize = 0;
@@ -474,8 +467,7 @@ function ufmap_add(p, key, value, coef) {
   U4[frpP >> 2] = (freeAbsP - p) | 0;
 
   // increment the number of entries
-  U4[lenP >> 2]
-    = (currentSize + 1) >>> 0;
+  U4[lenP >> 2] = (currentSize + 1) >>> 0;
 }
 
 /**
@@ -497,9 +489,6 @@ function ufmap_get(p, key) {
   var matched = 0;
   var entryP = 0;
   var prevP = 0;
-  var nextP = 0;
-  var k = 0;
-  var v = 0.0;
 
   /*
    * Main
@@ -607,10 +596,10 @@ function uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd) {
   var SUR_LOW_END = 0xdfff;
   var HALF_SHIFT = 10;
   var HALF_BASE = 0x0010000;
-  var HALF_MASK = 0x3ff;
+  // var HALF_MASK = 0x3ff;
   var BYTE_MASK = 0xBF;
   var BYTE_MARK = 0x80;
-  var ERROR_SOURCE_EXHAUSTED = 1;
+  // var ERROR_SOURCE_EXHAUSTED = 1;
   var ERROR_TARGET_EXHAUSTED = 2;
   var ERROR_SOURCE_ILLEGAL = 3;
   var ch = 0;
@@ -676,17 +665,17 @@ function uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd) {
         outP = (outP - 1) | 0;
         U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
         ch = ch >> 6;
-        // fall through
+        /* falls through */
       case 3:
         outP = (outP - 1) | 0;
         U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
         ch = ch >> 6;
-        // fall through
+        /* falls through */
       case 2:
         outP = (outP - 1) | 0;
         U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
         ch = ch >> 6;
-        // fall through
+        /* falls through */
       case 1:
         outP = (outP - 1) | 0;
         if ((bytesToWrite | 0) == 1){
@@ -799,19 +788,19 @@ function convertUtf8toUtf16(inPP, inEnd, outPP, outEnd) {
         ch = (ch + v) | 0;
         inP = (inP + 1) | 0;
         ch = ch << 6;
-        // fall through
+        /* falls through */
       case 2:
         v = U1[inP >> 0] | 0;
         ch = (ch + v) | 0;
         inP = (inP + 1) | 0;
         ch = ch << 6;
-        // fall through
+        /* falls through */
       case 1:
         v = U1[inP >> 0] | 0;
         ch = (ch + v) | 0;
         inP = (inP + 1) | 0;
         ch = ch << 6;
-        // fall through
+        /* falls through */
       case 0:
         v = U1[inP >> 0] | 0;
         ch = (ch + v) | 0;
@@ -1240,7 +1229,6 @@ function updateStateScores(nzP, valueP, indexP, weightP,
    * Local variables
    */
   var i = 0;
-  var p = 0;
   var end = 0;
   var nz = 0;
   var nzBytes = 0;

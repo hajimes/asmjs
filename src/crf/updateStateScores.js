@@ -1,4 +1,4 @@
-import susdot from '../math/susdot'
+import susdot from '../math/susdot';
 
 /**
  * Updates a table of state scores.
@@ -27,7 +27,6 @@ export default function updateStateScores(nzP, valueP, indexP, weightP,
    * Local variables
    */
   var i = 0;
-  var p = 0;
   var end = 0;
   var nz = 0;
   var nzBytes = 0;
