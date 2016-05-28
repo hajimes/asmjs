@@ -37,7 +37,7 @@ export default function logsumexpFloat32(p, len) {
     v = +F4[p >> 2];
 
     // exp(-20) = 2.06e-9, machine epsilon for float32 = 5.96e-08
-    if (v - maxValue > -16.0) {
+    if (v - maxValue > -20.0) {
       result = +(result + (+exp(v - maxValue)));
     }
   }
