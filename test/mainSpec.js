@@ -8,6 +8,7 @@ describe('This handwritten asm.js module', function() {
   var myAsmjsModule = {};
 
   var heap = {};
+  var I4 = {};
   var U1 = {};
   var U2 = {};
   var U4 = {};
@@ -19,7 +20,15 @@ describe('This handwritten asm.js module', function() {
     var i = 0;
     
     for (i = 0; i < uint32s.length; i += 1) {
-      u4[(p + (i << 2)) >> 2] = uint32s[i];
+      u4[(p + (i << 2)) >> 2] = uint32s[i] >>> 0;
+    }
+  }
+
+  function putInt32(i4, p, int32s) {
+    var i = 0;
+    
+    for (i = 0; i < int32s.length; i += 1) {
+      i4[(p + (i << 2)) >> 2] = int32s[i] | 0;
     }
   }
   
@@ -27,7 +36,7 @@ describe('This handwritten asm.js module', function() {
     var i = 0;
     
     for (i = 0; i < floats.length; i += 1) {
-      f4[(p + (i << 2)) >> 2] = floats[i];
+      f4[(p + (i << 2)) >> 2] = +floats[i];
     }
   }
   
@@ -46,6 +55,7 @@ describe('This handwritten asm.js module', function() {
   
   beforeEach(function() {      
     heap = new ArrayBuffer(1 << 20);
+    I4 = new Int32Array(heap);
     U1 = new Uint8Array(heap);
     U2 = new Uint16Array(heap);
     U4 = new Uint32Array(heap);
@@ -93,8 +103,8 @@ describe('This handwritten asm.js module', function() {
     });
   });
   
-  describe('has math functions', function() {
-    it('for calculating the maximum value in float32s', function() {
+  describe('has math functions to compute', function() {
+    it('the maximum value in float32s', function() {
       F4[25] = -3.0;
       F4[26] = 1.0;
       F4[27] = 3.0;
@@ -103,8 +113,24 @@ describe('This handwritten asm.js module', function() {
       expect(mod.maxFloat32(25 << 2, 2)).to.closeTo(1.0, 0.000001);
       expect(mod.maxFloat32(25 << 2, 3)).to.closeTo(3.0, 0.000001);
     });
+    
+    it('the sum of float32s', function() {
+      putFloat(F4, 100, [-3.0, 1.0, 3.0]);
+      
+      expect(mod.sumFloat32(25 << 2, -1)).to.closeTo(0.0, 0.000001);
+      expect(mod.sumFloat32(25 << 2, 0)).to.closeTo(0.0, 0.000001);
+      expect(mod.sumFloat32(25 << 2, 1)).to.closeTo(-3.0, 0.000001);
+      expect(mod.sumFloat32(25 << 2, 2)).to.closeTo(-2.0, 0.000001);
+      expect(mod.sumFloat32(25 << 2, 3)).to.closeTo(1.0, 0.000001);
+    });
+    
+    it('the sum of int32s', function() {
+      putInt32(I4, 100, [-3, 1, 3]);
+      
+      expect(mod.sumInt32(25 << 2, -1)).to.equal(0);
+    });
 
-    it('for logsumexp of float32s', function() {
+    it('the logsumexp of float32s', function() {
       F4[25] = 1.0;
       expect(mod.logsumexp(25 << 2, 1)).to.closeTo(1.0, 0.000001);
       F4[25] = 2.0;

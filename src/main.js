@@ -1,4 +1,6 @@
 import maxFloat32 from './math/maxFloat32';
+import sumFloat32 from './math/sumFloat32';
+import sumInt32 from './math/sumInt32';
 import logsumexp from './math/logsumexpFloat32';
 import * as ufmap from './util/ufmap.js';
 import hash from './util/MurmurHash3_x86_32';
@@ -19,6 +21,8 @@ var EXPORTS = {
   ufmap_get: ufmap.ufmap_get,
   ufmap_size: ufmap.ufmap_size,
   maxFloat32: maxFloat32,
+  sumFloat32: sumFloat32,
+  sumInt32: sumInt32,
   hash: hash,
   logsumexp: logsumexp,
   vec_susdot: susdot,  

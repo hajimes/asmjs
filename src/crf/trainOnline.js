@@ -1,3 +1,4 @@
+import sumInt32 from '../math/sumInt32';
 import adagradUpdateLazyAt from './adagradUpdateLazyAt';
 import featureHashingSequence from './featureHashingSequence';
 import updateStateScores from './updateStateScores';
@@ -103,10 +104,8 @@ export default function trainOnline(numberOfStates, dimension, round,
   valueP = U4[(instanceP + 16) >> 2] | 0;
   indexP = U4[(instanceP + 20) >> 2] | 0;
   nzP = U4[(instanceP + 12) >> 2] | 0;
-  for (i = 0; (i | 0) < (chainLength | 0); i = (i + 1) | 0) {
-    totalNz = (totalNz + (U4[nzP >> 2] | 0)) | 0;
-    nzP = (nzP + 4) | 0;
-  }
+  
+  totalNz = sumInt32(nzP, chainLength) | 0;
   
   featureScoreTableSize = (imul(chainLength, numberOfStates),
     numberOfStates);
