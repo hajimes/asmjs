@@ -55,6 +55,7 @@
     return gulp.src('./tmp/main-rollupped.js')
       .pipe(replace('var EXPORTS = ', 'return '))
       .pipe(replace('export { EXPORTS };', ''))
+      .pipe(replace('_CMP_FUNCTION_TABLE', 'CMP_FUNCTION_TABLE'))
       .pipe(concat('main-replaced.js'))
       .pipe(gulp.dest('./tmp'));
   });

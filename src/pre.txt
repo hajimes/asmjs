@@ -20,11 +20,23 @@
     'use asm';
 
     var abs = stdlib.Math.abs;
+    var acos = stdlib.Math.acos;
+    var asin = stdlib.Math.asin;
+    var atan = stdlib.Math.atan;
+    var atan2 = stdlib.Math.atan2;
+    var ceil = stdlib.Math.ceil;
+    var cos = stdlib.Math.cos;
     var exp = stdlib.Math.exp;
+    var floor = stdlib.Math.floor;
+    var fround = stdlib.Math.fround;
     var imul = stdlib.Math.imul;
     var log = stdlib.Math.log;
     var max = stdlib.Math.max;
+    var min = stdlib.Math.min;
+    var pow = stdlib.Math.pow;
+    var sin = stdlib.Math.sin;
     var sqrt = stdlib.Math.sqrt;
+    var tan = stdlib.Math.tan;
     
     var I1 = new stdlib.Int8Array(heap);
     var I2 = new stdlib.Int16Array(heap);

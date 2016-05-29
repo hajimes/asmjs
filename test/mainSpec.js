@@ -43,6 +43,26 @@ describe('This handwritten asm.js module', function() {
     }
   }
   
+  function putASCII(str, U1, pos) {
+    var i = 0;
+    
+    for (i = 0; i < str.length; i += 1) {
+      U1[pos + i] = (str.charCodeAt(i) & 0xff);
+    }
+  }
+  
+  // Endian dependent
+  function putUtf16(str, U2, pos) {
+    var i = 0;
+    var ch = 0;
+    
+    for (i = 0; i < str.length; i += 1) {
+      ch = str.charCodeAt(i);
+      U2[pos >> 1] = ch;
+      pos += 2;
+    }
+  }
+  
   if (typeof window === 'undefined') {
     root = global;
     chai = require('chai');
@@ -194,19 +214,7 @@ describe('This handwritten asm.js module', function() {
     });
   });
   
-  describe('handles unicode:', function() {
-    // Endian dependent
-    function putUtf16(str, U2, pos) {
-      var i = 0;
-      var ch = 0;
-      
-      for (i = 0; i < str.length; i += 1) {
-        ch = str.charCodeAt(i);
-        U2[pos >> 1] = ch;
-        pos += 2;
-      }
-    }
-        
+  describe('handles unicode:', function() {        
     it('utf16-to-utf8 conversion', function() {
       var str = '';
       var inPP = 0;
@@ -280,13 +288,42 @@ describe('This handwritten asm.js module', function() {
   });
   
   describe('has a collection of utility functions', function() {
-    function putASCII(str, U1, pos) {
+    
+    it('qsort with the improvement by Bentley-McIlroy', function() {
       var i = 0;
+      var inP = 1000;
+      var ints = [4, 5, 1, -2, 3];
+      var isOk = true;
       
-      for (i = 0; i < str.length; i += 1) {
-        U1[pos + i] = (str.charCodeAt(i) & 0xff);
+      putInt32(I4, inP, ints);
+
+      mod.qsortBM(inP, ints.length, 4, 0);
+      
+      expect(I4[inP >> 2]).to.equal(-2);
+      expect(I4[(inP + 4) >> 2]).to.equal(1);
+      expect(I4[(inP + 8) >> 2]).to.equal(3);
+      expect(I4[(inP + 12) >> 2]).to.equal(4);
+      expect(I4[(inP + 16) >> 2]).to.equal(5);
+      
+      ints = [];
+      
+      for (i = 0; i < 1000; i += 1) {
+        ints.push((Math.random() * 1000000 - 500000) >> 0);
       }
-    }
+
+      putInt32(I4, inP, ints);
+      mod.qsortBM(inP, ints.length, 4, 0);
+      ints.sort(function(a, b) {
+        return a - b;
+      });
+      
+      for (i = 0; i < 1000; i += 1) {
+        isOk = isOk && (ints[i] === I4[(inP + (i << 2)) >> 2]);
+      }
+      expect(isOk).to.be.true;
+      
+      // Add more regorous tests
+    });
     
     it('MurmurHash3_x86_32', function() {
       // Test vectors suggested by Ian Boyd in 2015
@@ -743,7 +780,8 @@ describe('This handwritten asm.js module', function() {
           to.closeTo(expectedJointScores[i], 0.00001);
         featureScoreP += 4;
       }
-      // The method overwrites so bytes after that should remain 0 in this case
+      // The method overwrites featureScores,
+      // so bytes after that should remain 0 in this case.
       expect(F4[featureScoreP >> 2]).to.closeTo(0.0, 0.00001);
     });
     
@@ -790,6 +828,61 @@ describe('This handwritten asm.js module', function() {
         outP += 4;
       }
       expect(F4[outP >> 2]).to.closeTo(0.0, 0.00001);
+    });
+
+    it('resolving repeated indices of sparse vectors', function() {
+      var inP = 1000;
+      var outNzP = 2000;
+      var outValueP = 10000;
+      var outIndexP = 3000;
+      var t = inP;
+      
+      U4[inP >> 2] = 8;
+      inP += 4;
+      F4[inP >> 2] = 0.5;
+      inP += 4;
+
+      U4[inP >> 2] = 10;
+      inP += 4;
+      F4[inP >> 2] = -2.5;
+      inP += 4;
+
+      U4[inP >> 2] = 10;
+      inP += 4;
+      F4[inP >> 2] = 1.5;
+      inP += 4;
+
+      U4[inP >> 2] = 4;
+      inP += 4;
+      F4[inP >> 2] = 3.5;
+      inP += 4;
+
+      mod.crf_uniqueAndZipSparseVector(0, t, outNzP, outValueP, outIndexP);
+      expect(I4[outNzP >> 2]).to.equal(0);
+      expect(I4[outIndexP >> 2]).to.equal(0);
+      expect(F4[outValueP >> 2]).to.closeTo(0, 0.00001);
+
+      mod.crf_uniqueAndZipSparseVector(1, t, outNzP, outValueP, outIndexP);
+      expect(I4[outNzP >> 2]).to.equal(1);
+      expect(I4[outIndexP >> 2]).to.equal(8);
+      expect(F4[outValueP >> 2]).to.closeTo(0.5, 0.00001);
+      
+      mod.crf_uniqueAndZipSparseVector(4, t, outNzP, outValueP, outIndexP);
+      expect(I4[outNzP >> 2]).to.equal(3);
+      expect(I4[outIndexP >> 2]).to.equal(4);
+      expect(F4[outValueP >> 2]).to.closeTo(3.5, 0.00001);
+      outIndexP += 4;
+      outValueP += 4;
+      expect(I4[outIndexP >> 2]).to.equal(8);
+      expect(F4[outValueP >> 2]).to.closeTo(0.5, 0.00001);
+      outIndexP += 4;
+      outValueP += 4;
+      expect(I4[outIndexP >> 2]).to.equal(10);
+      expect(F4[outValueP >> 2]).to.closeTo(-1.0, 0.00001);
+      outIndexP += 4;
+      outValueP += 4;
+      expect(I4[outIndexP >> 2]).to.equal(0);
+      expect(F4[outValueP >> 2]).to.closeTo(0.0, 0.00001);
     });
   });
 });

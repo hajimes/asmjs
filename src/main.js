@@ -17,7 +17,25 @@ import crf_getNormalizationFactor from './crf/getNormalizationFactor';
 import crf_updateJointScores from './crf/updateJointScores';
 import crf_trainOnline from './crf/trainOnline';
 import crf_updateMarginalProbabilities from './crf/updateMarginalProbabilities';
+import crf_uniqueAndZipSparseVector from './crf/uniqueAndZipSparseVector';
+import compareInt32 from './util/compareInt32';
+import compareUint32 from './util/compareUint32';
+import qsortBM from './util/qsortBM';
 
+/*
+ * Definition of function tables.
+ * The size of a table must be a power of 2.
+ * In a valid asm.js module, this definition must come after
+ * function definitions and before its return statement.
+ *
+ * The name of this variable will be changed into CMP_FUNCTION_TABLE
+ * during gulp building phase.
+ */
+var _CMP_FUNCTION_TABLE = [compareInt32, compareUint32];
+
+/*
+ * Definition of exported functions
+ */
 var EXPORTS = {
   ufmap_create: ufmap.ufmap_create,
   ufmap_has: ufmap.ufmap_has,
@@ -41,7 +59,11 @@ var EXPORTS = {
   crf_updateMarginalProbabilities: crf_updateMarginalProbabilities,
   crf_getNormalizationFactor: crf_getNormalizationFactor,
   crf_updateJointScores: crf_updateJointScores,
-  isLittleEndian: isLittleEndian
+  crf_uniqueAndZipSparseVector: crf_uniqueAndZipSparseVector,
+  isLittleEndian: isLittleEndian,
+  compareInt32: compareInt32,
+  compareUint32: compareUint32,
+  qsortBM: qsortBM
 };
 
 export {EXPORTS}

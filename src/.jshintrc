@@ -28,6 +28,7 @@
     "require": true,
     "module": true,
     "max": true,
+    "min": true,
     "abs": true,
     "exp": true,
     "imul": true,
