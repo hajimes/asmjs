@@ -630,8 +630,7 @@ describe('This handwritten asm.js module', function() {
       mod.crf_updateBackwardScores(inP, numberOfStates, -1, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
-      expect(F4[(outP + 4) >> 2]).to.equal(0.0);  
-
+      expect(F4[(outP + 4) >> 2]).to.equal(0.0);
 
       mod.crf_updateBackwardScores(inP, numberOfStates,
         chainLength, tmpP, outP);
@@ -644,7 +643,7 @@ describe('This handwritten asm.js module', function() {
       expect(F4[outP >> 2]).to.closeTo(0.0, 0.00001);
     });
     
-    it('computing a normalization factor', function() {
+    it('computing a normalization factor from forward scores', function() {
       var forwardScores = [
         1.0, 2.0,
         -1.0, 0.5,
@@ -670,6 +669,82 @@ describe('This handwritten asm.js module', function() {
       expect(nf).to.closeTo(0, 0.00001);
       nf = mod.crf_getNormalizationFactor(inP, numberOfStates, -1);
       expect(nf).to.closeTo(0, 0.00001);
+    });
+    
+    it('joint score calculation', function() {
+      var i = 0;
+      var numberOfStates = 2;
+      var chainLength = 3;
+      
+      var normalizationFactor = [0.1];
+      var forwardScores = [
+        1.0, -1.0,
+        0.5, 2.0,
+        -1.5, 0.5
+      ];
+      var backwardScores = [
+        0.5, -2.0,
+        1.0, 1.5,
+        2.0, -1.0
+      ];
+
+      var featureScores = [
+        1.6, -2.9, 0.0, 0.0,
+        1.6, 3.6, -0.4, 2.1,
+        2.6, 1.1, 0.6, -0.4
+      ];
+
+      // In real situations, the sum of the exponential of each score
+      // (excluding jointScores[0][j][k] for j >= 1) must be close to 1.0
+      // but we ignore that condition here.
+      var expectedJointScores = [
+        2.0, -5.0, 0.0, 0.0,
+        3.5, 6.0, -0.5, 2.5,
+        5.0, 0.5, 4.5, 0.5
+      ];
+      
+      var featureScoreP = 3000;
+      var forwardScoreP = 1000;
+      var backwardScoreP = 2000;
+      var normalizationFactorP = 100;
+      
+      putFloat(F4, featureScoreP, featureScores);
+      putFloat(F4, forwardScoreP, forwardScores);
+      putFloat(F4, backwardScoreP, backwardScores);
+      putFloat(F4, normalizationFactorP, normalizationFactor);
+      
+      // This function does nothing if either # of states or chain length is
+      // less than 1
+      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+        backwardScoreP, normalizationFactorP, 0, chainLength);
+      expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
+      expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
+      expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
+      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+        backwardScoreP, normalizationFactorP, -1, chainLength);
+      expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
+      expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
+      expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
+      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+        backwardScoreP, normalizationFactorP, numberOfStates, 0);
+      expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
+      expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
+      expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
+      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+        backwardScoreP, normalizationFactorP, numberOfStates, -1);
+      expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
+      expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
+      expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
+      
+      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+        backwardScoreP, normalizationFactorP, numberOfStates, chainLength);
+      for (i = 0; i < numberOfStates * numberOfStates * chainLength; i += 1) {
+        expect(F4[featureScoreP >> 2]).
+          to.closeTo(expectedJointScores[i], 0.00001);
+        featureScoreP += 4;
+      }
+      // The method overwrites so bytes after that should remain 0 in this case
+      expect(F4[featureScoreP >> 2]).to.closeTo(0.0, 0.00001);
     });
     
     it('computing marginal probabilities from joint in log-scale', function() {

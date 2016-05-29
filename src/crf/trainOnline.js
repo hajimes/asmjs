@@ -8,7 +8,7 @@ import updateFeatureScores from './updateFeatureScores';
 import updateForwardScores from './updateForwardScores';
 import updateBackwardScores from './updateBackwardScores';
 import getNormalizationFactor from './getNormalizationFactor';
-import updateJointScores from './updateJointScores';
+// import updateJointScores from './updateJointScores';
 
 /**
  * Each instance is structured as
@@ -141,8 +141,8 @@ export default function trainOnline(numberOfStates, dimension, round,
     chainLength, tmpP, backwardScoreP);
   normalizationFactor = +getNormalizationFactor(forwardScoreP,
     numberOfStates, chainLength);
-  updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
-    numberOfStates, chainLength, normalizationFactor);
+  // updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
+  //   numberOfStates, chainLength, normalizationFactor);
   //updateMarginalScores();
   // updateGradient();
   adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP, foiP, soiP);
