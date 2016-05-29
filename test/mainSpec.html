@@ -13,17 +13,47 @@
   <script type="text/javascript" src="../bower_components/mocha/mocha.js"></script>
   <script type="text/javascript" src="../bower_components/chai/chai.js"></script>
   <script type="text/javascript" src="../bower_components/lodash/dist/lodash.min.js"></script>
-  <script type="text/javascript" src="../main.js"></script>
 
   <script>
     mocha.setup('bdd');
   </script>
   
-  <script type="text/javascript" src="./mainSpec.js"></script>
-  
   <script>
-    mocha.checkLeaks();
-    mocha.run();
+    // Based on jQuery
+    function loadModuleAsync(url, callback) {
+      var head = document.getElementsByTagName('head')[0] ||
+        document.documentElement;
+      var script = document.createElement('script');
+      script.src = url;
+      document.body.appendChild(script);
+  
+      var done = false;
+
+      // Attach handlers for all browsers
+      script.onload = script.onreadystatechange = function() {
+        if (!done && (!this.readyState ||
+          this.readyState === 'loaded' || this.readyState === 'complete')) {
+            done = true;
+
+            // Handle memory leak in IE
+            script.onload = script.onreadystatechange = null;
+            if (head && script.parentNode) {
+              head.removeChild(script);
+            }
+
+            callback();
+          }
+      };
+
+      head.insertBefore(script, head.firstChild);
+    }
+    
+    loadModuleAsync('../main.js', function() {
+      loadModuleAsync('./mainSpec.js', function() {
+        mocha.checkLeaks();
+        mocha.run();        
+      });
+    });
   </script>
 </body>
 </html>
