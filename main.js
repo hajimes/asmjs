@@ -1919,14 +1919,13 @@ function updateMarginalProbabilities(jointScoreP,
  * Data will be overwrriten into a table of feature scores.
  */
 function updateJointScores(featureScoreP, forwardScoreP,
-    backwardScoreP, normalizationFactorP, numberOfStates, chainLength) {
+    backwardScoreP, numberOfStates, chainLength) {
   /*
    * Type annotations
    */
   featureScoreP = featureScoreP | 0;
   forwardScoreP = forwardScoreP | 0;
   backwardScoreP = backwardScoreP | 0;
-  normalizationFactorP = normalizationFactorP | 0;
   numberOfStates = numberOfStates | 0;
   chainLength = chainLength | 0;
 
@@ -1938,7 +1937,6 @@ function updateJointScores(featureScoreP, forwardScoreP,
   var cur = 0;
   var prev = 0;
   var score = 0.0;
-  var normalizationFactor = 0.0;
   var forwardScore = 0.0;
   var backwardScore = 0.0;
   var backwardScorePSave = 0;
@@ -1951,7 +1949,6 @@ function updateJointScores(featureScoreP, forwardScoreP,
     return;
   }
 
-  normalizationFactor = +F4[normalizationFactorP >> 2];
   outP = featureScoreP; // overwrite
   nosBytes = numberOfStates << 2;
   
@@ -1961,7 +1958,7 @@ function updateJointScores(featureScoreP, forwardScoreP,
     backwardScore = +F4[backwardScoreP >> 2];
 
     score = +F4[outP >> 2];
-    score = score + backwardScore - normalizationFactor;
+    score = score + backwardScore;
     F4[outP >> 2] = score;
     
     backwardScoreP = (backwardScoreP + 4) | 0;
@@ -1973,7 +1970,6 @@ function updateJointScores(featureScoreP, forwardScoreP,
   // score[time][prev][cur] = featureScores[time][prev][cur] +
   //   forwardScores[time - 1][prev]
   //   backwardScores[time][cur]
-  //   - normalizationFactor
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
     for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
       backwardScorePSave = backwardScoreP;
@@ -1982,8 +1978,7 @@ function updateJointScores(featureScoreP, forwardScoreP,
         forwardScore = +F4[forwardScoreP >> 2];
 
         score = +F4[outP >> 2];
-        score = score + forwardScore + backwardScore -
-          normalizationFactor;
+        score = score + forwardScore + backwardScore;
         F4[outP >> 2] = score;
         
         outP = (outP + 4) | 0;
@@ -1999,9 +1994,7 @@ function updateJointScores(featureScoreP, forwardScoreP,
 /**
  * Computes a gradient.
  *
- * for tmps 
- * nz[0] * numberOfStates + numberOfStates + 1
- * (chainLength - 1) * numberOfStates^2 * (nz[i] + 1)  +numberOfStates^2
+ * valueP and outValueP can be the same as well as indexP and outIndexP.
  */
 function updateGradient(nzP, valueP, indexP,
     biasScoreP, biasIndex, 
@@ -2387,7 +2380,7 @@ function updateStateScores(nzP, valueP, indexP, weightP,
    */
   end = (nzP + chainLength << 2) | 0;
   while ((nzP | 0) < (end | 0)) {
-    nz = U4[nzP >> 2] | 0;
+    nz = I4[nzP >> 2] | 0;
     for (i = 0; (i | 0) < (numberOfStates | 0); i = (i + 1) | 0) {
       susdot(nz, valueP, indexP, weightP, outP);
       outP = (outP + 4) | 0;
@@ -2399,36 +2392,106 @@ function updateStateScores(nzP, valueP, indexP, weightP,
   }
 }
 
-// import updateJointScores from './updateJointScores';
+/**
+ * Suffers a loss, or the negative log-likelihood.
+ *
+ * Exactly 4-bytes will be written into lossP.
+ *
+ * @param {int} featureScoreP
+ * @param {int} normalizationFactorP
+ * @param {int} correctPathP - byte offset to a correct path
+ * @param {int} numberOfStates - number of the states in this Markov chain
+ * @param {int} chainLength - length of this Markov chain
+ * @param {int} lossP - byte offset to which the loss will be written
+ */
+function sufferLoss(featureScoreP, normalizationFactorP,
+  correctPathP, numberOfStates, chainLength, lossP) {
+  /*
+   * Type annotations
+   */
+  featureScoreP = featureScoreP | 0;
+  normalizationFactorP = normalizationFactorP | 0;
+  correctPathP = correctPathP | 0;
+  numberOfStates = numberOfStates | 0;
+  chainLength = chainLength | 0;
+  lossP = lossP | 0;
+
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var t = 0.0;
+  var logLikelihood = 0.0;
+  var offset = 0;
+  var currentState = 0;
+  var previousState = 0;
+  var normalizationFactor = 0.0;
+  var nossqb = 0;
+
+  /*
+   * Main
+   */
+  if (((numberOfStates | 0) <= 0) | ((chainLength | 0) <= 0)) {
+    return;
+  }
+
+  nossqb = imul(numberOfStates, numberOfStates) << 2;
+
+  currentState = I4[correctPathP >> 2] | 0;
+  t = +F4[(featureScoreP + (currentState << 2)) >> 2];
+  logLikelihood = t;
+  previousState = currentState;
+  featureScoreP = (featureScoreP + nossqb) | 0;
+  correctPathP = (correctPathP + 4) | 0;
+  
+  for (i = 1; (i | 0) < (chainLength | 0); i = (i + 1) | 0) {
+    currentState = I4[correctPathP >> 2] | 0;
+    offset = (imul(numberOfStates, previousState) + currentState) << 2;
+
+    t = +F4[(featureScoreP + offset) >> 2];
+    
+    logLikelihood = logLikelihood + t;
+    
+    previousState = currentState;
+    featureScoreP = (featureScoreP + nossqb) | 0;
+    correctPathP = (correctPathP + 4) | 0;
+  }
+  
+  normalizationFactor = +F4[normalizationFactorP >> 2];
+  logLikelihood = logLikelihood - normalizationFactor;
+
+  F4[lossP >> 2] = -logLikelihood;
+}
 
 /**
  * Each instance is structured as
  *
- * +---+---+---+---+---+---+
- * |IID|PLN|STP|NZP|VLP|IXP|
- * +---+---+---+---+---+---+
+ * +---+---+---+---+---+---+---+
+ * |IID|PLN|STP|NZP|VLP|IND|CRP|
+ * +---+---+---+---+---+---+---|
  *
  * IID: instance id
- * PLN: uint32, the length of a path
- * STP: byte offset to textual information about features. 0 if not exsting
+ * PLN: the length of a path
+ * STP: byte offset to textual information on features. negative if not exsting
  * NZP: byte offset to NZS
  * VLP: byte offset to VALUES
  * IND: byte offset to INDICES
+ * CRP: byte offset to the supervisory path; negataive if not a training datum
  *
  * NZS: NZP[i] contains the number of non-zero elements at the position i
  * VALUES: float32[PLN][NZS[i]] for i in [0, PLN)
- * INDICES: uint32[PLN][NZS[i]] for i in [0, PLN)
+ * INDICES: int32[PLN][NZS[i]] for i in [0, PLN)
+ * CRP: int32[PLN]
  *
- * Each instance header occupies 24 bytes
+ * To sum up, each instance header occupies 28 bytes
  */
 // Incomplete
-function trainOnline(numberOfStates, dimension, round,
-    foiP, soiP, weightP,
-    delta, eta, lambda,
-    instanceP, tmpP, hashMapP) {
+function trainOnline(instanceP, numberOfStates, dimension, round,
+  foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP) {
   /*
    * Type annotations
    */
+  instanceP = instanceP | 0;
   numberOfStates = numberOfStates | 0;
   dimension = dimension | 0;
   round = round | 0;
@@ -2438,34 +2501,48 @@ function trainOnline(numberOfStates, dimension, round,
   delta = +delta;
   eta = +eta;
   lambda = +lambda;
-  instanceP = instanceP | 0;
   tmpP = tmpP | 0;
-  hashMapP = hashMapP | 0;
+  lossP = lossP | 0;
   
   /*
    * Local variables
    */
   var i = 0;
-  var p = 0;
+
   var nzP = 0;
   var totalNz = 0;
   var chainLength = 0;
   var valueP = 0;
   var indexP = 0;
-  var outValueP = 0;
-  var outIndexP = 0;
+  var correctPathP = 0;
+
+  var featureHashedValueP = 0;
+  var featureHashedIndexP = 0;
+
   var biasScoreP = 0;
   var transitionScoreP = 0;
-  var transitionScoreTableSize = 0;
   var stateScoreP = 0;
   var featureScoreP = 0;
-  var featureScoreTableSize = 0;
   var forwardScoreP = 0;
   var backwardScoreP = 0;
   var normalizationFactorP = 0;
+
   var gradientNzP = 0;
   var gradientValueP = 0;
   var gradientIndexP = 0;
+  
+  var stateScoreTableSize = 0;
+  var transitionScoreTableSize = 0;
+  var featureScoreTableSize = 0;
+  var gradientMaxSize = 0;
+  
+  var jointScoreP = 0;
+  var marginalProbabilityP = 0;
+  var biasIndex = 0;
+  var transitionIndex = 0;
+
+  var tmpValueP = 0;
+  var tmpIndexP = 0;
   
   /*
    * Main
@@ -2473,52 +2550,76 @@ function trainOnline(numberOfStates, dimension, round,
   
   //
   // Memory allocation
-  // outValue: MAX_SPARSE_SIZE (bytes)
-  // outIndex: MAX_SPARSE_SIZE (bytes)
-  // stateScores: (chainLength * numberOfState * 4) bytes
-  // featureScores/jointScores: (chainLength * (numberOfStates ^ 2) * 4) 
-  // forwardScores: (chainLength * numberOfStates * 4) bytes
-  // backwardScores: (chainLength * numberOfStates * 4) bytes
-  // gradient sparse vector: (4 + ... + ...) bytes
-  // temporary working space: (numberOfStates * 4)
-  p = tmpP;
-  outValueP = p;
-  p = (p + 16384) | 0; // allocate 16kb
-  outIndexP = p;
-  p = (p + 16384) | 0; // allocate 16kb
-  
-  // Uses the first element of a weight vector as a bias term
-  biasScoreP = weightP;
-
-  transitionScoreP = (weightP + 4) | 0;
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
-  stateScoreP = (weightP + 4 + (transitionScoreTableSize << 2)) | 0;  
-  
+  //
+    
   // Uses the path length of an instance as a Markov chain length
-  chainLength = U4[(instanceP + 4) >> 2] | 0;
-  valueP = U4[(instanceP + 16) >> 2] | 0;
-  indexP = U4[(instanceP + 20) >> 2] | 0;
-  nzP = U4[(instanceP + 12) >> 2] | 0;
+  chainLength = I4[(instanceP + 4) >> 2] | 0;
+  nzP = I4[(instanceP + 12) >> 2] | 0;
+  valueP = I4[(instanceP + 16) >> 2] | 0;
+  indexP = I4[(instanceP + 20) >> 2] | 0;
+  correctPathP = I4[(instanceP + 24) >> 2] | 0;
   
   totalNz = sumInt32(nzP, chainLength) | 0;
   
-  featureScoreTableSize = (imul(chainLength, numberOfStates),
-    numberOfStates);
+  stateScoreTableSize = imul(chainLength, numberOfStates);
+  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
+  gradientMaxSize = (imul(totalNz, numberOfStates) +
+    transitionScoreTableSize + 4) | 0;
 
-  featureScoreP = (outIndexP + (featureScoreTableSize << 2)) | 0;
+  biasIndex = (dimension + transitionScoreTableSize) | 0;
+  transitionIndex = dimension;
+
+  // We only need (imul(totalNz, numberOfStates) << 2) bytes at feature hashing
+  // but we allocate slightly larger bytes so that later the space can be used
+  // as an output space for the gradient calculation.
+  featureHashedValueP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
   
-  normalizationFactorP = 4;
+  featureHashedIndexP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+
+  biasScoreP = (weightP + (biasIndex << 2)) | 0;
+  transitionScoreP = (weightP + (transitionIndex << 2)) | 0;
+
+  stateScoreP = tmpP;
+  tmpP = (tmpP + (stateScoreTableSize << 2)) | 0;
+
+  featureScoreP = tmpP;
+  tmpP = (tmpP + (featureScoreTableSize << 2)) | 0;
+
+  forwardScoreP = tmpP;
+  tmpP = (tmpP + (stateScoreTableSize << 2)) | 0;
+
+  backwardScoreP = tmpP;
+  tmpP = (tmpP + (stateScoreTableSize << 2)) | 0;
+  
+  normalizationFactorP = tmpP;
+  tmpP = (tmpP + 4) | 0;
+  
+  marginalProbabilityP = tmpP;
+  tmpP = (tmpP + (transitionScoreTableSize << 2)) | 0;
+  
+  tmpValueP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+
+  tmpIndexP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  
+  // reuse these spaces
+  gradientNzP = normalizationFactorP;
+  gradientValueP = featureHashedValueP;
+  gradientIndexP = featureHashedIndexP;
   
   //
-  // main
+  // Main routine
   //
-  featureHashingSequence(nzP, valueP, indexP,
-    numberOfStates, chainLength, dimension, outValueP, outIndexP);
+  featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
+    dimension, featureHashedValueP, featureHashedIndexP);
     
   // update bias and transition scores positions
-  for (i = 0; (i | 0) < ((featureScoreTableSize + 1) | 0);
-      i = (i + 1) | 0) {
-    adagradUpdateLazyAt(i, foiP, soiP, weightP,
+  for (i = 0; (i | 0) < ((featureScoreTableSize + 1) | 0); i = (i + 1) | 0) {
+    adagradUpdateLazyAt((i + dimension) | 0, foiP, soiP, weightP,
       +(round | 0), delta, eta, lambda);
   }
   adagradUpdateLazy(totalNz, indexP, foiP, soiP, weightP,
@@ -2528,18 +2629,33 @@ function trainOnline(numberOfStates, dimension, round,
     numberOfStates, chainLength, stateScoreP);
   updateFeatureScores(biasScoreP, transitionScoreP,
     stateScoreP, numberOfStates, chainLength, featureScoreP);
+
+  // we reuse the regions allocated for state scores here,
+  // since they are no longer needed
   updateForwardScores(featureScoreP, numberOfStates,
-    chainLength, tmpP, forwardScoreP);
+    chainLength, stateScoreP, forwardScoreP);
   updateBackwardScores(featureScoreP, numberOfStates,
-    chainLength, tmpP, backwardScoreP);
+    chainLength, stateScoreP, backwardScoreP);
   updateNormalizationFactor(forwardScoreP,
     numberOfStates, chainLength, normalizationFactorP);
-  // updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
-  //   numberOfStates, chainLength, normalizationFactor);
-  //updateMarginalScores();
-  // updateGradient();
-  adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP, foiP, soiP);
-  // crf_sufferLoss();
+
+  sufferLoss(featureScoreP, normalizationFactorP, correctPathP,
+    numberOfStates, chainLength, lossP);
+
+  updateJointScores(featureScoreP, forwardScoreP,
+    backwardScoreP, numberOfStates, chainLength);
+  updateMarginalProbabilities(jointScoreP, numberOfStates, chainLength,
+    marginalProbabilityP);
+
+  updateGradient(nzP, featureHashedValueP, featureHashedIndexP,
+    biasScoreP, biasIndex, 
+    transitionScoreP, transitionIndex,
+    marginalProbabilityP, correctPathP,
+    numberOfStates, chainLength,
+    tmpValueP, tmpIndexP,
+    gradientNzP, gradientValueP, featureHashedIndexP);
+  adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP,
+    foiP, soiP);
 }
 
 /**
@@ -2667,6 +2783,107 @@ function compareSparseVectorElement(xP, yP) {
   return ((I4[p0 >> 2] | 0) - (I4[p1 >> 2] | 0)) | 0;
 }
 
+// Based on Chris Torek's C code
+// but alignment handling is reduced
+function memmove(destP, srcP, length) {
+  /*
+   * Type annotations
+   */
+  destP = destP | 0;
+  srcP = srcP | 0;
+  length = length | 0;
+  
+  /*
+   * Local variables
+   */
+  var end = 0;
+  var t = 0;
+  var destPSave = 0;
+
+  /*
+   * Main
+   */
+  destPSave = destP;
+  end = (srcP + length) | 0;
+  
+  if (((length | 0) <= 0) | ((destP | 0) == (srcP | 0))) {
+    return destPSave | 0;
+  }
+  
+  if ((destP | 0) < (srcP | 0)) {
+    // copy forwards
+    
+    t = srcP;
+
+    // copy whole words if aligned
+    if (((t & 7) | (destP & 7)) == 0) {
+      t = length >> 3;
+      if (t) {
+        do {
+          // F8[destP >> 3] = F8[srcP >> 3];
+          U4[destP >> 2] = U4[srcP >> 2];
+          U4[(destP + 4) >> 2] = U4[(srcP + 4) >> 2];
+
+          srcP = (srcP + 8) | 0;
+          destP = (destP + 8) | 0;
+
+          t = (t - 1) | 0;
+        } while (t);
+      }
+      t = length & 7;
+    } else {
+      t = length;
+    }
+    
+    // handle the remaining
+    if (t) {
+      do {
+        U1[destP >> 0] = U1[srcP >> 0];        
+
+        srcP = (srcP + 1) | 0;
+        destP = (destP + 1) | 0;
+        t = (t - 1) | 0;
+      } while (t);
+    }
+  } else {
+    // copy backwards
+    srcP = (srcP + length) | 0;
+    destP = (destP + length) | 0;
+    
+    t = srcP;
+    
+    if (((t & 7) | (destP & 7)) == 0) {
+      t = length >> 3;
+
+      if (t) {
+        do {
+          srcP = (srcP - 8) | 0;
+          destP = (destP - 8) | 0;
+        
+          F8[destP >> 3] = F8[srcP >> 3];
+        
+          t = (t - 1) | 0;
+        } while (t);
+      }
+    
+      t = length & 7;    
+    } else {
+      t = length;
+    }
+    
+    if (t) {
+      do {
+        srcP = (srcP - 1) | 0;
+        destP = (destP - 1) | 0;
+        U1[destP >> 0] = U1[srcP >> 0];        
+        t = (t - 1) | 0;
+      } while (t);
+    }
+  }
+  
+  return destPSave | 0;
+}
+
 /*
  * Definition of function tables.
  * The size of a table must be a power of 2.
@@ -2698,6 +2915,7 @@ return {
   uc_convertUtf16toUtf8: uc_convertUtf16toUtf8,
   uc_convertUtf8toUtf16: convertUtf8toUtf16,
   crf_trainOnline: trainOnline,
+  crf_sufferLoss: sufferLoss,
   crf_featureHashing: featureHashing,
   crf_featureHashingSequence: featureHashingSequence,
   crf_updateFeatureScores: updateFeatureScores,
@@ -2711,7 +2929,8 @@ return {
   isLittleEndian: isLittleEndian,
   compareInt32: compareInt32,
   compareUint32: compareUint32,
-  qsortBM: qsortBM
+  qsortBM: qsortBM,
+  memmove: memmove
 };
 
 

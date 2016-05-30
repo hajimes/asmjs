@@ -3,9 +3,7 @@ import unique from '../math/sparse/unique';
 /**
  * Computes a gradient.
  *
- * for tmps 
- * nz[0] * numberOfStates + numberOfStates + 1
- * (chainLength - 1) * numberOfStates^2 * (nz[i] + 1)  +numberOfStates^2
+ * valueP and outValueP can be the same as well as indexP and outIndexP.
  */
 export default function updateGradient(nzP, valueP, indexP,
     biasScoreP, biasIndex, 

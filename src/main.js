@@ -20,11 +20,13 @@ import crf_updateMarginalProbabilities from './crf/updateMarginalProbabilities';
 import crf_updateJointScores from './crf/updateJointScores';
 import crf_updateGradient from './crf/updateGradient';
 import crf_trainOnline from './crf/trainOnline';
+import crf_sufferLoss from './crf/sufferLoss';
 import crf_uniqueAndZipSparseVector from './crf/uniqueAndZipSparseVector';
 import compareInt32 from './util/compareInt32';
 import compareUint32 from './util/compareUint32';
 import compareSparseVectorElement from './util/compareSparseVectorElement';
 import qsortBM from './util/qsortBM';
+import memmove from './util/memmove.js';
 
 /*
  * Definition of function tables.
@@ -57,6 +59,7 @@ var EXPORTS = {
   uc_convertUtf16toUtf8: convertUtf16toUtf8,
   uc_convertUtf8toUtf16: convertUtf8toUtf16,
   crf_trainOnline: crf_trainOnline,
+  crf_sufferLoss: crf_sufferLoss,
   crf_featureHashing: crf_featureHashing,
   crf_featureHashingSequence: crf_featureHashingSequence,
   crf_updateFeatureScores: crf_updateFeatureScores,
@@ -70,7 +73,8 @@ var EXPORTS = {
   isLittleEndian: isLittleEndian,
   compareInt32: compareInt32,
   compareUint32: compareUint32,
-  qsortBM: qsortBM
+  qsortBM: qsortBM,
+  memmove: memmove
 };
 
 export {EXPORTS};

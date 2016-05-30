@@ -8,36 +8,40 @@ import updateFeatureScores from './updateFeatureScores';
 import updateForwardScores from './updateForwardScores';
 import updateBackwardScores from './updateBackwardScores';
 import updateNormalizationFactor from './updateNormalizationFactor';
-// import updateJointScores from './updateJointScores';
+import sufferLoss from './sufferLoss';
+import updateJointScores from './updateJointScores';
+import updateMarginalProbabilities from './updateMarginalProbabilities';
+import updateGradient from './updateGradient';
 
 /**
  * Each instance is structured as
  *
- * +---+---+---+---+---+---+
- * |IID|PLN|STP|NZP|VLP|IXP|
- * +---+---+---+---+---+---+
+ * +---+---+---+---+---+---+---+
+ * |IID|PLN|STP|NZP|VLP|IND|CRP|
+ * +---+---+---+---+---+---+---|
  *
  * IID: instance id
- * PLN: uint32, the length of a path
- * STP: byte offset to textual information about features. 0 if not exsting
+ * PLN: the length of a path
+ * STP: byte offset to textual information on features. negative if not exsting
  * NZP: byte offset to NZS
  * VLP: byte offset to VALUES
  * IND: byte offset to INDICES
+ * CRP: byte offset to the supervisory path; negataive if not a training datum
  *
  * NZS: NZP[i] contains the number of non-zero elements at the position i
  * VALUES: float32[PLN][NZS[i]] for i in [0, PLN)
- * INDICES: uint32[PLN][NZS[i]] for i in [0, PLN)
+ * INDICES: int32[PLN][NZS[i]] for i in [0, PLN)
+ * CRP: int32[PLN]
  *
- * Each instance header occupies 24 bytes
+ * To sum up, each instance header occupies 28 bytes
  */
 // Incomplete
-export default function trainOnline(numberOfStates, dimension, round,
-    foiP, soiP, weightP,
-    delta, eta, lambda,
-    instanceP, tmpP, hashMapP) {
+export default function trainOnline(instanceP, numberOfStates, dimension, round,
+  foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP) {
   /*
    * Type annotations
    */
+  instanceP = instanceP | 0;
   numberOfStates = numberOfStates | 0;
   dimension = dimension | 0;
   round = round | 0;
@@ -47,34 +51,48 @@ export default function trainOnline(numberOfStates, dimension, round,
   delta = +delta;
   eta = +eta;
   lambda = +lambda;
-  instanceP = instanceP | 0;
   tmpP = tmpP | 0;
-  hashMapP = hashMapP | 0;
+  lossP = lossP | 0;
   
   /*
    * Local variables
    */
   var i = 0;
-  var p = 0;
+
   var nzP = 0;
   var totalNz = 0;
   var chainLength = 0;
   var valueP = 0;
   var indexP = 0;
-  var outValueP = 0;
-  var outIndexP = 0;
+  var correctPathP = 0;
+
+  var featureHashedValueP = 0;
+  var featureHashedIndexP = 0;
+
   var biasScoreP = 0;
   var transitionScoreP = 0;
-  var transitionScoreTableSize = 0;
   var stateScoreP = 0;
   var featureScoreP = 0;
-  var featureScoreTableSize = 0;
   var forwardScoreP = 0;
   var backwardScoreP = 0;
   var normalizationFactorP = 0;
+
   var gradientNzP = 0;
   var gradientValueP = 0;
   var gradientIndexP = 0;
+  
+  var stateScoreTableSize = 0;
+  var transitionScoreTableSize = 0;
+  var featureScoreTableSize = 0;
+  var gradientMaxSize = 0;
+  
+  var jointScoreP = 0;
+  var marginalProbabilityP = 0;
+  var biasIndex = 0;
+  var transitionIndex = 0;
+
+  var tmpValueP = 0;
+  var tmpIndexP = 0;
   
   /*
    * Main
@@ -82,52 +100,76 @@ export default function trainOnline(numberOfStates, dimension, round,
   
   //
   // Memory allocation
-  // outValue: MAX_SPARSE_SIZE (bytes)
-  // outIndex: MAX_SPARSE_SIZE (bytes)
-  // stateScores: (chainLength * numberOfState * 4) bytes
-  // featureScores/jointScores: (chainLength * (numberOfStates ^ 2) * 4) 
-  // forwardScores: (chainLength * numberOfStates * 4) bytes
-  // backwardScores: (chainLength * numberOfStates * 4) bytes
-  // gradient sparse vector: (4 + ... + ...) bytes
-  // temporary working space: (numberOfStates * 4)
-  p = tmpP;
-  outValueP = p;
-  p = (p + 16384) | 0; // allocate 16kb
-  outIndexP = p;
-  p = (p + 16384) | 0; // allocate 16kb
-  
-  // Uses the first element of a weight vector as a bias term
-  biasScoreP = weightP;
-
-  transitionScoreP = (weightP + 4) | 0;
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
-  stateScoreP = (weightP + 4 + (transitionScoreTableSize << 2)) | 0;  
-  
+  //
+    
   // Uses the path length of an instance as a Markov chain length
-  chainLength = U4[(instanceP + 4) >> 2] | 0;
-  valueP = U4[(instanceP + 16) >> 2] | 0;
-  indexP = U4[(instanceP + 20) >> 2] | 0;
-  nzP = U4[(instanceP + 12) >> 2] | 0;
+  chainLength = I4[(instanceP + 4) >> 2] | 0;
+  nzP = I4[(instanceP + 12) >> 2] | 0;
+  valueP = I4[(instanceP + 16) >> 2] | 0;
+  indexP = I4[(instanceP + 20) >> 2] | 0;
+  correctPathP = I4[(instanceP + 24) >> 2] | 0;
   
   totalNz = sumInt32(nzP, chainLength) | 0;
   
-  featureScoreTableSize = (imul(chainLength, numberOfStates),
-    numberOfStates);
+  stateScoreTableSize = imul(chainLength, numberOfStates);
+  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
+  gradientMaxSize = (imul(totalNz, numberOfStates) +
+    transitionScoreTableSize + 4) | 0;
 
-  featureScoreP = (outIndexP + (featureScoreTableSize << 2)) | 0;
+  biasIndex = (dimension + transitionScoreTableSize) | 0;
+  transitionIndex = dimension;
+
+  // We only need (imul(totalNz, numberOfStates) << 2) bytes at feature hashing
+  // but we allocate slightly larger bytes so that later the space can be used
+  // as an output space for the gradient calculation.
+  featureHashedValueP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
   
-  normalizationFactorP = 4;
+  featureHashedIndexP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+
+  biasScoreP = (weightP + (biasIndex << 2)) | 0;
+  transitionScoreP = (weightP + (transitionIndex << 2)) | 0;
+
+  stateScoreP = tmpP;
+  tmpP = (tmpP + (stateScoreTableSize << 2)) | 0;
+
+  featureScoreP = tmpP;
+  tmpP = (tmpP + (featureScoreTableSize << 2)) | 0;
+
+  forwardScoreP = tmpP;
+  tmpP = (tmpP + (stateScoreTableSize << 2)) | 0;
+
+  backwardScoreP = tmpP;
+  tmpP = (tmpP + (stateScoreTableSize << 2)) | 0;
+  
+  normalizationFactorP = tmpP;
+  tmpP = (tmpP + 4) | 0;
+  
+  marginalProbabilityP = tmpP;
+  tmpP = (tmpP + (transitionScoreTableSize << 2)) | 0;
+  
+  tmpValueP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+
+  tmpIndexP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  
+  // reuse these spaces
+  gradientNzP = normalizationFactorP;
+  gradientValueP = featureHashedValueP;
+  gradientIndexP = featureHashedIndexP;
   
   //
-  // main
+  // Main routine
   //
-  featureHashingSequence(nzP, valueP, indexP,
-    numberOfStates, chainLength, dimension, outValueP, outIndexP);
+  featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
+    dimension, featureHashedValueP, featureHashedIndexP);
     
   // update bias and transition scores positions
-  for (i = 0; (i | 0) < ((featureScoreTableSize + 1) | 0);
-      i = (i + 1) | 0) {
-    adagradUpdateLazyAt(i, foiP, soiP, weightP,
+  for (i = 0; (i | 0) < ((featureScoreTableSize + 1) | 0); i = (i + 1) | 0) {
+    adagradUpdateLazyAt((i + dimension) | 0, foiP, soiP, weightP,
       +(round | 0), delta, eta, lambda);
   }
   adagradUpdateLazy(totalNz, indexP, foiP, soiP, weightP,
@@ -137,16 +179,31 @@ export default function trainOnline(numberOfStates, dimension, round,
     numberOfStates, chainLength, stateScoreP);
   updateFeatureScores(biasScoreP, transitionScoreP,
     stateScoreP, numberOfStates, chainLength, featureScoreP);
+
+  // we reuse the regions allocated for state scores here,
+  // since they are no longer needed
   updateForwardScores(featureScoreP, numberOfStates,
-    chainLength, tmpP, forwardScoreP);
+    chainLength, stateScoreP, forwardScoreP);
   updateBackwardScores(featureScoreP, numberOfStates,
-    chainLength, tmpP, backwardScoreP);
+    chainLength, stateScoreP, backwardScoreP);
   updateNormalizationFactor(forwardScoreP,
     numberOfStates, chainLength, normalizationFactorP);
-  // updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
-  //   numberOfStates, chainLength, normalizationFactor);
-  //updateMarginalScores();
-  // updateGradient();
-  adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP, foiP, soiP);
-  // crf_sufferLoss();
+
+  sufferLoss(featureScoreP, normalizationFactorP, correctPathP,
+    numberOfStates, chainLength, lossP);
+
+  updateJointScores(featureScoreP, forwardScoreP,
+    backwardScoreP, numberOfStates, chainLength);
+  updateMarginalProbabilities(jointScoreP, numberOfStates, chainLength,
+    marginalProbabilityP);
+
+  updateGradient(nzP, featureHashedValueP, featureHashedIndexP,
+    biasScoreP, biasIndex, 
+    transitionScoreP, transitionIndex,
+    marginalProbabilityP, correctPathP,
+    numberOfStates, chainLength,
+    tmpValueP, tmpIndexP,
+    gradientNzP, gradientValueP, featureHashedIndexP);
+  adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP,
+    foiP, soiP);
 }

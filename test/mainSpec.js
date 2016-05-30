@@ -359,6 +359,101 @@ describe('This handwritten asm.js module', function() {
   });
   
   describe('has a collection of utility functions', function() {
+    it('memmove', function() {
+      I4[1000 >> 2] = 213523;
+      I4[1004 >> 2] = -1279355;
+      I4[1008 >> 2] = 0xffff1111;
+      
+      mod.memmove(2000, 1000, 12);
+      
+      expect(I4[2000 >> 2]).to.equal(213523);
+      expect(I4[2004 >> 2]).to.equal(-1279355);
+      expect(I4[2008 >> 2]).to.equal(0xffff1111 | 0);
+      
+      mod.memmove(1000, 2000, 12);
+      expect(I4[1000 >> 2]).to.equal(213523);
+      expect(I4[1004 >> 2]).to.equal(-1279355);
+      expect(I4[1008 >> 2]).to.equal(0xffff1111 | 0);
+
+      mod.memmove(3000, 2000, 0);
+      expect(I4[3000 >> 2]).to.equal(0);
+      expect(I4[3004 >> 2]).to.equal(0);
+      expect(I4[3008 >> 2]).to.equal(0);
+
+      mod.memmove(3000, 2000, -1);
+      expect(I4[3000 >> 2]).to.equal(0);
+      expect(I4[3004 >> 2]).to.equal(0);
+      expect(I4[3008 >> 2]).to.equal(0);
+
+      mod.memmove(3000, 2000, 4);
+      expect(I4[3000 >> 2]).to.equal(213523);
+      expect(I4[3004 >> 2]).to.equal(0);
+      expect(I4[3008 >> 2]).to.equal(0);
+
+      mod.memmove(4000, 2000, 8);
+      expect(I4[4000 >> 2]).to.equal(213523);
+      expect(I4[4004 >> 2]).to.equal(-1279355);
+      expect(I4[4008 >> 2]).to.equal(0);
+
+      mod.memmove(2000, 2000, 12);
+      expect(I4[2000 >> 2]).to.equal(213523);
+      expect(I4[2004 >> 2]).to.equal(-1279355);
+      expect(I4[2008 >> 2]).to.equal(0xffff1111 | 0);
+
+      mod.memmove(992, 1000, 12);
+      expect(I4[976 >> 2]).to.equal(0);
+      expect(I4[992 >> 2]).to.equal(213523);
+      expect(I4[996 >> 2]).to.equal(-1279355);
+      expect(I4[1000 >> 2]).to.equal(0xffff1111 | 0);
+      expect(I4[1004 >> 2]).to.equal(-1279355);
+      expect(I4[1008 >> 2]).to.equal(0xffff1111 | 0);
+      expect(I4[1016 >> 2]).to.equal(0);
+      
+      I4[1000 >> 2] = 213523;
+      I4[1004 >> 2] = -1279355;
+      I4[1008 >> 2] = 0xffff1111;
+
+      mod.memmove(1004, 1000, 12);
+      expect(I4[1000 >> 2]).to.equal(213523);
+      expect(I4[1004 >> 2]).to.equal(213523);
+      expect(I4[1008 >> 2]).to.equal(-1279355);
+      expect(I4[1012 >> 2]).to.equal(0xffff1111 | 0);
+      expect(I4[1016 >> 2]).to.equal(0);
+
+      I4[1000 >> 2] = 213523;
+      I4[1004 >> 2] = -1279355;
+      I4[1008 >> 2] = 0xffff1111;
+      U1[1000] = 0x24;
+      U1[1001] = 0x42;
+      
+      mod.memmove(2000, 1001, 12);
+      expect(U1[2000]).to.equal(0x42);
+      
+      mod.memmove(2003, 1001, 12);
+      expect(U1[2003]).to.equal(0x42);
+
+      mod.memmove(2016, 1000, 12);
+      expect(U1[2016]).to.equal(0x24);
+
+      // mod.memmove(2008, 2000, 12);
+      // expect(I4[2000 >> 2]).to.equal(213523);
+      // expect(I4[2004 >> 2]).to.equal(213523);
+      // expect(I4[2008 >> 2]).to.equal(-1279355);
+      // expect(I4[20012 >> 2]).to.equal(0xffff1111 | 0);
+      //
+      // mod.memmove(2008, 2000, 12);
+      // expect(I4[2000 >> 2]).to.equal(213523);
+      // expect(I4[2004 >> 2]).to.equal(-1279355);
+      // expect(I4[2008 >> 2]).to.equal(213523);
+      // expect(I4[20012 >> 2]).to.equal(-1279355);
+      //
+      // mod.memmove(2008, 2000, 12);
+      // expect(I4[2000 >> 2]).to.equal(213523);
+      // expect(I4[2004 >> 2]).to.equal(213523);
+      // expect(I4[2008 >> 2]).to.equal(-1279355);
+      // expect(I4[20012 >> 2]).to.equal(0xffff1111 | 0);
+
+    });
     
     it('qsort with the improvement by Bentley-McIlroy', function() {
       var i = 0;
@@ -779,12 +874,53 @@ describe('This handwritten asm.js module', function() {
       expect(F4[outP >> 2]).to.closeTo(1.126928, 0.00001);
     });
     
+    it('suffering negative log-likelihood loss', function() {
+      var i = 0;
+      var numberOfStates = 2;
+      var chainLength = 3;
+      
+      var featureScores = [
+        1.6, -2.9, 0.0, 0.0,
+        1.6, 3.6, -0.4, 2.1,
+        2.6, 1.1, 0.6, -0.4
+      ];
+      
+      var normalizationFactor = [0.1];
+      
+      var correctPath = [0, 1, 0];
+      
+      var featureScoreP = 1000;
+      var normalizationFactorP = 2000;
+      var correctPathP = 3000;
+      var lossP = 4000;
+      
+      putFloat(F4, featureScoreP, featureScores);
+      putFloat(F4, normalizationFactorP, normalizationFactor);
+      putInt32(I4, correctPathP, correctPath);
+      
+      mod.crf_sufferLoss(featureScoreP, normalizationFactorP,
+        correctPathP, 0, chainLength, lossP);
+      expect(F4[lossP >> 2]).to.equal(0.0);
+      mod.crf_sufferLoss(featureScoreP, normalizationFactorP,
+        correctPathP, numberOfStates, 0, lossP);
+      expect(F4[lossP >> 2]).to.equal(0.0);
+      
+      mod.crf_sufferLoss(featureScoreP, normalizationFactorP,
+        correctPathP, numberOfStates, chainLength, lossP);
+        
+      expect(F4[lossP >> 2]).to.closeTo(-(1.6 + 3.6 + 0.6 - 0.1), 0.00001);
+      
+      correctPath = [0, 0, 0];
+      mod.crf_sufferLoss(featureScoreP, normalizationFactorP,
+        correctPathP, numberOfStates, chainLength, lossP);
+        expect(F4[lossP >> 2]).to.closeTo(-(1.6 + 1.6 + 2.6 - 0.1), 0.00001);
+    });
+    
     it('joint score calculation', function() {
       var i = 0;
       var numberOfStates = 2;
       var chainLength = 3;
       
-      var normalizationFactor = [0.1];
       var forwardScores = [
         1.0, -1.0,
         0.5, 2.0,
@@ -806,46 +942,44 @@ describe('This handwritten asm.js module', function() {
       // (excluding jointScores[0][j][k] for j >= 1) must be close to 1.0
       // but we ignore that condition here.
       var expectedJointScores = [
-        2.0, -5.0, 0.0, 0.0,
-        3.5, 6.0, -0.5, 2.5,
-        5.0, 0.5, 4.5, 0.5
+        2.1, -4.9, 0.0, 0.0,
+        3.6, 6.1, -0.4, 2.6,
+        5.1, 0.6, 4.6, 0.6
       ];
       
       var featureScoreP = 3000;
       var forwardScoreP = 1000;
       var backwardScoreP = 2000;
-      var normalizationFactorP = 100;
       
       putFloat(F4, featureScoreP, featureScores);
       putFloat(F4, forwardScoreP, forwardScores);
       putFloat(F4, backwardScoreP, backwardScores);
-      putFloat(F4, normalizationFactorP, normalizationFactor);
       
       // This function does nothing if either # of states or chain length is
       // less than 1
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, normalizationFactorP, 0, chainLength);
+        backwardScoreP, 0, chainLength);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, normalizationFactorP, -1, chainLength);
+        backwardScoreP, -1, chainLength);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, normalizationFactorP, numberOfStates, 0);
+        backwardScoreP, numberOfStates, 0);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, normalizationFactorP, numberOfStates, -1);
+        backwardScoreP, numberOfStates, -1);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
       
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, normalizationFactorP, numberOfStates, chainLength);
+        backwardScoreP, numberOfStates, chainLength);
       for (i = 0; i < numberOfStates * numberOfStates * chainLength; i += 1) {
         expect(F4[featureScoreP >> 2]).
           to.closeTo(expectedJointScores[i], 0.00001);
