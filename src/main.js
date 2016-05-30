@@ -5,6 +5,7 @@ import logsumexp from './math/logsumexpFloat32';
 import * as ufmap from './util/ufmap.js';
 import hash from './util/MurmurHash3_x86_32';
 import susdot from './math/susdot';
+import sortSparseVectorElements from './math/sortSparseVectorElements';
 import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8';
 import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
 import isLittleEndian from './util/isLittleEndian';
@@ -20,6 +21,7 @@ import crf_updateMarginalProbabilities from './crf/updateMarginalProbabilities';
 import crf_uniqueAndZipSparseVector from './crf/uniqueAndZipSparseVector';
 import compareInt32 from './util/compareInt32';
 import compareUint32 from './util/compareUint32';
+import compareSparseVectorElement from './util/compareSparseVectorElement';
 import qsortBM from './util/qsortBM';
 
 /*
@@ -31,7 +33,7 @@ import qsortBM from './util/qsortBM';
  * The name of this variable will be changed into CMP_FUNCTION_TABLE
  * during gulp building phase.
  */
-var _CMP_FUNCTION_TABLE = [compareInt32, compareUint32];
+var _CMP_FUNCTION_TABLE = [compareInt32, compareUint32, compareSparseVectorElement, compareInt32];
 
 /*
  * Definition of exported functions
@@ -47,7 +49,8 @@ var EXPORTS = {
   sumInt32: sumInt32,
   hash: hash,
   logsumexp: logsumexp,
-  vec_susdot: susdot,  
+  vec_susdot: susdot,
+  vec_sortSparseVectorElements: sortSparseVectorElements,
   uc_convertUtf16toUtf8: convertUtf16toUtf8,
   uc_convertUtf8toUtf16: convertUtf8toUtf16,
   crf_trainOnline: crf_trainOnline,

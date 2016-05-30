@@ -65,7 +65,7 @@ export default function qsortBM(inP, n, es, cmpId) {
       pl = pm;
       isTrue2 = (pl | 0) > (a | 0);
       if (isTrue2) {
-        isTrue2 = (CMP_FUNCTION_TABLE[cmpId & 1]((pl - es) | 0, pl) | 0) > 0;
+        isTrue2 = (CMP_FUNCTION_TABLE[cmpId & 3]((pl - es) | 0, pl) | 0) > 0;
       }
       while (isTrue2) {
         swap(pl, (pl - es) | 0, es);
@@ -74,7 +74,7 @@ export default function qsortBM(inP, n, es, cmpId) {
 
         isTrue2 = (pl | 0) > (a | 0);
         if (isTrue2) {
-          isTrue2 = (CMP_FUNCTION_TABLE[cmpId & 1]((pl - es) | 0, pl) | 0) > 0;
+          isTrue2 = (CMP_FUNCTION_TABLE[cmpId & 3]((pl - es) | 0, pl) | 0) > 0;
         }
       }
       
@@ -118,7 +118,7 @@ export default function qsortBM(inP, n, es, cmpId) {
     // while (pb <= pc && (r = cmp(pb, pv)) <= 0)
     isTrue1 = (pb | 0) <= (pc | 0);
     if (isTrue1) {
-      r = CMP_FUNCTION_TABLE[cmpId & 1](pb, pv) | 0;
+      r = CMP_FUNCTION_TABLE[cmpId & 3](pb, pv) | 0;
       isTrue1 = (r | 0) <= 0;
     }
     
@@ -132,7 +132,7 @@ export default function qsortBM(inP, n, es, cmpId) {
       
       isTrue1 = (pb | 0) <= (pc | 0);
       if (isTrue1) {
-        r = CMP_FUNCTION_TABLE[cmpId & 1](pb, pv) | 0;
+        r = CMP_FUNCTION_TABLE[cmpId & 3](pb, pv) | 0;
         isTrue1 = (r | 0) <= 0;
       }
     }
@@ -140,7 +140,7 @@ export default function qsortBM(inP, n, es, cmpId) {
     // while (pc >= pb && (r = cmp(pc, pv)) >= 0)
     isTrue1 = (pc | 0) >= (pb | 0);
     if (isTrue1) {
-      r = CMP_FUNCTION_TABLE[cmpId & 1](pc, pv) | 0;
+      r = CMP_FUNCTION_TABLE[cmpId & 3](pc, pv) | 0;
       isTrue1 = (r | 0) >= 0;
     }
     while (isTrue1) {
@@ -153,7 +153,7 @@ export default function qsortBM(inP, n, es, cmpId) {
 
       isTrue1 = (pc | 0) >= (pb | 0);
       if (isTrue1) {
-        r = CMP_FUNCTION_TABLE[cmpId & 1](pc, pv) | 0;
+        r = CMP_FUNCTION_TABLE[cmpId & 3](pc, pv) | 0;
         isTrue1 = (r | 0) >= 0;
       }
     }
@@ -240,19 +240,19 @@ function med3(a, b, c, cmpId) {
   /*
    * Main
    */
-  t = ((CMP_FUNCTION_TABLE[cmpId & 1](a, b) | 0) < 0) | 0;
+  t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, b) | 0) < 0) | 0;
 
   if (t) {
     // a < b
 
-    t = ((CMP_FUNCTION_TABLE[cmpId & 1](b, c) | 0) < 0) | 0;
+    t = ((CMP_FUNCTION_TABLE[cmpId & 3](b, c) | 0) < 0) | 0;
     
     if (t) {
       // a < b <c      
       return b | 0;
     }
     // a < b & b >= c    
-    t = ((CMP_FUNCTION_TABLE[cmpId & 1](a, c) | 0) < 0) | 0;
+    t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, c) | 0) < 0) | 0;
 
     if (t) {
       // a < c <= b      
@@ -263,7 +263,7 @@ function med3(a, b, c, cmpId) {
   }
   // b <= a
 
-  t = ((CMP_FUNCTION_TABLE[cmpId & 1](b, c) | 0) > 0) | 0;
+  t = ((CMP_FUNCTION_TABLE[cmpId & 3](b, c) | 0) > 0) | 0;
   
   if (t) {
     // c < b <= a
@@ -272,7 +272,7 @@ function med3(a, b, c, cmpId) {
   
   // b <= a & b <= c
   
-  t = ((CMP_FUNCTION_TABLE[cmpId & 1](a, c) | 0) > 0) | 0;
+  t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, c) | 0) > 0) | 0;
   
   if (t) {
     // b <= c < a

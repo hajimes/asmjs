@@ -22,13 +22,13 @@ export default function updateGradient(nzP, valueP, indexP,
   /*
    * Local variables
    */
-  // var time = 0;
-  // var cur = 0;
-  // var prev = 0;
+  var time = 0;
+  var cur = 0;
+  var prev = 0;
   var transitionIndex = 0;
-  var transitionScore = 0.0
-  var transitionScorePSave = 0;
-  var marginalProbability = 0.0
+  var transitionScore = 0.0;
+  // var transitionScorePSave = 0;
+  var marginalProbability = 0.0;
   var marginalProbabilityPSave = 0;
   var i = 0;
   var nz = 0;
@@ -73,7 +73,7 @@ export default function updateGradient(nzP, valueP, indexP,
         for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
           value = +F4[valueP >> 2];
           index = I4[indexP >> 2] | 0;
-          
+
           F4[outValueP >> 2] = value * coef;
           I4[outIndexP >> 2] = index | 0;
           
