@@ -761,22 +761,22 @@ describe('This handwritten asm.js module', function() {
       var chainLength = 3;
       var inP = 1000;
       var nf = 0.0;
+      var outP = 2000;
       
       putFloat(F4, inP, forwardScores);
       
-      nf = mod.crf_getNormalizationFactor(inP, numberOfStates, chainLength);
-      
-      expect(nf).to.closeTo(1.126928, 0.00001);
+      mod.crf_updateNormalizationFactor(inP, 0, chainLength, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      mod.crf_updateNormalizationFactor(inP, -1, chainLength, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
 
-      nf = mod.crf_getNormalizationFactor(inP, 0, chainLength);
-      expect(nf).to.closeTo(0, 0.00001);
-      nf = mod.crf_getNormalizationFactor(inP, -1, chainLength);
-      expect(nf).to.closeTo(0, 0.00001);
+      mod.crf_updateNormalizationFactor(inP, numberOfStates, 0, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      mod.crf_updateNormalizationFactor(inP, numberOfStates, -1, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
 
-      nf = mod.crf_getNormalizationFactor(inP, numberOfStates, 0);
-      expect(nf).to.closeTo(0, 0.00001);
-      nf = mod.crf_getNormalizationFactor(inP, numberOfStates, -1);
-      expect(nf).to.closeTo(0, 0.00001);
+      mod.crf_updateNormalizationFactor(inP, numberOfStates, chainLength, outP);
+      expect(F4[outP >> 2]).to.closeTo(1.126928, 0.00001);
     });
     
     it('joint score calculation', function() {

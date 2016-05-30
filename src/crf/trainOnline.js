@@ -7,7 +7,7 @@ import updateStateScores from './updateStateScores';
 import updateFeatureScores from './updateFeatureScores';
 import updateForwardScores from './updateForwardScores';
 import updateBackwardScores from './updateBackwardScores';
-import getNormalizationFactor from './getNormalizationFactor';
+import updateNormalizationFactor from './updateNormalizationFactor';
 // import updateJointScores from './updateJointScores';
 
 /**
@@ -71,7 +71,7 @@ export default function trainOnline(numberOfStates, dimension, round,
   var featureScoreTableSize = 0;
   var forwardScoreP = 0;
   var backwardScoreP = 0;
-  var normalizationFactor = 0.0;
+  var normalizationFactorP = 0;
   var gradientNzP = 0;
   var gradientValueP = 0;
   var gradientIndexP = 0;
@@ -116,6 +116,8 @@ export default function trainOnline(numberOfStates, dimension, round,
 
   featureScoreP = (outIndexP + (featureScoreTableSize << 2)) | 0;
   
+  normalizationFactorP = 4;
+  
   //
   // main
   //
@@ -139,8 +141,8 @@ export default function trainOnline(numberOfStates, dimension, round,
     chainLength, tmpP, forwardScoreP);
   updateBackwardScores(featureScoreP, numberOfStates,
     chainLength, tmpP, backwardScoreP);
-  normalizationFactor = +getNormalizationFactor(forwardScoreP,
-    numberOfStates, chainLength);
+  updateNormalizationFactor(forwardScoreP,
+    numberOfStates, chainLength, normalizationFactorP);
   // updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
   //   numberOfStates, chainLength, normalizationFactor);
   //updateMarginalScores();

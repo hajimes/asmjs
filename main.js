@@ -1807,14 +1807,15 @@ function updateBackwardScores(featureScoreP, numberOfStates,
   }
 }
 
-function getNormalizationFactor(forwardScoreP,
-    numberOfStates, chainLength) {
+function updateNormalizationFactor(forwardScoreP,
+    numberOfStates, chainLength, outP) {
   /*
    * Type annotations
    */
   forwardScoreP = forwardScoreP | 0;
   numberOfStates = numberOfStates | 0;
   chainLength = chainLength | 0;
+  outP = outP | 0;
 
   /*
    * Local variables
@@ -1825,13 +1826,82 @@ function getNormalizationFactor(forwardScoreP,
    * Main
    */
   if ((chainLength | 0) <= 0) {
-    return 0.0;
+    return;
   }
   
   t = imul(numberOfStates << 2, chainLength - 1);
   forwardScoreP = (forwardScoreP + t) | 0;
 
-  return +logsumexpFloat32(forwardScoreP, numberOfStates);
+  F4[outP >> 2] = +logsumexpFloat32(forwardScoreP, numberOfStates);
+}
+
+/**
+ * Computes marginal probabilities from logarithmic joint probabilites.
+ *
+ * A table of marginal probabilities is
+ * float[numberOfStates + 1][numberOfStates].
+ * score[0][j] represents a marginal from the (hypothetical) initial state
+ * to the state j. For i >= 1, score[i][j] represents a marginal from the
+ * state (i - 1) to the state j.
+ *
+ * Unlike joint scores, values in this table represents probabilities in
+ * normal scale, not in logarithmic.
+ *
+ * This function assumes that its output destination is cleared to 0.
+ *
+ * Exactly ((numberOfStates + 1) * numberOfStates) bytes will be written into
+ * outP.
+ */
+function updateMarginalProbabilities(jointScoreP,
+  numberOfStates, chainLength, outP) {
+  /*
+   * Type annotations
+   */
+  jointScoreP = jointScoreP | 0;
+  numberOfStates = numberOfStates | 0;
+  chainLength = chainLength | 0;
+  outP = outP | 0;
+
+  /*
+   * Local variables
+   */
+  var t = 0.0;
+  var jointScore = 0.0;
+  var outPSave = 0;
+  var time = 0;
+  var prev = 0;
+  var cur = 0;
+
+  /*
+   * Main
+   */
+  //
+  // Sum of logarithmic joint probabilities (multiplication in normal scale)
+  //
+  for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+    jointScore = +F4[jointScoreP >> 2];
+    F4[outP >> 2] = exp(jointScore);
+    outP = (outP + 4) | 0;
+    jointScoreP = (jointScoreP + 4) | 0;
+  }
+  outPSave = outP;
+  jointScoreP = (jointScoreP +
+    (imul(numberOfStates - 1, numberOfStates) << 2)) | 0;
+
+  for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
+    for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+        jointScore = +F4[jointScoreP >> 2];
+        
+        t = +F4[outP >> 2];
+        F4[outP >> 2] = t + exp(jointScore);
+        
+        jointScoreP = (jointScoreP + 4) | 0;
+        outP = (outP + 4) | 0;
+      }      
+    }
+    outP = outPSave;
+  }
 }
 
 /**
@@ -2392,7 +2462,7 @@ function trainOnline(numberOfStates, dimension, round,
   var featureScoreTableSize = 0;
   var forwardScoreP = 0;
   var backwardScoreP = 0;
-  var normalizationFactor = 0.0;
+  var normalizationFactorP = 0;
   var gradientNzP = 0;
   var gradientValueP = 0;
   var gradientIndexP = 0;
@@ -2437,6 +2507,8 @@ function trainOnline(numberOfStates, dimension, round,
 
   featureScoreP = (outIndexP + (featureScoreTableSize << 2)) | 0;
   
+  normalizationFactorP = 4;
+  
   //
   // main
   //
@@ -2460,83 +2532,14 @@ function trainOnline(numberOfStates, dimension, round,
     chainLength, tmpP, forwardScoreP);
   updateBackwardScores(featureScoreP, numberOfStates,
     chainLength, tmpP, backwardScoreP);
-  normalizationFactor = +getNormalizationFactor(forwardScoreP,
-    numberOfStates, chainLength);
+  updateNormalizationFactor(forwardScoreP,
+    numberOfStates, chainLength, normalizationFactorP);
   // updateJointScores(featureScoreP, forwardScoreP, backwardScoreP,
   //   numberOfStates, chainLength, normalizationFactor);
   //updateMarginalScores();
   // updateGradient();
   adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP, foiP, soiP);
   // crf_sufferLoss();
-}
-
-/**
- * Computes marginal probabilities from logarithmic joint probabilites.
- *
- * A table of marginal probabilities is
- * float[numberOfStates + 1][numberOfStates].
- * score[0][j] represents a marginal from the (hypothetical) initial state
- * to the state j. For i >= 1, score[i][j] represents a marginal from the
- * state (i - 1) to the state j.
- *
- * Unlike joint scores, values in this table represents probabilities in
- * normal scale, not in logarithmic.
- *
- * This function assumes that its output destination is cleared to 0.
- *
- * Exactly ((numberOfStates + 1) * numberOfStates) bytes will be written into
- * outP.
- */
-function updateMarginalProbabilities(jointScoreP,
-  numberOfStates, chainLength, outP) {
-  /*
-   * Type annotations
-   */
-  jointScoreP = jointScoreP | 0;
-  numberOfStates = numberOfStates | 0;
-  chainLength = chainLength | 0;
-  outP = outP | 0;
-
-  /*
-   * Local variables
-   */
-  var t = 0.0;
-  var jointScore = 0.0;
-  var outPSave = 0;
-  var time = 0;
-  var prev = 0;
-  var cur = 0;
-
-  /*
-   * Main
-   */
-  //
-  // Sum of logarithmic joint probabilities (multiplication in normal scale)
-  //
-  for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-    jointScore = +F4[jointScoreP >> 2];
-    F4[outP >> 2] = exp(jointScore);
-    outP = (outP + 4) | 0;
-    jointScoreP = (jointScoreP + 4) | 0;
-  }
-  outPSave = outP;
-  jointScoreP = (jointScoreP +
-    (imul(numberOfStates - 1, numberOfStates) << 2)) | 0;
-
-  for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
-    for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
-      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-        jointScore = +F4[jointScoreP >> 2];
-        
-        t = +F4[outP >> 2];
-        F4[outP >> 2] = t + exp(jointScore);
-        
-        jointScoreP = (jointScoreP + 4) | 0;
-        outP = (outP + 4) | 0;
-      }      
-    }
-    outP = outPSave;
-  }
 }
 
 /**
@@ -2701,7 +2704,7 @@ return {
   crf_updateForwardScores: updateForwardScores,
   crf_updateBackwardScores: updateBackwardScores,
   crf_updateMarginalProbabilities: updateMarginalProbabilities,
-  crf_getNormalizationFactor: getNormalizationFactor,
+  crf_updateNormalizationFactor: updateNormalizationFactor,
   crf_updateJointScores: updateJointScores,
   crf_uniqueAndZipSparseVector: uniqueAndZipSparseVector,
   crf_updateGradient: updateGradient,

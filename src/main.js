@@ -15,11 +15,11 @@ import crf_featureHashingSequence from './crf/featureHashingSequence';
 import crf_updateFeatureScores from './crf/updateFeatureScores';
 import crf_updateForwardScores from './crf/updateForwardScores';
 import crf_updateBackwardScores from './crf/updateBackwardScores';
-import crf_getNormalizationFactor from './crf/getNormalizationFactor';
+import crf_updateNormalizationFactor from './crf/updateNormalizationFactor';
+import crf_updateMarginalProbabilities from './crf/updateMarginalProbabilities';
 import crf_updateJointScores from './crf/updateJointScores';
 import crf_updateGradient from './crf/updateGradient';
 import crf_trainOnline from './crf/trainOnline';
-import crf_updateMarginalProbabilities from './crf/updateMarginalProbabilities';
 import crf_uniqueAndZipSparseVector from './crf/uniqueAndZipSparseVector';
 import compareInt32 from './util/compareInt32';
 import compareUint32 from './util/compareUint32';
@@ -63,7 +63,7 @@ var EXPORTS = {
   crf_updateForwardScores: crf_updateForwardScores,
   crf_updateBackwardScores: crf_updateBackwardScores,
   crf_updateMarginalProbabilities: crf_updateMarginalProbabilities,
-  crf_getNormalizationFactor: crf_getNormalizationFactor,
+  crf_updateNormalizationFactor: crf_updateNormalizationFactor,
   crf_updateJointScores: crf_updateJointScores,
   crf_uniqueAndZipSparseVector: crf_uniqueAndZipSparseVector,
   crf_updateGradient: crf_updateGradient,
@@ -73,4 +73,4 @@ var EXPORTS = {
   qsortBM: qsortBM
 };
 
-export {EXPORTS}
+export {EXPORTS};
