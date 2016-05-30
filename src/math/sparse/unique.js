@@ -1,4 +1,4 @@
-import sort from '../sortSparseVectorElements';
+import sort from './sort';
 
 /**
  * Sums up repeated indices in a sparse vector

@@ -4,8 +4,8 @@ import sumInt32 from './math/sumInt32';
 import logsumexp from './math/logsumexpFloat32';
 import * as ufmap from './util/ufmap.js';
 import hash from './util/MurmurHash3_x86_32';
-import susdot from './math/susdot';
-import sortSparseVectorElements from './math/sortSparseVectorElements';
+import math_sparse_susdot from './math/sparse/susdot';
+import math_sparse_sort from './math/sparse/sort';
 import math_sparse_unique from './math/sparse/unique';
 import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8';
 import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
@@ -50,8 +50,8 @@ var EXPORTS = {
   sumInt32: sumInt32,
   hash: hash,
   logsumexp: logsumexp,
-  vec_susdot: susdot,
-  vec_sortSparseVectorElements: sortSparseVectorElements,
+  math_sparse_susdot: math_sparse_susdot,
+  math_sparse_sort: math_sparse_sort,
   math_sparse_unique: math_sparse_unique,
   uc_convertUtf16toUtf8: convertUtf16toUtf8,
   uc_convertUtf8toUtf16: convertUtf8toUtf16,

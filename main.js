@@ -947,7 +947,7 @@ function med3(a, b, c, cmpId) {
  *
  * Exactly (nz * 4) will be written into each of outValueP and outIndexP.
  */
-function sortSparseVectorElements(nz, valueP, indexP,
+function sort(nz, valueP, indexP,
     outValueP, outIndexP) {
   /*
    * Type annotations
@@ -1026,7 +1026,7 @@ function unique(nz, valueP, indexP,
   /*
    * Main
    */
-  sortSparseVectorElements(nz, valueP, indexP, outValueP, outIndexP);
+  sort(nz, valueP, indexP, outValueP, outIndexP);
   valueP = outValueP;
   indexP = outIndexP;
 
@@ -2506,8 +2506,8 @@ return {
   sumInt32: sumInt32,
   hash: MurmurHash3_x86_32,
   logsumexp: logsumexpFloat32,
-  vec_susdot: susdot,
-  vec_sortSparseVectorElements: sortSparseVectorElements,
+  math_sparse_susdot: susdot,
+  math_sparse_sort: sort,
   math_sparse_unique: unique,
   uc_convertUtf16toUtf8: uc_convertUtf16toUtf8,
   uc_convertUtf8toUtf16: convertUtf8toUtf16,

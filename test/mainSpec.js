@@ -187,19 +187,19 @@ describe('This handwritten asm.js module', function() {
       putUint32(U4, indexP, index);
       putFloat(F4, yP, y);
 
-      mod.vec_susdot(x.length, xP, indexP, yP, outP);
+      mod.math_sparse_susdot(x.length, xP, indexP, yP, outP);
       expect(F4[outP >> 2]).to.closeTo(2.5, 0.000001);
 
       F4[outP >> 2] = 10.0;
-      mod.vec_susdot(1, xP, indexP, yP, outP);
+      mod.math_sparse_susdot(1, xP, indexP, yP, outP);
       expect(F4[outP >> 2]).to.closeTo(2.0, 0.000001);
 
       F4[outP >> 2] = 10.0;
-      mod.vec_susdot(0, xP, indexP, yP, outP);
+      mod.math_sparse_susdot(0, xP, indexP, yP, outP);
       expect(F4[outP >> 2]).to.closeTo(0.0, 0.000001);
       
       F4[outP >> 2] = 10.0;
-      mod.vec_susdot(-1, xP, indexP, yP, outP);
+      mod.math_sparse_susdot(-1, xP, indexP, yP, outP);
       expect(F4[outP >> 2]).to.closeTo(0.0, 0.000001);
       
       
@@ -209,7 +209,7 @@ describe('This handwritten asm.js module', function() {
       putFloat(F4, xP, x);
       putUint32(U4, indexP, index);
       putFloat(F4, yP, y);
-      mod.vec_susdot(x.length, xP, indexP, yP, outP);
+      mod.math_sparse_susdot(x.length, xP, indexP, yP, outP);
       expect(F4[outP >> 2]).to.closeTo(-0.5, 0.000001);
     });
     
@@ -227,12 +227,12 @@ describe('This handwritten asm.js module', function() {
       putFloat(F4, valueP, values);
       putInt32(I4, indexP, indices);
 
-      mod.vec_sortSparseVectorElements(0, valueP, indexP,
+      mod.math_sparse_sort(0, valueP, indexP,
         outValueP, outIndexP);
       expect(I4[outIndexP >> 2]).to.equal(0);
       expect(F4[outValueP >> 2]).to.equal(0.0);      
       
-      mod.vec_sortSparseVectorElements(nz, valueP, indexP,
+      mod.math_sparse_sort(nz, valueP, indexP,
         outValueP, outIndexP);
 
       expect(I4[outIndexP >> 2]).to.equal(0);

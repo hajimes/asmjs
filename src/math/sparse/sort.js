@@ -1,11 +1,11 @@
-import sort from '../util/qsortBM';
+import qsortBM from '../../util/qsortBM';
 
 /**
  * Sort the element in a sparse vector with ascending order of indices.
  *
  * Exactly (nz * 4) will be written into each of outValueP and outIndexP.
  */
-export default function sortSparseVectorElements(nz, valueP, indexP,
+export default function sort(nz, valueP, indexP,
     outValueP, outIndexP) {
   /*
    * Type annotations
@@ -33,7 +33,7 @@ export default function sortSparseVectorElements(nz, valueP, indexP,
     I4[(outIndexP + (i << 2)) >> 2] = (indexP + (i << 2)) | 0;
   }
 
-  sort(outIndexP, nz, 4, 2);
+  qsortBM(outIndexP, nz, 4, 2);
   
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
     p = I4[outIndexP >> 2] | 0;
