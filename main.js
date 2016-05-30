@@ -1928,6 +1928,10 @@ function updateJointScores(featureScoreP, forwardScoreP,
 
 /**
  * Computes a gradient.
+ *
+ * for tmps 
+ * nz[0] * numberOfStates + numberOfStates + 1
+ * (chainLength - 1) * numberOfStates^2 * (nz[i] + 1)  +numberOfStates^2
  */
 function updateGradient(nzP, valueP, indexP,
     biasScoreP, biasIndex, 
@@ -1963,6 +1967,7 @@ function updateGradient(nzP, valueP, indexP,
   var cur = 0;
   var prev = 0;
   var transitionIndexSave = 0;
+  var transitionScorePSave = 0;
   var transitionScore = 0.0;
   var marginalProbability = 0.0;
   var marginalProbabilityPSave = 0;
@@ -1975,6 +1980,8 @@ function updateGradient(nzP, valueP, indexP,
   var coef = 0.0;
   var correctState = 0;
   var correctPreviousState = 0;
+  var valuePSave = 0;
+  var indexPSave = 0;
   var tmpValuePSave = 0;
   var tmpIndexPSave = 0;
   
@@ -1983,7 +1990,6 @@ function updateGradient(nzP, valueP, indexP,
    */
   biasScore = +F4[biasScoreP >> 2];
   nz = I4[nzP >> 2] | 0;
-  totalNz = (totalNz + nz) | 0;
   correctState = I4[correctPathP >> 2] | 0;
   tmpValuePSave = tmpValueP;
   tmpIndexPSave = tmpIndexP;
@@ -2002,7 +2008,7 @@ function updateGradient(nzP, valueP, indexP,
     tmpValueP = (tmpValueP + 4) | 0;
     totalNz = (totalNz + 1) | 0;
 
-    transitionScore = +F4[(transitionScoreP + (transitionIndex << 2)) >> 2];
+    transitionScore = +F4[transitionScoreP >> 2];
     I4[tmpIndexP >> 2] = transitionIndex | 0;
     F4[tmpValueP >> 2] = transitionScore * coef;
     tmpIndexP = (tmpIndexP + 4) | 0;
@@ -2024,22 +2030,26 @@ function updateGradient(nzP, valueP, indexP,
     }
     
     transitionIndex = (transitionIndex + 1) | 0;
+    transitionScoreP = (transitionScoreP + 4) | 0;
     marginalProbabilityP = (marginalProbabilityP + 4) | 0;
   }
   
   nzP = (nzP + 4) | 0;
-  nz = I4[nzP >> 2] | 0;
   correctPathP = (correctPathP + 4) | 0;
 
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
     marginalProbabilityPSave = marginalProbabilityP;
     transitionIndexSave = transitionIndex;
+    transitionScorePSave = transitionScoreP;
     nz = I4[nzP >> 2] | 0;
     
     correctPreviousState = correctState;
     correctState = I4[correctPathP >> 2] | 0;
 
     for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+      valuePSave = valueP;
+      indexPSave = indexP;
+      
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
         marginalProbability = +F4[marginalProbabilityP >> 2];
         coef = -marginalProbability;
@@ -2055,7 +2065,7 @@ function updateGradient(nzP, valueP, indexP,
         tmpValueP = (tmpValueP + 4) | 0;
         totalNz = (totalNz + 1) | 0;
 
-        transitionScore = +F4[(transitionScoreP + (transitionIndex << 2)) >> 2];
+        transitionScore = +F4[transitionScoreP >> 2];
         I4[tmpIndexP >> 2] = transitionIndex | 0;
         F4[tmpValueP >> 2] = transitionScore * coef;
         tmpIndexP = (tmpIndexP + 4) | 0;
@@ -2077,13 +2087,21 @@ function updateGradient(nzP, valueP, indexP,
         }
 
         transitionIndex = (transitionIndex + 1) | 0;
+        transitionScoreP = (transitionScoreP + 4) | 0;
         marginalProbabilityP = (marginalProbabilityP + 4) | 0;
       }
+      
+      valueP = valuePSave;
+      indexP = indexPSave;
     }
 
+    valueP = (valueP + imul((nz << 2), numberOfStates)) | 0;
+    indexP = (indexP + imul((nz << 2), numberOfStates)) | 0;
+
     nzP = (nzP + 4) | 0;
-    marginalProbabilityPSave = marginalProbabilityP;
+    marginalProbabilityP = marginalProbabilityPSave;
     transitionIndex = transitionIndexSave;
+    transitionScoreP = transitionScorePSave;
   }
   tmpValueP = tmpValuePSave;
   tmpIndexP = tmpIndexPSave;

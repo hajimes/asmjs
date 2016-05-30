@@ -901,6 +901,88 @@ describe('This handwritten asm.js module', function() {
       expect(F4[outP >> 2]).to.closeTo(0.0, 0.00001);
     });
 
+    it('gradient calculation', function() {
+      var i = 0;
+      var numberOfStates = 2;
+      var pathLength = 3;
+      
+      var biasScore = [
+        1.0
+      ];
+
+      var transitionScores = [
+        1.0, -2.0,
+        2.0, 4.0,
+        -2.0, 1.0
+      ];
+      
+      var marginalProbabilities = [
+        0.1, 0.2,
+        0.25, 0.15,
+        0.2, 0.1
+      ];
+      
+      var nzs = [
+        2, 3, 2
+      ];
+      
+      var values = [
+        1.0, 1.5,
+          -1.5, 1.0,
+        2.0, 1.0, -1.0,
+          1.0, 1.0, 2.0,
+        -1.0, -3.0,
+          -1.0, 3.0
+      ];
+      
+      var indices = [
+        1, 2,
+          3, 4,
+        5, 6, 2,
+          7, 8, 8,
+        9, 10,
+          11, 12
+      ];
+      
+      var correctPath = [0, 1, 0];
+      
+      var nzP = 1000;
+      var valueP = 2000;
+      var indexP = 3000;
+      var biasScoreP = 4000;
+      var transitionScoreP = 5000;
+      var marginalProbabilityP = 6000;
+      var correctPathP = 7000;
+      var tmpValueP = 10000;
+      var tmpIndexP = 11000;
+      var outNzP = 20000;
+      var outValueP = 21000;
+      var outIndexP = 22000;
+      
+      var biasIndex = 100;
+      var transitionIndex = 50;
+      
+      putFloat(I4, nzP, nzs);
+      putFloat(F4, valueP, values);
+      putFloat(I4, indexP, indices);
+      putFloat(F4, biasScoreP, biasScore);
+      putFloat(F4, transitionScoreP, transitionScores);
+      putFloat(F4, marginalProbabilityP, marginalProbabilities);
+      putFloat(I4, correctPathP, correctPath);
+      
+      mod.crf_updateGradient(nzP, valueP, indexP,
+        biasScoreP, biasIndex, 
+        transitionScoreP, transitionIndex,
+        marginalProbabilityP, correctPathP,
+        numberOfStates, pathLength,
+        tmpValueP, tmpIndexP,
+        outNzP, outValueP, outIndexP);
+      
+      expect(I4[outNzP >> 2]).to.
+        equal(12 + numberOfStates * (numberOfStates + 1) + 1);
+      // TODO add more test
+    });
+
     it('resolving repeated indices of sparse vectors', function() {
       var inP = 1000;
       var outNzP = 2000;
