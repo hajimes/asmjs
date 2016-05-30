@@ -221,7 +221,6 @@ describe('This handwritten asm.js module', function() {
       var nz = values.length;
       var valueP = 1000;
       var indexP = 2000;
-      var tmpP = 3000;
       var outValueP = 4000;
       var outIndexP = 5000;
       
@@ -229,12 +228,12 @@ describe('This handwritten asm.js module', function() {
       putInt32(I4, indexP, indices);
 
       mod.vec_sortSparseVectorElements(0, valueP, indexP,
-        tmpP, outValueP, outIndexP);
+        outValueP, outIndexP);
       expect(I4[outIndexP >> 2]).to.equal(0);
       expect(F4[outValueP >> 2]).to.equal(0.0);      
       
       mod.vec_sortSparseVectorElements(nz, valueP, indexP,
-        tmpP, outValueP, outIndexP);
+        outValueP, outIndexP);
 
       expect(I4[outIndexP >> 2]).to.equal(0);
       expect(I4[(outIndexP + (1 << 2)) >> 2]).to.equal(4);
@@ -248,6 +247,41 @@ describe('This handwritten asm.js module', function() {
       expect(F4[(outValueP + (2 << 2)) >> 2]).to.be.oneOf([-2.0, 0.5]);
       expect(F4[(outValueP + (3 << 2)) >> 2]).to.be.oneOf([-2.0, 0.5]);
       expect(F4[(outValueP + (4 << 2)) >> 2]).to.equal(3.0);
+    });
+    
+    it('resolving repeated indices of sparse vectors', function() {
+      var inP = 1000;
+      var outNzP = 2000;
+      var outValueP = 10000;
+      var outIndexP = 3000;
+      var t = inP;
+      
+      var values = [1.0, -2.0, 0.5, 0.5, 3.0];
+      var indices = [4, 5, 0, 5, 8];
+
+      var nz = values.length;
+      var valueP = 1000;
+      var indexP = 2000;
+      var outValueP = 4000;
+      var outIndexP = 5000;
+
+      putFloat(F4, valueP, values);
+      putInt32(I4, indexP, indices);
+      
+      mod.math_sparse_unique(nz, valueP, indexP,
+        outNzP, outValueP, outIndexP);
+
+      expect(I4[outNzP >> 2]).to.equal(4);
+
+      expect(I4[outIndexP >> 2]).to.equal(0);
+      expect(I4[(outIndexP + (1 << 2)) >> 2]).to.equal(4);
+      expect(I4[(outIndexP + (2 << 2)) >> 2]).to.equal(5);
+      expect(I4[(outIndexP + (3 << 2)) >> 2]).to.equal(8);
+
+      expect(F4[outValueP >> 2]).to.equal(0.5);
+      expect(F4[(outValueP + (1 << 2)) >> 2]).to.equal(1.0);
+      expect(F4[(outValueP + (2 << 2)) >> 2]).to.closeTo(-1.5, 0.00001);
+      expect(F4[(outValueP + (3 << 2)) >> 2]).to.equal(3.0);
     });
   });
   

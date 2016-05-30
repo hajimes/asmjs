@@ -945,10 +945,9 @@ function med3(a, b, c, cmpId) {
 /**
  * Sort the element in a sparse vector with ascending order of indices.
  *
- * This method uses exactly (nz * 4) bytes at tmpP.
  * Exactly (nz * 4) will be written into each of outValueP and outIndexP.
  */
-function sortSparseVectorElements(nz, valueP, indexP, tmpP,
+function sortSparseVectorElements(nz, valueP, indexP,
     outValueP, outIndexP) {
   /*
    * Type annotations
@@ -956,7 +955,6 @@ function sortSparseVectorElements(nz, valueP, indexP, tmpP,
   nz = nz | 0;
   valueP = valueP | 0;
   indexP = indexP | 0;
-  tmpP = tmpP | 0;
   outValueP = outValueP | 0;
   outIndexP = outIndexP | 0;
 
@@ -974,13 +972,13 @@ function sortSparseVectorElements(nz, valueP, indexP, tmpP,
   }
   
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
-    I4[(tmpP + (i << 2)) >> 2] = (indexP + (i << 2)) | 0;
+    I4[(outIndexP + (i << 2)) >> 2] = (indexP + (i << 2)) | 0;
   }
 
-  qsortBM(tmpP, nz, 4, 2);
+  qsortBM(outIndexP, nz, 4, 2);
   
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
-    p = I4[(tmpP + (i << 2)) >> 2] | 0;
+    p = I4[outIndexP >> 2] | 0;
     I4[outIndexP >> 2] = I4[p >> 2] | 0;
     p = (p - indexP) | 0;
     F4[outValueP >> 2] = F4[(valueP + p) >> 2];
@@ -988,6 +986,83 @@ function sortSparseVectorElements(nz, valueP, indexP, tmpP,
     outValueP = (outValueP + 4) | 0;
     outIndexP = (outIndexP + 4) | 0;
   }
+}
+
+/**
+ * Sums up repeated indices in a sparse vector
+ * and returns a new sparse vector with unique indices.
+ *
+ * This method uses exactly (nz * 4) bytes at tmpP.
+ *
+ * Exactly 4 bytes will be written into outNzP.
+ * This function uses exactly (nz * 4) bytes at outValueP and outIndexP,
+ * even when the resulting vector is smaller than that.
+ *
+ * The current implementation sorts elements by indices but this behavior may
+ * change in future.
+ */
+function unique(nz, valueP, indexP,
+    outNzP, outValueP, outIndexP) {
+  /*
+   * Type annotations
+   */
+  nz = nz | 0;
+  valueP = valueP | 0;
+  indexP = indexP | 0;
+  outNzP = outNzP | 0;
+  outValueP = outValueP | 0;
+  outIndexP = outIndexP | 0;
+  
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var value = 0.0;
+  var index = 0;
+  var previousIndex = 0;
+  var newNz = 0;
+  var newValue = 0.0;
+
+  /*
+   * Main
+   */
+  sortSparseVectorElements(nz, valueP, indexP, outValueP, outIndexP);
+  valueP = outValueP;
+  indexP = outIndexP;
+
+  index = I4[indexP >> 2] | 0;
+  indexP = (indexP + 4) | 0;
+  value = +F4[valueP >> 2];
+  valueP = (valueP + 4) | 0;
+  newValue = value;
+  previousIndex = index;
+
+  for (i = 1; (i | 0) < (nz | 0); i = (i + 1) | 0) {
+    index = I4[indexP >> 2] | 0;
+    indexP = (indexP + 4) | 0;
+    value = +F4[valueP >> 2];
+    valueP = (valueP + 4) | 0;
+    
+    if ((index >>> 0) == (previousIndex >>> 0)) {
+      newValue = newValue + value;
+    } else {
+      F4[outValueP >> 2] = newValue;
+      U4[outIndexP >> 2] = previousIndex;
+      
+      newValue = value;
+      
+      newNz = (newNz + 1) | 0;
+      outValueP = (outValueP + 4) | 0;
+      outIndexP = (outIndexP + 4) | 0;
+    }
+    
+    previousIndex = index;
+  }
+
+  newNz = (newNz + 1) | 0;
+  I4[outNzP >> 2] = newNz;
+  F4[outValueP >> 2] = newValue;
+  U4[outIndexP >> 2] = previousIndex;
 }
 
 /**
@@ -2433,6 +2508,7 @@ return {
   logsumexp: logsumexpFloat32,
   vec_susdot: susdot,
   vec_sortSparseVectorElements: sortSparseVectorElements,
+  math_sparse_unique: unique,
   uc_convertUtf16toUtf8: uc_convertUtf16toUtf8,
   uc_convertUtf8toUtf16: convertUtf8toUtf16,
   crf_trainOnline: trainOnline,

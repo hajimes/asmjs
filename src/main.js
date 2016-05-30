@@ -6,6 +6,7 @@ import * as ufmap from './util/ufmap.js';
 import hash from './util/MurmurHash3_x86_32';
 import susdot from './math/susdot';
 import sortSparseVectorElements from './math/sortSparseVectorElements';
+import math_sparse_unique from './math/sparse/unique';
 import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8';
 import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
 import isLittleEndian from './util/isLittleEndian';
@@ -51,6 +52,7 @@ var EXPORTS = {
   logsumexp: logsumexp,
   vec_susdot: susdot,
   vec_sortSparseVectorElements: sortSparseVectorElements,
+  math_sparse_unique: math_sparse_unique,
   uc_convertUtf16toUtf8: convertUtf16toUtf8,
   uc_convertUtf8toUtf16: convertUtf8toUtf16,
   crf_trainOnline: crf_trainOnline,
