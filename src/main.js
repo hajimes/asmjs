@@ -17,6 +17,7 @@ import crf_updateForwardScores from './crf/updateForwardScores';
 import crf_updateBackwardScores from './crf/updateBackwardScores';
 import crf_getNormalizationFactor from './crf/getNormalizationFactor';
 import crf_updateJointScores from './crf/updateJointScores';
+import crf_updateGradient from './crf/updateGradient';
 import crf_trainOnline from './crf/trainOnline';
 import crf_updateMarginalProbabilities from './crf/updateMarginalProbabilities';
 import crf_uniqueAndZipSparseVector from './crf/uniqueAndZipSparseVector';
@@ -65,6 +66,7 @@ var EXPORTS = {
   crf_getNormalizationFactor: crf_getNormalizationFactor,
   crf_updateJointScores: crf_updateJointScores,
   crf_uniqueAndZipSparseVector: crf_uniqueAndZipSparseVector,
+  crf_updateGradient: crf_updateGradient,
   isLittleEndian: isLittleEndian,
   compareInt32: compareInt32,
   compareUint32: compareUint32,
