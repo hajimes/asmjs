@@ -921,6 +921,7 @@ describe('This handwritten asm.js module', function() {
       var numberOfStates = 2;
       var chainLength = 3;
       
+      var normalizationFactor = [0.5];
       var forwardScores = [
         1.0, -1.0,
         0.5, 2.0,
@@ -942,44 +943,46 @@ describe('This handwritten asm.js module', function() {
       // (excluding jointScores[0][j][k] for j >= 1) must be close to 1.0
       // but we ignore that condition here.
       var expectedJointScores = [
-        2.1, -4.9, 0.0, 0.0,
-        3.6, 6.1, -0.4, 2.6,
-        5.1, 0.6, 4.6, 0.6
+        1.6, -5.4, 0.0, 0.0,
+        3.1, 5.6, -0.9, 2.1,
+        4.6, 0.1, 4.1, 0.1
       ];
       
       var featureScoreP = 3000;
       var forwardScoreP = 1000;
       var backwardScoreP = 2000;
+      var normalizationFactorP = 4000;
       
       putFloat(F4, featureScoreP, featureScores);
       putFloat(F4, forwardScoreP, forwardScores);
       putFloat(F4, backwardScoreP, backwardScores);
+      putFloat(F4, normalizationFactorP, normalizationFactor);
       
       // This function does nothing if either # of states or chain length is
       // less than 1
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, 0, chainLength);
+        backwardScoreP, normalizationFactorP, 0, chainLength);
+      expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.0001);
+      expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
+      expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
+      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+        backwardScoreP, normalizationFactorP, -1, chainLength);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, -1, chainLength);
+        backwardScoreP, normalizationFactorP, numberOfStates, 0);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, numberOfStates, 0);
-      expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
-      expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
-      expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
-      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, numberOfStates, -1);
+        backwardScoreP, normalizationFactorP, numberOfStates, -1);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
       
       mod.crf_updateJointScores(featureScoreP, forwardScoreP,
-        backwardScoreP, numberOfStates, chainLength);
+        backwardScoreP, normalizationFactorP, numberOfStates, chainLength);
       for (i = 0; i < numberOfStates * numberOfStates * chainLength; i += 1) {
         expect(F4[featureScoreP >> 2]).
           to.closeTo(expectedJointScores[i], 0.00001);
@@ -988,51 +991,6 @@ describe('This handwritten asm.js module', function() {
       // The method overwrites featureScores,
       // so bytes after that should remain 0 in this case.
       expect(F4[featureScoreP >> 2]).to.closeTo(0.0, 0.00001);
-    });
-    
-    it('computing marginal probabilities from joint in log-scale', function() {
-      var i = 0;
-      var numberOfStates = 2;
-      var chainLength = 3;
-
-      var LOG01 = log(0.1);
-      var LOG02 = log(0.2);
-      var LOG005 = log(0.05);
-
-      // NaN is deliberately included here to test for ensuring that the
-      // elements of these positions are not involved during computation.
-      var jointInLog = [
-        LOG01, LOG005, NaN, NaN,
-        LOG005, LOG01, LOG01, LOG01,
-        LOG01, LOG01, LOG02, LOG01
-      ];
-      
-      /*
-       * A table of marginal probabilities is
-       * float[numberOfStates + 1][numberOfStates].
-       * score[0][j] represents a marginal from the (hypothetical) initial state
-       * to the state j. For i >= 1, score[i][j] represents a marginal from the
-       * state (i - 1) to the state j.
-       */
-      var expectedMarginal = [
-        0.1, 0.05,
-        0.15, 0.2,
-        0.3, 0.2
-      ];
-      
-      var jointInLogP = 1000;
-      var outP = 10000;
-      
-      putFloat(F4, jointInLogP, jointInLog);
-      
-      mod.crf_updateMarginalProbabilities(jointInLogP, numberOfStates,
-        chainLength, outP);
-        
-      for (i = 0; i < numberOfStates * (numberOfStates + 1); i += 1) {
-        expect(F4[outP >> 2]).to.closeTo(expectedMarginal[i], 0.00001);
-        outP += 4;
-      }
-      expect(F4[outP >> 2]).to.closeTo(0.0, 0.00001);
     });
 
     it('gradient calculation', function() {
@@ -1115,61 +1073,6 @@ describe('This handwritten asm.js module', function() {
       expect(I4[outNzP >> 2]).to.
         equal(12 + numberOfStates * (numberOfStates + 1) + 1);
       // TODO add more test
-    });
-
-    it('resolving repeated indices of sparse vectors', function() {
-      var inP = 1000;
-      var outNzP = 2000;
-      var outValueP = 10000;
-      var outIndexP = 3000;
-      var t = inP;
-      
-      U4[inP >> 2] = 8;
-      inP += 4;
-      F4[inP >> 2] = 0.5;
-      inP += 4;
-
-      U4[inP >> 2] = 10;
-      inP += 4;
-      F4[inP >> 2] = -2.5;
-      inP += 4;
-
-      U4[inP >> 2] = 10;
-      inP += 4;
-      F4[inP >> 2] = 1.5;
-      inP += 4;
-
-      U4[inP >> 2] = 4;
-      inP += 4;
-      F4[inP >> 2] = 3.5;
-      inP += 4;
-
-      mod.crf_uniqueAndZipSparseVector(0, t, outNzP, outValueP, outIndexP);
-      expect(I4[outNzP >> 2]).to.equal(0);
-      expect(I4[outIndexP >> 2]).to.equal(0);
-      expect(F4[outValueP >> 2]).to.closeTo(0, 0.00001);
-
-      mod.crf_uniqueAndZipSparseVector(1, t, outNzP, outValueP, outIndexP);
-      expect(I4[outNzP >> 2]).to.equal(1);
-      expect(I4[outIndexP >> 2]).to.equal(8);
-      expect(F4[outValueP >> 2]).to.closeTo(0.5, 0.00001);
-      
-      mod.crf_uniqueAndZipSparseVector(4, t, outNzP, outValueP, outIndexP);
-      expect(I4[outNzP >> 2]).to.equal(3);
-      expect(I4[outIndexP >> 2]).to.equal(4);
-      expect(F4[outValueP >> 2]).to.closeTo(3.5, 0.00001);
-      outIndexP += 4;
-      outValueP += 4;
-      expect(I4[outIndexP >> 2]).to.equal(8);
-      expect(F4[outValueP >> 2]).to.closeTo(0.5, 0.00001);
-      outIndexP += 4;
-      outValueP += 4;
-      expect(I4[outIndexP >> 2]).to.equal(10);
-      expect(F4[outValueP >> 2]).to.closeTo(-1.0, 0.00001);
-      outIndexP += 4;
-      outValueP += 4;
-      expect(I4[outIndexP >> 2]).to.equal(0);
-      expect(F4[outValueP >> 2]).to.closeTo(0.0, 0.00001);
     });
   });
 });

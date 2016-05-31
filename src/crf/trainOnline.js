@@ -10,7 +10,6 @@ import updateBackwardScores from './updateBackwardScores';
 import updateNormalizationFactor from './updateNormalizationFactor';
 import sufferLoss from './sufferLoss';
 import updateJointScores from './updateJointScores';
-import updateMarginalProbabilities from './updateMarginalProbabilities';
 import updateGradient from './updateGradient';
 
 /**
@@ -37,7 +36,7 @@ import updateGradient from './updateGradient';
  */
 // Incomplete
 export default function trainOnline(instanceP, numberOfStates, dimension, round,
-  foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP) {
+  foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP, marginalProbabilityP) {
   /*
    * Type annotations
    */
@@ -53,12 +52,14 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   lambda = +lambda;
   tmpP = tmpP | 0;
   lossP = lossP | 0;
+  marginalProbabilityP = marginalProbabilityP | 0;
   
   /*
    * Local variables
    */
   var i = 0;
 
+  var nz = 0;
   var nzP = 0;
   var totalNz = 0;
   var chainLength = 0;
@@ -86,8 +87,6 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   var featureScoreTableSize = 0;
   var gradientMaxSize = 0;
   
-  var jointScoreP = 0;
-  var marginalProbabilityP = 0;
   var biasIndex = 0;
   var transitionIndex = 0;
 
@@ -114,8 +113,9 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   stateScoreTableSize = imul(chainLength, numberOfStates);
   transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  gradientMaxSize = (imul(totalNz, numberOfStates) +
-    transitionScoreTableSize + 4) | 0;
+  // gradientMaxSize = (imul(totalNz, numberOfStates) +
+  //   transitionScoreTableSize + 4) | 0;
+  gradientMaxSize = 65536; // TODO: fix this
 
   biasIndex = (dimension + transitionScoreTableSize) | 0;
   transitionIndex = dimension;
@@ -146,10 +146,7 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   
   normalizationFactorP = tmpP;
   tmpP = (tmpP + 4) | 0;
-  
-  marginalProbabilityP = tmpP;
-  tmpP = (tmpP + (transitionScoreTableSize << 2)) | 0;
-  
+
   tmpValueP = tmpP;
   tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
 
@@ -157,26 +154,34 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
   
   // reuse these spaces
-  gradientNzP = normalizationFactorP;
-  gradientValueP = featureHashedValueP;
-  gradientIndexP = featureHashedIndexP;
-  
+  // gradientNzP = normalizationFactorP;
+  // gradientValueP = featureHashedValueP;
+  // gradientIndexP = featureHashedIndexP;
+  gradientNzP = tmpP;
+  tmpP = (tmpP + 4) | 0;
+  gradientValueP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  gradientIndexP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+
   //
   // Main routine
   //
   featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
     dimension, featureHashedValueP, featureHashedIndexP);
-    
+
   // update bias and transition scores positions
-  for (i = 0; (i | 0) < ((featureScoreTableSize + 1) | 0); i = (i + 1) | 0) {
+  for (i = 0; (i | 0) < ((transitionScoreTableSize + 1) | 0); i = (i + 1) | 0) {
     adagradUpdateLazyAt((i + dimension) | 0, foiP, soiP, weightP,
       +(round | 0), delta, eta, lambda);
   }
-  adagradUpdateLazy(totalNz, indexP, foiP, soiP, weightP,
+
+  adagradUpdateLazy(totalNz, featureHashedIndexP, foiP, soiP, weightP,
     +(round | 0), delta, eta, lambda);
 
-  updateStateScores(nzP, valueP, indexP, weightP,
+  updateStateScores(nzP, featureHashedValueP, featureHashedIndexP, weightP,
     numberOfStates, chainLength, stateScoreP);
+
   updateFeatureScores(biasScoreP, transitionScoreP,
     stateScoreP, numberOfStates, chainLength, featureScoreP);
 
@@ -193,17 +198,16 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
     numberOfStates, chainLength, lossP);
 
   updateJointScores(featureScoreP, forwardScoreP,
-    backwardScoreP, numberOfStates, chainLength);
-  updateMarginalProbabilities(jointScoreP, numberOfStates, chainLength,
-    marginalProbabilityP);
+    backwardScoreP, normalizationFactorP, numberOfStates, chainLength);
 
   updateGradient(nzP, featureHashedValueP, featureHashedIndexP,
-    biasScoreP, biasIndex, 
+    biasScoreP, biasIndex,
     transitionScoreP, transitionIndex,
-    marginalProbabilityP, correctPathP,
+    featureScoreP, correctPathP,
     numberOfStates, chainLength,
     tmpValueP, tmpIndexP,
-    gradientNzP, gradientValueP, featureHashedIndexP);
-  adagradUpdateTemp(gradientNzP, gradientValueP, gradientIndexP,
-    foiP, soiP);
+    gradientNzP, gradientValueP, gradientIndexP);
+
+  nz = I4[gradientNzP >> 2] | 0;
+  adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
 }

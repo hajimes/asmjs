@@ -8,7 +8,7 @@ import unique from '../math/sparse/unique';
 export default function updateGradient(nzP, valueP, indexP,
     biasScoreP, biasIndex, 
     transitionScoreP, transitionIndex,
-    marginalProbabilityP, correctPathP,
+    jointScoreP, correctPathP,
     numberOfStates, chainLength,
     tmpValueP, tmpIndexP,
     outNzP, outValueP, outIndexP) {
@@ -22,7 +22,7 @@ export default function updateGradient(nzP, valueP, indexP,
   biasIndex = biasIndex | 0;
   transitionScoreP = transitionScoreP | 0;
   transitionIndex = transitionIndex | 0;
-  marginalProbabilityP = marginalProbabilityP | 0;
+  jointScoreP = jointScoreP | 0;
   correctPathP = correctPathP | 0;
   numberOfStates = numberOfStates | 0;
   chainLength = chainLength | 0;
@@ -40,15 +40,12 @@ export default function updateGradient(nzP, valueP, indexP,
   var prev = 0;
   var transitionIndexSave = 0;
   var transitionScorePSave = 0;
-  var transitionScore = 0.0;
-  var marginalProbability = 0.0;
-  var marginalProbabilityPSave = 0;
+  var prob = 0.0;
   var i = 0;
   var nz = 0;
   var totalNz = 0;
   var value = 0.0;
   var index = 0;
-  var biasScore = 0.0;
   var coef = 0.0;
   var correctState = 0;
   var correctPreviousState = 0;
@@ -60,29 +57,29 @@ export default function updateGradient(nzP, valueP, indexP,
   /*
    * Main
    */
-  biasScore = +F4[biasScoreP >> 2];
   nz = I4[nzP >> 2] | 0;
   correctState = I4[correctPathP >> 2] | 0;
   tmpValuePSave = tmpValueP;
   tmpIndexPSave = tmpIndexP;
 
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-    marginalProbability = +F4[marginalProbabilityP >> 2];
-    coef = -marginalProbability;
+    prob = +F4[jointScoreP >> 2];
+    coef = exp(prob);
+
     
     if ((cur | 0) == (correctState | 0)) {
-      coef = coef + 1.0;
+      coef = coef - 1.0;
     }
     
     I4[tmpIndexP >> 2] = biasIndex | 0;
-    F4[tmpValueP >> 2] = biasScore * coef;
+    F4[tmpValueP >> 2] = coef;
+
     tmpIndexP = (tmpIndexP + 4) | 0;
     tmpValueP = (tmpValueP + 4) | 0;
     totalNz = (totalNz + 1) | 0;
 
-    transitionScore = +F4[transitionScoreP >> 2];
     I4[tmpIndexP >> 2] = transitionIndex | 0;
-    F4[tmpValueP >> 2] = transitionScore * coef;
+    F4[tmpValueP >> 2] = coef;
     tmpIndexP = (tmpIndexP + 4) | 0;
     tmpValueP = (tmpValueP + 4) | 0;
     totalNz = (totalNz + 1) | 0;
@@ -103,14 +100,16 @@ export default function updateGradient(nzP, valueP, indexP,
     
     transitionIndex = (transitionIndex + 1) | 0;
     transitionScoreP = (transitionScoreP + 4) | 0;
-    marginalProbabilityP = (marginalProbabilityP + 4) | 0;
+    jointScoreP = (jointScoreP + 4) | 0;
   }
+  
+  jointScoreP = (jointScoreP +
+    (imul(numberOfStates, numberOfStates - 1) << 2)) | 0;
   
   nzP = (nzP + 4) | 0;
   correctPathP = (correctPathP + 4) | 0;
 
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
-    marginalProbabilityPSave = marginalProbabilityP;
     transitionIndexSave = transitionIndex;
     transitionScorePSave = transitionScoreP;
     nz = I4[nzP >> 2] | 0;
@@ -123,23 +122,22 @@ export default function updateGradient(nzP, valueP, indexP,
       indexPSave = indexP;
       
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-        marginalProbability = +F4[marginalProbabilityP >> 2];
-        coef = -marginalProbability;
+        prob = +F4[jointScoreP >> 2];
+        coef = exp(prob);
 
         if ((cur | 0) == (correctState | 0) &
             (prev | 0) == (correctPreviousState | 0)) {
-          coef = coef + 1.0;
+          coef = coef - 1.0;
         }
 
         I4[tmpIndexP >> 2] = biasIndex | 0;
-        F4[tmpValueP >> 2] = biasScore * coef;
+        F4[tmpValueP >> 2] = coef;
         tmpIndexP = (tmpIndexP + 4) | 0;
         tmpValueP = (tmpValueP + 4) | 0;
         totalNz = (totalNz + 1) | 0;
 
-        transitionScore = +F4[transitionScoreP >> 2];
         I4[tmpIndexP >> 2] = transitionIndex | 0;
-        F4[tmpValueP >> 2] = transitionScore * coef;
+        F4[tmpValueP >> 2] = coef;
         tmpIndexP = (tmpIndexP + 4) | 0;
         tmpValueP = (tmpValueP + 4) | 0;
         totalNz = (totalNz + 1) | 0;
@@ -158,9 +156,9 @@ export default function updateGradient(nzP, valueP, indexP,
           totalNz = (totalNz + 1) | 0;
         }
 
+        jointScoreP = (jointScoreP + 4) | 0;
         transitionIndex = (transitionIndex + 1) | 0;
         transitionScoreP = (transitionScoreP + 4) | 0;
-        marginalProbabilityP = (marginalProbabilityP + 4) | 0;
       }
       
       valueP = valuePSave;
@@ -171,7 +169,6 @@ export default function updateGradient(nzP, valueP, indexP,
     indexP = (indexP + imul((nz << 2), numberOfStates)) | 0;
 
     nzP = (nzP + 4) | 0;
-    marginalProbabilityP = marginalProbabilityPSave;
     transitionIndex = transitionIndexSave;
     transitionScoreP = transitionScorePSave;
   }

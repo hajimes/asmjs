@@ -1,4 +1,10 @@
 /* global CMP_FUNCTION_TABLE */
+
+// LICENSE issue
+// original C code is copyrighted by John Wiley & Sons Inc.
+// http://www.cs.dartmouth.edu/~doug/qsort.c
+// we will rewrite this code to BSD's qsort
+
 /**
  * Sorts things quickly.
  *

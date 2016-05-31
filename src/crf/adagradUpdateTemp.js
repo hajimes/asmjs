@@ -33,15 +33,16 @@ export default function adagradUpdateTemp(nz, xP, indexP, foiP, soiP) {
    */
   end = (indexP + (nz << 2)) | 0;
   while ((indexP | 0) < (end | 0)) {
-    index = U4[indexP >> 2] | 0;
+    index = I4[indexP >> 2] | 0;
     value = +F4[xP >> 2];
-            
+ 
     p1 = (foiP + (index << 2)) | 0;
     p2 = (soiP + (index << 2)) | 0;
     
     F4[p1 >> 2] = +F4[p1 >> 2] + value;
     F4[p2 >> 2] = +F4[p2 >> 2] + value * value;
     
+
     indexP = (indexP + 4) | 0;
     xP = (xP + 4) | 0;
   }

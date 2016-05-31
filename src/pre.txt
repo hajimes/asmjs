@@ -37,7 +37,7 @@
     var sin = stdlib.Math.sin;
     var sqrt = stdlib.Math.sqrt;
     var tan = stdlib.Math.tan;
-    
+  
     var I1 = new stdlib.Int8Array(heap);
     var I2 = new stdlib.Int16Array(heap);
     var I4 = new stdlib.Int32Array(heap);

@@ -56,7 +56,7 @@ export default function updateForwardScores(featureScoreP, numberOfStates,
     // forwardScores[0][cur] = featureScores[0][0][cur];
     score = +F4[p >> 2];
     F4[outP >> 2] = F4[p >> 2];
-
+    
     p = (p + 4) | 0;
     outP = (outP + 4) | 0;
   }

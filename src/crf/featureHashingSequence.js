@@ -30,11 +30,11 @@ export default function featureHashingSequence(nzP, valueP, indexP,
 
   /*
    * Main
-   */
+   */  
   end = (nzP + (pathLength << 2)) | 0;
 
   while ((nzP | 0) < (end | 0)) {
-    nz = U4[nzP >> 2] | 0;
+    nz = I4[nzP >> 2] | 0;
 
     for (i = 0; (i | 0) < (numberOfClasses | 0); i = (i + 1) | 0) {
       featureHashing(nz, valueP, indexP, i, dimension,

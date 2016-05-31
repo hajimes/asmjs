@@ -25,7 +25,7 @@ export default function susdot(nz, xP, indexP, yP, outP) {
    */
   end = (indexP + (nz << 2)) | 0;
   while ((indexP | 0) < (end | 0)) {
-    index = U4[indexP >> 2] | 0;
+    index = I4[indexP >> 2] | 0;
     value = +F4[xP >> 2];
     
     result = +(result + value * +F4[(yP + (index << 2)) >> 2]);

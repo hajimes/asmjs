@@ -47,7 +47,6 @@ export default function featureHashing(nz, valueP, indexP, seed, dimension,
     hashValue = hash(indexP, 1, seed) | 0;
     sign = +((hashValue >> 31) | 1);
     value = sign * value;
-    // console.log(value);
     index = (hashValue & mask) | 0;
 
     F4[outValueP >> 2] = value;

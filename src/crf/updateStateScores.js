@@ -34,9 +34,9 @@ export default function updateStateScores(nzP, valueP, indexP, weightP,
   /*
    * Main
    */
-  end = (nzP + chainLength << 2) | 0;
+  end = (nzP + (chainLength << 2)) | 0;
   while ((nzP | 0) < (end | 0)) {
-    nz = I4[nzP >> 2] | 0;
+    nz = U4[nzP >> 2] | 0;
     for (i = 0; (i | 0) < (numberOfStates | 0); i = (i + 1) | 0) {
       susdot(nz, valueP, indexP, weightP, outP);
       outP = (outP + 4) | 0;
