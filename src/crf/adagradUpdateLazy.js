@@ -26,7 +26,7 @@ export default function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
    */
   end = (indexP + (nz << 2)) | 0;
   while ((indexP | 0) < (end | 0)) {
-    index = U4[indexP >> 2] | 0;
+    index = I4[indexP >> 2] | 0;
 
     adagradUpdateLazyAt(index, foiP, soiP, weightP,
       round, delta, eta, lambda);

@@ -65,7 +65,6 @@ export default function updateGradient(nzP, valueP, indexP,
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     prob = +F4[jointScoreP >> 2];
     coef = exp(prob);
-
     
     if ((cur | 0) == (correctState | 0)) {
       coef = coef - 1.0;

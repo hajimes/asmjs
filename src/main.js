@@ -20,6 +20,8 @@ import crf_updateJointScores from './crf/updateJointScores';
 import crf_updateGradient from './crf/updateGradient';
 import crf_trainOnline from './crf/trainOnline';
 import crf_sufferLoss from './crf/sufferLoss';
+import crf_getByteSize from './crf/getByteSize';
+import crf_viterbi from './crf/viterbi';
 import compareInt32 from './util/compareInt32';
 import compareUint32 from './util/compareUint32';
 import compareSparseVectorElement from './util/compareSparseVectorElement';
@@ -66,6 +68,8 @@ var EXPORTS = {
   crf_updateNormalizationFactor: crf_updateNormalizationFactor,
   crf_updateJointScores: crf_updateJointScores,
   crf_updateGradient: crf_updateGradient,
+  crf_getByteSize: crf_getByteSize,
+  crf_viterbi: crf_viterbi,
   isLittleEndian: isLittleEndian,
   compareInt32: compareInt32,
   compareUint32: compareUint32,

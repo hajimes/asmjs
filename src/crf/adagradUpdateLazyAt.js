@@ -29,6 +29,7 @@ export default function adagradUpdateLazyAt(index, foiP, soiP, weightP,
   p1 = (foiP + relativeByteOffset) | 0;
   p2 = (soiP + relativeByteOffset) | 0;
   p3 = (weightP + relativeByteOffset) | 0;
+
   F4[p3 >> 2] = +adagradLazyValue(
     +F4[p1 >> 2], +F4[p2 >> 2],
     round, delta, eta, lambda

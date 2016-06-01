@@ -19,6 +19,9 @@
   function myAsmjsModule(stdlib, foreign, heap) {
     'use asm';
 
+    var Infinity = stdlib.Infinity;
+    var NaN = stdlib.NaN;
+
     var abs = stdlib.Math.abs;
     var acos = stdlib.Math.acos;
     var asin = stdlib.Math.asin;

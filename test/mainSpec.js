@@ -1008,10 +1008,10 @@ describe('This handwritten asm.js module', function() {
         -2.0, 1.0
       ];
       
-      var marginalProbabilities = [
-        0.1, 0.2,
-        0.25, 0.15,
-        0.2, 0.1
+      var jointScores = [
+        1.6, -5.4, 0.0, 0.0,
+        3.1, 5.6, -0.9, 2.1,
+        4.6, 0.1, 4.1, 0.1
       ];
       
       var nzs = [
@@ -1043,7 +1043,7 @@ describe('This handwritten asm.js module', function() {
       var indexP = 3000;
       var biasScoreP = 4000;
       var transitionScoreP = 5000;
-      var marginalProbabilityP = 6000;
+      var jointScoreP = 6000;
       var correctPathP = 7000;
       var tmpValueP = 10000;
       var tmpIndexP = 11000;
@@ -1059,13 +1059,13 @@ describe('This handwritten asm.js module', function() {
       putFloat(I4, indexP, indices);
       putFloat(F4, biasScoreP, biasScore);
       putFloat(F4, transitionScoreP, transitionScores);
-      putFloat(F4, marginalProbabilityP, marginalProbabilities);
+      putFloat(F4, jointScoreP, jointScores);
       putFloat(I4, correctPathP, correctPath);
       
       mod.crf_updateGradient(nzP, valueP, indexP,
         biasScoreP, biasIndex, 
         transitionScoreP, transitionIndex,
-        marginalProbabilityP, correctPathP,
+        jointScoreP, correctPathP,
         numberOfStates, pathLength,
         tmpValueP, tmpIndexP,
         outNzP, outValueP, outIndexP);
@@ -1073,6 +1073,44 @@ describe('This handwritten asm.js module', function() {
       expect(I4[outNzP >> 2]).to.
         equal(12 + numberOfStates * (numberOfStates + 1) + 1);
       // TODO add more test
+    });
+    
+    it('viterbi', function() {
+      var i = 0;
+      var numberOfStates = 2;
+      var chainLength = 3;
+
+      // correct path is [0, 1, 0]
+      var scores = [
+        1.6, -2.9, 0.0, 0.0,
+        1.6, 3.6, -0.4, 2.1,
+        2.6, 1.1, 0.7, -0.4
+      ];
+
+      var scoreP = 2000;
+      var tmpP = 3000;
+      var predictionP = 4000;
+      var predictionScoreP = 5000;
+
+      putFloat(F4, scoreP, scores);
+
+      mod.crf_viterbi(scoreP, 0, chainLength,
+        tmpP, predictionP, predictionScoreP);
+      expect(F4[predictionScoreP >> 2]).to.equal(0);
+      
+      mod.crf_viterbi(scoreP, numberOfStates, 0,
+        tmpP, predictionP, predictionScoreP);
+      expect(F4[predictionScoreP >> 2]).to.equal(0);
+      
+      mod.crf_viterbi(scoreP, numberOfStates, chainLength,
+        tmpP, predictionP, predictionScoreP);
+      
+      expect(F4[predictionScoreP >> 2]).to.closeTo(5.9, 0.00001);
+      expect(F4[(predictionScoreP + 4) >> 2]).to.equal(0.0);
+      expect(I4[predictionP >> 2]).to.equal(0);
+      expect(I4[(predictionP + 4) >> 2]).to.equal(1);
+      expect(I4[(predictionP + 8) >> 2]).to.equal(0);
+      expect(I4[(predictionP + 12) >> 2]).to.equal(0);
     });
   });
 });

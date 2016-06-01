@@ -36,7 +36,7 @@ import updateGradient from './updateGradient';
  */
 // Incomplete
 export default function trainOnline(instanceP, numberOfStates, dimension, round,
-  foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP, marginalProbabilityP) {
+  foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP) {
   /*
    * Type annotations
    */
@@ -52,7 +52,6 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   lambda = +lambda;
   tmpP = tmpP | 0;
   lossP = lossP | 0;
-  marginalProbabilityP = marginalProbabilityP | 0;
   
   /*
    * Local variables
@@ -113,9 +112,9 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   stateScoreTableSize = imul(chainLength, numberOfStates);
   transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  // gradientMaxSize = (imul(totalNz, numberOfStates) +
-  //   transitionScoreTableSize + 4) | 0;
-  gradientMaxSize = 65536; // TODO: fix this
+  gradientMaxSize = 
+    (imul(totalNz, transitionScoreTableSize) + 
+    imul(featureScoreTableSize, 2)) | 0;
 
   biasIndex = (dimension + transitionScoreTableSize) | 0;
   transitionIndex = dimension;
@@ -155,21 +154,22 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   
   // reuse these spaces
   // gradientNzP = normalizationFactorP;
-  // gradientValueP = featureHashedValueP;
-  // gradientIndexP = featureHashedIndexP;
+  gradientValueP = featureHashedValueP;
+  gradientIndexP = featureHashedIndexP;
   gradientNzP = tmpP;
   tmpP = (tmpP + 4) | 0;
-  gradientValueP = tmpP;
-  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
-  gradientIndexP = tmpP;
-  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  // gradientValueP = tmpP;
+  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  // gradientIndexP = tmpP;
+  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
 
   //
   // Main routine
   //
+  
   featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
     dimension, featureHashedValueP, featureHashedIndexP);
-
+    
   // update bias and transition scores positions
   for (i = 0; (i | 0) < ((transitionScoreTableSize + 1) | 0); i = (i + 1) | 0) {
     adagradUpdateLazyAt((i + dimension) | 0, foiP, soiP, weightP,
@@ -207,7 +207,6 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
     numberOfStates, chainLength,
     tmpValueP, tmpIndexP,
     gradientNzP, gradientValueP, gradientIndexP);
-
   nz = I4[gradientNzP >> 2] | 0;
   adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
 }

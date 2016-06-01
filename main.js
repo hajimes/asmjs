@@ -19,6 +19,9 @@
   function myAsmjsModule(stdlib, foreign, heap) {
     'use asm';
 
+    var Infinity = stdlib.Infinity;
+    var NaN = stdlib.NaN;
+
     var abs = stdlib.Math.abs;
     var acos = stdlib.Math.acos;
     var asin = stdlib.Math.asin;
@@ -1998,7 +2001,6 @@ function updateGradient(nzP, valueP, indexP,
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     prob = +F4[jointScoreP >> 2];
     coef = exp(prob);
-
     
     if ((cur | 0) == (correctState | 0)) {
       coef = coef - 1.0;
@@ -2193,6 +2195,7 @@ function adagradUpdateLazyAt(index, foiP, soiP, weightP,
   p1 = (foiP + relativeByteOffset) | 0;
   p2 = (soiP + relativeByteOffset) | 0;
   p3 = (weightP + relativeByteOffset) | 0;
+
   F4[p3 >> 2] = +adagradLazyValue(
     +F4[p1 >> 2], +F4[p2 >> 2],
     round, delta, eta, lambda
@@ -2225,7 +2228,7 @@ function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
    */
   end = (indexP + (nz << 2)) | 0;
   while ((indexP | 0) < (end | 0)) {
-    index = U4[indexP >> 2] | 0;
+    index = I4[indexP >> 2] | 0;
 
     adagradUpdateLazyAt(index, foiP, soiP, weightP,
       round, delta, eta, lambda);
@@ -2271,13 +2274,12 @@ function adagradUpdateTemp(nz, xP, indexP, foiP, soiP) {
   while ((indexP | 0) < (end | 0)) {
     index = I4[indexP >> 2] | 0;
     value = +F4[xP >> 2];
- 
+     
     p1 = (foiP + (index << 2)) | 0;
     p2 = (soiP + (index << 2)) | 0;
     
     F4[p1 >> 2] = +F4[p1 >> 2] + value;
-    F4[p2 >> 2] = +F4[p2 >> 2] + value * value;
-    
+    F4[p2 >> 2] = +F4[p2 >> 2] + (value * value);
 
     indexP = (indexP + 4) | 0;
     xP = (xP + 4) | 0;
@@ -2427,7 +2429,7 @@ function sufferLoss(featureScoreP, normalizationFactorP,
  */
 // Incomplete
 function trainOnline(instanceP, numberOfStates, dimension, round,
-  foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP, marginalProbabilityP) {
+  foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP) {
   /*
    * Type annotations
    */
@@ -2443,7 +2445,6 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   lambda = +lambda;
   tmpP = tmpP | 0;
   lossP = lossP | 0;
-  marginalProbabilityP = marginalProbabilityP | 0;
   
   /*
    * Local variables
@@ -2504,9 +2505,9 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   stateScoreTableSize = imul(chainLength, numberOfStates);
   transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  // gradientMaxSize = (imul(totalNz, numberOfStates) +
-  //   transitionScoreTableSize + 4) | 0;
-  gradientMaxSize = 65536; // TODO: fix this
+  gradientMaxSize = 
+    (imul(totalNz, transitionScoreTableSize) + 
+    imul(featureScoreTableSize, 2)) | 0;
 
   biasIndex = (dimension + transitionScoreTableSize) | 0;
   transitionIndex = dimension;
@@ -2546,21 +2547,22 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   
   // reuse these spaces
   // gradientNzP = normalizationFactorP;
-  // gradientValueP = featureHashedValueP;
-  // gradientIndexP = featureHashedIndexP;
+  gradientValueP = featureHashedValueP;
+  gradientIndexP = featureHashedIndexP;
   gradientNzP = tmpP;
   tmpP = (tmpP + 4) | 0;
-  gradientValueP = tmpP;
-  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
-  gradientIndexP = tmpP;
-  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  // gradientValueP = tmpP;
+  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  // gradientIndexP = tmpP;
+  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
 
   //
   // Main routine
   //
+  
   featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
     dimension, featureHashedValueP, featureHashedIndexP);
-
+    
   // update bias and transition scores positions
   for (i = 0; (i | 0) < ((transitionScoreTableSize + 1) | 0); i = (i + 1) | 0) {
     adagradUpdateLazyAt((i + dimension) | 0, foiP, soiP, weightP,
@@ -2598,9 +2600,219 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
     numberOfStates, chainLength,
     tmpValueP, tmpIndexP,
     gradientNzP, gradientValueP, gradientIndexP);
-
   nz = I4[gradientNzP >> 2] | 0;
   adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
+}
+
+/**
+ * Returns the byte size used by this CRF implementation.
+ * This value does not include weight vector and other denses.
+ */
+function getByteSize(numberOfStates,
+    maxChainLength, maxTotalNz) {
+  /*
+   * Type annotations
+   */
+  numberOfStates = numberOfStates | 0;
+  maxChainLength = maxChainLength | 0;
+  maxTotalNz = maxTotalNz | 0;
+  
+  /*
+   * Local variables
+   */
+  var result = 0;
+  
+  var stateScoreTableSize = 0;
+  var transitionScoreTableSize = 0;
+  var featureScoreTableSize = 0;
+  var gradientMaxSize = 0;
+  
+  /*
+   * Main
+   */
+  stateScoreTableSize = imul(maxChainLength, numberOfStates);
+  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
+  gradientMaxSize = 
+    (imul(maxTotalNz, transitionScoreTableSize) + 
+    imul(featureScoreTableSize, 2)) | 0;
+  
+  // feature hashed values
+  result = (result + (gradientMaxSize << 2)) | 0;
+
+  // feature hashed indices
+  result = (result + (gradientMaxSize << 2)) | 0;
+
+  // state scores
+  result = (result + (stateScoreTableSize << 2)) | 0;
+
+  // feature scores
+  result = (result + (featureScoreTableSize << 2)) | 0;
+
+  // forward scores
+  result = (result + (stateScoreTableSize << 2)) | 0;
+
+  // backward scores
+  result = (result + (stateScoreTableSize << 2)) | 0;
+
+  // normalization factor
+  result = (result + 4) | 0;
+
+  // tmp vec values
+  result = (result + (gradientMaxSize << 2)) | 0;
+
+  // tmp vec indices
+  result = (result + (gradientMaxSize << 2)) | 0;
+
+  // gradient nz
+  result = (result + 4) | 0;
+
+  // gradient vec values
+  // result = (result + (gradientMaxSize << 2)) | 0;
+
+  // gradient vec indices
+  // result = (result + (gradientMaxSize << 2)) | 0;
+  
+  return result | 0;
+}
+
+/**
+ * This function uses (numberOfStates * chainLength * 4 * 2) bytes at tmpP.
+ * Exactly (chainLength * 4) bytes will be written into predictionP.
+ * Exactly 4 bytes will be written into predictionScoreP.
+ */
+function viterbi(scoreP, numberOfStates, chainLength,
+    tmpP, predictionP, predictionScoreP) {
+  /*
+   * Type annotations
+   */
+  scoreP = scoreP | 0;
+  numberOfStates = numberOfStates | 0;
+  chainLength = chainLength | 0;
+  tmpP = tmpP | 0;
+  predictionP = predictionP | 0;
+  predictionScoreP = predictionScoreP | 0;
+
+  /*
+   * Local variables
+   */
+  var t = 0.0;
+  
+  var offset = 0;
+  
+  var time = 0;
+  var cur = 0;
+  var prev = 0;
+  
+  var bestScore = 0.0;
+  var bestPath = 0;
+  
+  var bestScoreP = 0;
+  var bestPathP = 0;
+  var bestPathPSave = 0;
+  
+  var prevP = 0;
+  var prevPSave = 0;
+  var previousScore = 0.0;
+
+  var nosBytes = 0;
+  
+  /*
+   * Main
+   */
+  if (((numberOfStates | 0) <= 0) | ((chainLength | 0) <= 0)) {
+    return;
+  }
+
+  nosBytes = numberOfStates << 2;
+  bestScoreP = tmpP;
+  bestPathP = (tmpP + imul(nosBytes, chainLength)) | 0;
+  prevP = bestScoreP;
+  bestPathPSave = bestPathP;
+
+  for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+    F4[bestScoreP >> 2] = +F4[scoreP >> 2];
+    I4[bestPathP >> 2] = -1;
+
+    scoreP = (scoreP + 4) | 0;
+    bestScoreP = (bestScoreP + 4) | 0;
+    bestPathP = (bestPathP + 4) | 0;
+  }
+  scoreP = (scoreP + (imul(numberOfStates, numberOfStates - 1) << 2)) | 0;
+  
+  
+  for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
+    for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+      prevPSave = prevP;
+      bestPath = -1;
+      bestScore = -Infinity;
+
+      for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+        // scores[time][prev][cur] + bestScores[time - 1][prev]
+        t = +F4[scoreP >> 2];
+        previousScore = +F4[prevP >> 2];
+        
+        t = t + previousScore;
+        
+        if (t > bestScore) {
+          bestPath = prev;
+          bestScore = t;
+        }        
+        
+        scoreP = (scoreP + nosBytes) | 0;
+        prevP = (prevP + 4) | 0;
+      }
+      
+      F4[bestScoreP >> 2] = bestScore;
+      I4[bestPathP >> 2] = bestPath;
+      
+      bestScoreP = (bestScoreP + 4) | 0;
+      bestPathP = (bestPathP + 4) | 0;
+      
+      prevP = prevPSave;
+      
+      // from scores[time][numberOfStates][cur]
+      // to scores[time][0][cur + 1]
+      scoreP = (scoreP - imul(nosBytes, numberOfStates) + 4) | 0;
+    }
+    
+    // advance prevP to bestScores[time][0]
+    prevP = (prevP + nosBytes) | 0;
+
+    // Note that scores[time][0][numberOfStates]
+    // is the same as scores[time][1][0]
+    scoreP = (scoreP + imul(nosBytes, numberOfStates - 1)) | 0;
+  }
+
+  // back track
+  bestScoreP = (bestScoreP - nosBytes) | 0;
+  bestPath = 0;
+  bestScore = -Infinity;
+
+  for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+    t = +F4[bestScoreP >> 2];
+
+    if (t > bestScore) {
+      bestPath = cur;
+      bestScore = t;
+    }
+    
+    bestScoreP = (bestScoreP + 4) | 0;
+  }
+  
+  F4[predictionScoreP >> 2] = bestScore;
+  
+  bestPathP = bestPathPSave;
+  
+  predictionP = (predictionP + nosBytes - 4) | 0;
+  I4[predictionP >> 2] = bestPath;
+  for (time = (chainLength - 2) | 0; (time | 0) >= 0; time = (time - 1) | 0) {
+    offset = (imul(nosBytes, time + 1) + (bestPath << 2)) | 0;
+    
+    bestPath = I4[(bestPathP + offset) >> 2] | 0;
+    I4[predictionP >> 2] = bestPath;
+    predictionP = (predictionP - 4) | 0;
+  }
 }
 
 function compareInt32(xP, yP) {
@@ -2822,6 +3034,8 @@ return {
   crf_updateNormalizationFactor: updateNormalizationFactor,
   crf_updateJointScores: updateJointScores,
   crf_updateGradient: updateGradient,
+  crf_getByteSize: getByteSize,
+  crf_viterbi: viterbi,
   isLittleEndian: isLittleEndian,
   compareInt32: compareInt32,
   compareUint32: compareUint32,
