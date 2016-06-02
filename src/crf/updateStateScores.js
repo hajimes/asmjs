@@ -37,13 +37,13 @@ export default function updateStateScores(nzP, valueP, indexP, weightP,
   end = (nzP + (chainLength << 2)) | 0;
   while ((nzP | 0) < (end | 0)) {
     nz = U4[nzP >> 2] | 0;
+    nzBytes = nz << 2;
     for (i = 0; (i | 0) < (numberOfStates | 0); i = (i + 1) | 0) {
       susdot(nz, valueP, indexP, weightP, outP);
       outP = (outP + 4) | 0;
+      valueP = (valueP + nzBytes) | 0;
+      indexP = (indexP + nzBytes) | 0;
     }
     nzP = (nzP + 4) | 0;
-    nzBytes = nz << 2;
-    valueP = (valueP + nzBytes) | 0;
-    indexP = (indexP + nzBytes) | 0;
   }
 }

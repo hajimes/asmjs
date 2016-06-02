@@ -107,13 +107,13 @@ export default function updateGradient(nzP, valueP, indexP,
   
   nzP = (nzP + 4) | 0;
   correctPathP = (correctPathP + 4) | 0;
+  correctPreviousState = correctState;
 
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
     transitionIndexSave = transitionIndex;
     transitionScorePSave = transitionScoreP;
     nz = I4[nzP >> 2] | 0;
     
-    correctPreviousState = correctState;
     correctState = I4[correctPathP >> 2] | 0;
 
     for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
@@ -126,7 +126,7 @@ export default function updateGradient(nzP, valueP, indexP,
 
         if ((cur | 0) == (correctState | 0) &
             (prev | 0) == (correctPreviousState | 0)) {
-          coef = coef - 1.0;
+              coef = coef - 1.0;
         }
 
         I4[tmpIndexP >> 2] = biasIndex | 0;
@@ -170,6 +170,8 @@ export default function updateGradient(nzP, valueP, indexP,
     nzP = (nzP + 4) | 0;
     transitionIndex = transitionIndexSave;
     transitionScoreP = transitionScorePSave;
+    correctPathP = (correctPathP + 4) | 0;
+    correctPreviousState = correctState;
   }
   tmpValueP = tmpValuePSave;
   tmpIndexP = tmpIndexPSave;

@@ -746,9 +746,9 @@ describe('This handwritten asm.js module', function() {
           log(exp(1.8 + 1.2) + exp(2.0 + 1.4)),
         0, 0,
       ];
-      expectedForwardScores[4] =  log(exp(expectedForwardScores[2] + 2.0) +
+      expectedForwardScores[4] = log(exp(expectedForwardScores[2] + 2.0) +
         exp(expectedForwardScores[3] + 1.5));
-      expectedForwardScores[5] =  log(exp(expectedForwardScores[2] + 2.0) +
+      expectedForwardScores[5] = log(exp(expectedForwardScores[2] + 2.0) +
         exp(expectedForwardScores[3] + 3.5));
 
       var inP = 1000;

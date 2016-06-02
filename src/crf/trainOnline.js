@@ -154,14 +154,14 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   
   // reuse these spaces
   // gradientNzP = normalizationFactorP;
-  gradientValueP = featureHashedValueP;
-  gradientIndexP = featureHashedIndexP;
+  // gradientValueP = featureHashedValueP;
+  // gradientIndexP = featureHashedIndexP;
   gradientNzP = tmpP;
   tmpP = (tmpP + 4) | 0;
-  // gradientValueP = tmpP;
-  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
-  // gradientIndexP = tmpP;
-  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  gradientValueP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  gradientIndexP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
 
   //
   // Main routine
@@ -176,7 +176,7 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
       +(round | 0), delta, eta, lambda);
   }
 
-  adagradUpdateLazy(totalNz, featureHashedIndexP, foiP, soiP, weightP,
+  adagradUpdateLazy(imul(totalNz, numberOfStates), featureHashedIndexP, foiP, soiP, weightP,
     +(round | 0), delta, eta, lambda);
 
   updateStateScores(nzP, featureHashedValueP, featureHashedIndexP, weightP,

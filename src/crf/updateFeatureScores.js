@@ -59,8 +59,7 @@ export default function updateFeatureScores(biasScoreP, transitionScoreP,
     // transitionScores[0][cur]
     transitionScore = +F4[transitionScoreP >> 2];
 
-    score = stateScore + transitionScore + biasScore;
-    
+    score = stateScore + transitionScore + biasScore;    
     F4[outP >> 2] = score;
     
     stateScoreP = (stateScoreP + 4) | 0;
@@ -84,7 +83,7 @@ export default function updateFeatureScores(biasScoreP, transitionScoreP,
         transitionScore = +F4[transitionScoreP >> 2];
         
         score = stateScore + transitionScore + biasScore;
-        
+
         F4[outP >> 2] = score;
         
         stateScoreP = (stateScoreP + 4) | 0;

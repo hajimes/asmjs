@@ -1,5 +1,6 @@
 /**
- * Lazily calculates an updated value for AdaGrad-L1.
+ * Lazily calculates an updated value for AdaGrad-L1 primal-dual subgradient.
+ * See p. 2137, Duchi, Hazan, and Singer (2011).
  *
  * @param {double} fov
  * @param {double} sov
@@ -28,6 +29,7 @@ export default function adagradLazyValue(fov, sov, round, delta, eta, lambda) {
   /*
    * Main
    */
+
   if (fov == 0.0) {
     return 0.0;
   }

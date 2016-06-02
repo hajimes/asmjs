@@ -56,6 +56,7 @@ export default function updateJointScores(featureScoreP, forwardScoreP,
 
     score = +F4[outP >> 2];
     score = score + backwardScore - normalizationFactor;
+
     F4[outP >> 2] = score;    
     
     backwardScoreP = (backwardScoreP + 4) | 0;
@@ -77,8 +78,8 @@ export default function updateJointScores(featureScoreP, forwardScoreP,
         forwardScore = +F4[forwardScoreP >> 2];
 
         score = +F4[outP >> 2];
-        score = score + forwardScore + backwardScore -
-          normalizationFactor;
+        score = score + forwardScore + backwardScore - normalizationFactor;
+
         F4[outP >> 2] = score;
       
         outP = (outP + 4) | 0;

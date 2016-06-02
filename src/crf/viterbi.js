@@ -126,13 +126,13 @@ export default function viterbi(scoreP, numberOfStates, chainLength,
   
   bestPathP = bestPathPSave;
   
-  predictionP = (predictionP + nosBytes - 4) | 0;
+  predictionP = (predictionP + ((chainLength - 1) << 2)) | 0;
   I4[predictionP >> 2] = bestPath;
   for (time = (chainLength - 2) | 0; (time | 0) >= 0; time = (time - 1) | 0) {
+    predictionP = (predictionP - 4) | 0;
     offset = (imul(nosBytes, time + 1) + (bestPath << 2)) | 0;
     
     bestPath = I4[(bestPathP + offset) >> 2] | 0;
     I4[predictionP >> 2] = bestPath;
-    predictionP = (predictionP - 4) | 0;
   }
 }

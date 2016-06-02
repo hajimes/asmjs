@@ -1561,8 +1561,7 @@ function updateFeatureScores(biasScoreP, transitionScoreP,
     // transitionScores[0][cur]
     transitionScore = +F4[transitionScoreP >> 2];
 
-    score = stateScore + transitionScore + biasScore;
-    
+    score = stateScore + transitionScore + biasScore;    
     F4[outP >> 2] = score;
     
     stateScoreP = (stateScoreP + 4) | 0;
@@ -1586,7 +1585,7 @@ function updateFeatureScores(biasScoreP, transitionScoreP,
         transitionScore = +F4[transitionScoreP >> 2];
         
         score = stateScore + transitionScore + biasScore;
-        
+
         F4[outP >> 2] = score;
         
         stateScoreP = (stateScoreP + 4) | 0;
@@ -1901,6 +1900,7 @@ function updateJointScores(featureScoreP, forwardScoreP,
 
     score = +F4[outP >> 2];
     score = score + backwardScore - normalizationFactor;
+
     F4[outP >> 2] = score;    
     
     backwardScoreP = (backwardScoreP + 4) | 0;
@@ -1922,8 +1922,8 @@ function updateJointScores(featureScoreP, forwardScoreP,
         forwardScore = +F4[forwardScoreP >> 2];
 
         score = +F4[outP >> 2];
-        score = score + forwardScore + backwardScore -
-          normalizationFactor;
+        score = score + forwardScore + backwardScore - normalizationFactor;
+
         F4[outP >> 2] = score;
       
         outP = (outP + 4) | 0;
@@ -2043,13 +2043,13 @@ function updateGradient(nzP, valueP, indexP,
   
   nzP = (nzP + 4) | 0;
   correctPathP = (correctPathP + 4) | 0;
+  correctPreviousState = correctState;
 
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
     transitionIndexSave = transitionIndex;
     transitionScorePSave = transitionScoreP;
     nz = I4[nzP >> 2] | 0;
     
-    correctPreviousState = correctState;
     correctState = I4[correctPathP >> 2] | 0;
 
     for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
@@ -2062,7 +2062,7 @@ function updateGradient(nzP, valueP, indexP,
 
         if ((cur | 0) == (correctState | 0) &
             (prev | 0) == (correctPreviousState | 0)) {
-          coef = coef - 1.0;
+              coef = coef - 1.0;
         }
 
         I4[tmpIndexP >> 2] = biasIndex | 0;
@@ -2106,6 +2106,8 @@ function updateGradient(nzP, valueP, indexP,
     nzP = (nzP + 4) | 0;
     transitionIndex = transitionIndexSave;
     transitionScoreP = transitionScorePSave;
+    correctPathP = (correctPathP + 4) | 0;
+    correctPreviousState = correctState;
   }
   tmpValueP = tmpValuePSave;
   tmpIndexP = tmpIndexPSave;
@@ -2114,7 +2116,8 @@ function updateGradient(nzP, valueP, indexP,
 }
 
 /**
- * Lazily calculates an updated value for AdaGrad-L1.
+ * Lazily calculates an updated value for AdaGrad-L1 primal-dual subgradient.
+ * See p. 2137, Duchi, Hazan, and Singer (2011).
  *
  * @param {double} fov
  * @param {double} sov
@@ -2143,6 +2146,7 @@ function adagradLazyValue(fov, sov, round, delta, eta, lambda) {
   /*
    * Main
    */
+
   if (fov == 0.0) {
     return 0.0;
   }
@@ -2323,14 +2327,14 @@ function updateStateScores(nzP, valueP, indexP, weightP,
   end = (nzP + (chainLength << 2)) | 0;
   while ((nzP | 0) < (end | 0)) {
     nz = U4[nzP >> 2] | 0;
+    nzBytes = nz << 2;
     for (i = 0; (i | 0) < (numberOfStates | 0); i = (i + 1) | 0) {
       susdot(nz, valueP, indexP, weightP, outP);
       outP = (outP + 4) | 0;
+      valueP = (valueP + nzBytes) | 0;
+      indexP = (indexP + nzBytes) | 0;
     }
     nzP = (nzP + 4) | 0;
-    nzBytes = nz << 2;
-    valueP = (valueP + nzBytes) | 0;
-    indexP = (indexP + nzBytes) | 0;
   }
 }
 
@@ -2547,14 +2551,14 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   
   // reuse these spaces
   // gradientNzP = normalizationFactorP;
-  gradientValueP = featureHashedValueP;
-  gradientIndexP = featureHashedIndexP;
+  // gradientValueP = featureHashedValueP;
+  // gradientIndexP = featureHashedIndexP;
   gradientNzP = tmpP;
   tmpP = (tmpP + 4) | 0;
-  // gradientValueP = tmpP;
-  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
-  // gradientIndexP = tmpP;
-  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  gradientValueP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  gradientIndexP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
 
   //
   // Main routine
@@ -2569,7 +2573,7 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
       +(round | 0), delta, eta, lambda);
   }
 
-  adagradUpdateLazy(totalNz, featureHashedIndexP, foiP, soiP, weightP,
+  adagradUpdateLazy(imul(totalNz, numberOfStates), featureHashedIndexP, foiP, soiP, weightP,
     +(round | 0), delta, eta, lambda);
 
   updateStateScores(nzP, featureHashedValueP, featureHashedIndexP, weightP,
@@ -2602,78 +2606,6 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
     gradientNzP, gradientValueP, gradientIndexP);
   nz = I4[gradientNzP >> 2] | 0;
   adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
-}
-
-/**
- * Returns the byte size used by this CRF implementation.
- * This value does not include weight vector and other denses.
- */
-function getByteSize(numberOfStates,
-    maxChainLength, maxTotalNz) {
-  /*
-   * Type annotations
-   */
-  numberOfStates = numberOfStates | 0;
-  maxChainLength = maxChainLength | 0;
-  maxTotalNz = maxTotalNz | 0;
-  
-  /*
-   * Local variables
-   */
-  var result = 0;
-  
-  var stateScoreTableSize = 0;
-  var transitionScoreTableSize = 0;
-  var featureScoreTableSize = 0;
-  var gradientMaxSize = 0;
-  
-  /*
-   * Main
-   */
-  stateScoreTableSize = imul(maxChainLength, numberOfStates);
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
-  featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  gradientMaxSize = 
-    (imul(maxTotalNz, transitionScoreTableSize) + 
-    imul(featureScoreTableSize, 2)) | 0;
-  
-  // feature hashed values
-  result = (result + (gradientMaxSize << 2)) | 0;
-
-  // feature hashed indices
-  result = (result + (gradientMaxSize << 2)) | 0;
-
-  // state scores
-  result = (result + (stateScoreTableSize << 2)) | 0;
-
-  // feature scores
-  result = (result + (featureScoreTableSize << 2)) | 0;
-
-  // forward scores
-  result = (result + (stateScoreTableSize << 2)) | 0;
-
-  // backward scores
-  result = (result + (stateScoreTableSize << 2)) | 0;
-
-  // normalization factor
-  result = (result + 4) | 0;
-
-  // tmp vec values
-  result = (result + (gradientMaxSize << 2)) | 0;
-
-  // tmp vec indices
-  result = (result + (gradientMaxSize << 2)) | 0;
-
-  // gradient nz
-  result = (result + 4) | 0;
-
-  // gradient vec values
-  // result = (result + (gradientMaxSize << 2)) | 0;
-
-  // gradient vec indices
-  // result = (result + (gradientMaxSize << 2)) | 0;
-  
-  return result | 0;
 }
 
 /**
@@ -2804,14 +2736,259 @@ function viterbi(scoreP, numberOfStates, chainLength,
   
   bestPathP = bestPathPSave;
   
-  predictionP = (predictionP + nosBytes - 4) | 0;
+  predictionP = (predictionP + ((chainLength - 1) << 2)) | 0;
   I4[predictionP >> 2] = bestPath;
   for (time = (chainLength - 2) | 0; (time | 0) >= 0; time = (time - 1) | 0) {
+    predictionP = (predictionP - 4) | 0;
     offset = (imul(nosBytes, time + 1) + (bestPath << 2)) | 0;
     
     bestPath = I4[(bestPathP + offset) >> 2] | 0;
     I4[predictionP >> 2] = bestPath;
-    predictionP = (predictionP - 4) | 0;
+  }
+}
+
+function predict(instanceP, numberOfStates, stateDimension,
+    weightP, tmpP, lossP, predictionP, predictionScoreP) {
+  /*
+   * Type annotations
+   */
+  instanceP = instanceP | 0;
+  numberOfStates = numberOfStates | 0;
+  stateDimension = stateDimension | 0;
+  weightP = weightP | 0;
+  tmpP = tmpP | 0;
+  lossP = lossP | 0;
+  predictionP = predictionP | 0;
+  predictionScoreP = predictionScoreP | 0;
+
+  /*
+   * Local variables
+   */
+  var nzP = 0;
+  var valueP = 0;
+  var indexP = 0;
+
+  var chainLength = 0;
+  var correctPathP = 0;
+  
+  var totalNz = 0;
+  
+  var stateScoreTableSize = 0;
+  var transitionScoreTableSize = 0;
+  var featureScoreTableSize = 0;
+  var gradientMaxSize = 0;
+
+  var featureHashedValueP = 0;
+  var featureHashedIndexP = 0;
+
+  var stateScoreP = 0;
+  var biasScoreP = 0;
+  var transitionScoreP = 0;
+
+  var featureScoreP = 0;
+  var forwardScoreP = 0;
+  var normalizationFactorP = 0;
+  var viterbiTmpP = 0;
+  
+  var biasIndex = 0;
+  var transitionIndex = 0;
+  
+  /*
+   * Main
+   */
+  // retrieve data
+  chainLength = I4[(instanceP + 4) >> 2] | 0;
+  nzP = I4[(instanceP + 12) >> 2] | 0;
+  valueP = I4[(instanceP + 16) >> 2] | 0;
+  indexP = I4[(instanceP + 20) >> 2] | 0;
+  correctPathP = I4[(instanceP + 24) >> 2] | 0;
+  
+  totalNz = sumInt32(nzP, chainLength) | 0;
+  
+  stateScoreTableSize = imul(chainLength, numberOfStates);
+  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
+  gradientMaxSize = 
+    (imul(totalNz, transitionScoreTableSize) + 
+    imul(featureScoreTableSize, 2)) | 0;
+  
+  biasIndex = (stateDimension + transitionScoreTableSize) | 0;
+  transitionIndex = stateDimension;
+  
+  // memory allocation
+  featureHashedValueP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  
+  featureHashedIndexP = tmpP;
+  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
+  
+  biasScoreP = (weightP + (biasIndex << 2)) | 0;
+  transitionScoreP = (weightP + (transitionIndex << 2)) | 0;
+  
+  stateScoreP = tmpP;
+  tmpP = (tmpP + (stateScoreTableSize << 2)) | 0;
+  
+  featureScoreP = tmpP;
+  tmpP = (tmpP + (featureScoreTableSize << 2)) | 0;
+  
+  forwardScoreP = tmpP;
+  tmpP = (tmpP + (stateScoreTableSize << 2)) | 0;
+  
+  normalizationFactorP = tmpP;
+  tmpP = (tmpP + 4) | 0;
+  
+  viterbiTmpP = tmpP;
+  tmpP = (tmpP + (imul(numberOfStates, chainLength) << 3)) | 0;
+  
+  // main routine
+  featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
+    stateDimension, featureHashedValueP, featureHashedIndexP);
+
+  updateStateScores(nzP, featureHashedValueP, featureHashedIndexP, weightP,
+    numberOfStates, chainLength, stateScoreP);
+
+  updateFeatureScores(biasScoreP, transitionScoreP,
+    stateScoreP, numberOfStates, chainLength, featureScoreP);
+
+  // we reuse the regions allocated for state scores here,
+  // since they are no longer needed
+  updateForwardScores(featureScoreP, numberOfStates,
+    chainLength, stateScoreP, forwardScoreP);
+  updateNormalizationFactor(forwardScoreP,
+    numberOfStates, chainLength, normalizationFactorP);
+
+  if ((correctPathP | 0) != 0) {
+    sufferLoss(featureScoreP, normalizationFactorP, correctPathP,
+      numberOfStates, chainLength, lossP);      
+  }
+    
+  viterbi(featureScoreP, numberOfStates, chainLength,
+    viterbiTmpP, predictionP, predictionScoreP);
+  
+  F4[predictionScoreP >> 2] = (+F4[predictionScoreP >> 2]) -
+    (+F4[normalizationFactorP >> 2]);
+}
+
+/**
+ * Returns the byte size used by this CRF implementation.
+ * This value does not include weight vector and other denses.
+ */
+function getByteSize(numberOfStates,
+    maxChainLength, maxTotalNz) {
+  /*
+   * Type annotations
+   */
+  numberOfStates = numberOfStates | 0;
+  maxChainLength = maxChainLength | 0;
+  maxTotalNz = maxTotalNz | 0;
+  
+  /*
+   * Local variables
+   */
+  var result = 0;
+  
+  var stateScoreTableSize = 0;
+  var transitionScoreTableSize = 0;
+  var featureScoreTableSize = 0;
+  var gradientMaxSize = 0;
+  
+  /*
+   * Main
+   */
+  stateScoreTableSize = imul(maxChainLength, numberOfStates);
+  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
+  gradientMaxSize = 
+    (imul(maxTotalNz, transitionScoreTableSize) + 
+    imul(featureScoreTableSize, 2)) | 0;
+  
+  // feature hashed values
+  result = (result + (gradientMaxSize << 2)) | 0;
+
+  // feature hashed indices
+  result = (result + (gradientMaxSize << 2)) | 0;
+
+  // state scores
+  result = (result + (stateScoreTableSize << 2)) | 0;
+
+  // feature scores
+  result = (result + (featureScoreTableSize << 2)) | 0;
+
+  // forward scores
+  result = (result + (stateScoreTableSize << 2)) | 0;
+
+  // backward scores
+  result = (result + (stateScoreTableSize << 2)) | 0;
+
+  // normalization factor
+  result = (result + 4) | 0;
+
+  // tmp vec values
+  result = (result + (gradientMaxSize << 2)) | 0;
+
+  // tmp vec indices
+  result = (result + (gradientMaxSize << 2)) | 0;
+
+  // gradient nz
+  result = (result + 4) | 0;
+
+  // gradient vec values
+  // result = (result + (gradientMaxSize << 2)) | 0;
+
+  // gradient vec indices
+  // result = (result + (gradientMaxSize << 2)) | 0;
+  
+  return result | 0;
+}
+
+// from inclusive, to exclusive
+function adagradUpdateLazyRange(from, to, foiP, soiP, weightP,
+    round, delta, eta, lambda) {
+  /*
+   * Type annotations
+   */
+  from = from | 0;
+  to = to | 0;
+  foiP = foiP | 0;
+  soiP = soiP | 0;
+  weightP = weightP | 0;
+  round = +round;
+  delta = +delta;
+  eta = +eta;
+  lambda = +lambda;
+  
+  /*
+   * Local variables
+   */
+  var relativeByteOffset = 0;
+  var foiV = 0.0;
+  var soiV = 0.0;
+  
+  /*
+   * Main
+   */
+  if ((to | 0) <= (from | 0)) {
+    return;
+  }
+  
+  relativeByteOffset = (from << 2);
+  foiP = (foiP + relativeByteOffset) | 0;
+  soiP = (soiP + relativeByteOffset) | 0;
+  weightP = (weightP + relativeByteOffset) | 0;
+
+  for (; (from | 0) < (to | 0); from = (from + 1) | 0) {
+    foiV = +F4[foiP >> 2];
+    
+    if (foiV != 0.0) {
+      soiV = +F4[soiP >> 2];
+      F4[weightP >> 2] = +adagradLazyValue(
+        foiV, soiV, round, delta, eta, lambda
+      );
+    }
+    
+    foiP = (foiP + 4) | 0;
+    soiP = (soiP + 4) | 0;
+    weightP = (weightP + 4) | 0;
   }
 }
 
@@ -3036,6 +3213,8 @@ return {
   crf_updateGradient: updateGradient,
   crf_getByteSize: getByteSize,
   crf_viterbi: viterbi,
+  crf_predict: predict,
+  crf_adagradUpdateLazyRange: adagradUpdateLazyRange,
   isLittleEndian: isLittleEndian,
   compareInt32: compareInt32,
   compareUint32: compareUint32,

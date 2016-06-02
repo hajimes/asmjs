@@ -48,6 +48,7 @@ export default function predict(instanceP, numberOfStates, stateDimension,
   var featureScoreP = 0;
   var forwardScoreP = 0;
   var normalizationFactorP = 0;
+  var viterbiTmpP = 0;
   
   var biasIndex = 0;
   var transitionIndex = 0;
@@ -96,6 +97,9 @@ export default function predict(instanceP, numberOfStates, stateDimension,
   normalizationFactorP = tmpP;
   tmpP = (tmpP + 4) | 0;
   
+  viterbiTmpP = tmpP;
+  tmpP = (tmpP + (imul(numberOfStates, chainLength) << 3)) | 0;
+  
   // main routine
   featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
     stateDimension, featureHashedValueP, featureHashedIndexP);
@@ -118,8 +122,9 @@ export default function predict(instanceP, numberOfStates, stateDimension,
       numberOfStates, chainLength, lossP);      
   }
     
-  viterbi(featureScoreP, numberOfStates, chainLength, predictionP);
+  viterbi(featureScoreP, numberOfStates, chainLength,
+    viterbiTmpP, predictionP, predictionScoreP);
   
-  F4[predictionP >> 2] = (+F4[predictionP >> 2]) -
+  F4[predictionScoreP >> 2] = (+F4[predictionScoreP >> 2]) -
     (+F4[normalizationFactorP >> 2]);
 }
