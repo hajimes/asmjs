@@ -34,6 +34,7 @@
     "imul": true,
     "log": true,
     "max": true,
+    "pow": true,
     "sqrt": true,
     "I1": true,
     "I2": true,

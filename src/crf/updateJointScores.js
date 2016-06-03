@@ -61,7 +61,6 @@ export default function updateJointScores(featureScoreP, forwardScoreP,
     
     backwardScoreP = (backwardScoreP + 4) | 0;
     outP = (outP + 4) | 0;
-
   }
   
   outP = (outP + ((imul(numberOfStates, numberOfStates - 1) << 2))) | 0;
@@ -90,4 +89,5 @@ export default function updateJointScores(featureScoreP, forwardScoreP,
     }
     backwardScoreP = (backwardScoreP + nosBytes) | 0;
   }
+ 
 }

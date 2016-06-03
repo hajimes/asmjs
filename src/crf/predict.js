@@ -66,9 +66,10 @@ export default function predict(instanceP, numberOfStates, stateDimension,
   totalNz = sumInt32(nzP, chainLength) | 0;
   
   stateScoreTableSize = imul(chainLength, numberOfStates);
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  transitionScoreTableSize = (imul(numberOfStates + 1, numberOfStates) +
+    numberOfStates) | 0;
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  gradientMaxSize = 
+  gradientMaxSize =
     (imul(totalNz, transitionScoreTableSize) + 
     imul(featureScoreTableSize, 2)) | 0;
   

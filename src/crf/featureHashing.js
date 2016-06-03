@@ -44,7 +44,7 @@ export default function featureHashing(nz, valueP, indexP, seed, dimension,
   mask = (dimension - 1) | 0;
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
     value = +F4[valueP >> 2];
-    hashValue = hash(indexP, 1, seed) | 0;
+    hashValue = hash(indexP, 4, seed) | 0;
     sign = +((hashValue >> 31) | 1);
     value = sign * value;
     index = (hashValue & mask) | 0;

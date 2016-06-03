@@ -38,6 +38,8 @@ export default function updateFeatureScores(biasScoreP, transitionScoreP,
   var score = 0.0;
   var stateScore = 0.0;
   var transitionScore = 0.0;
+  var transitionFromAnyScoreP = 0;
+  var transitionFromAnyScorePSave = 0;
   var biasScore = 0.0;
   var stateScorePSave = 0;
   var transitionScorePSave = 0;
@@ -52,20 +54,26 @@ export default function updateFeatureScores(biasScoreP, transitionScoreP,
 
   nosBytes = numberOfStates << 2;
   biasScore = +F4[biasScoreP >> 2];
+  transitionFromAnyScoreP = (transitionScoreP +
+    (imul(numberOfStates + 1, numberOfStates) << 2)) | 0;
+  transitionFromAnyScorePSave = transitionFromAnyScoreP;
   
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     // stateScores[0][cur]
     stateScore = +F4[stateScoreP >> 2];
     // transitionScores[0][cur]
-    transitionScore = +F4[transitionScoreP >> 2];
+    transitionScore = (+F4[transitionScoreP >> 2]) +
+      (+F4[transitionFromAnyScoreP >> 2]);
 
     score = stateScore + transitionScore + biasScore;    
     F4[outP >> 2] = score;
     
     stateScoreP = (stateScoreP + 4) | 0;
     transitionScoreP = (transitionScoreP + 4) | 0;
+    transitionFromAnyScoreP = (transitionFromAnyScoreP + 4) | 0;
     outP = (outP + 4) | 0;
   }
+  transitionFromAnyScoreP = transitionFromAnyScorePSave;
   
   outP = (outP + ((imul(numberOfStates, numberOfStates - 1) << 2))) | 0;
   
@@ -74,13 +82,15 @@ export default function updateFeatureScores(biasScoreP, transitionScoreP,
     
     for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
       stateScorePSave = stateScoreP;
+      transitionFromAnyScorePSave = transitionFromAnyScoreP;
 
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
         // stateScores[time][cur]
         stateScore = +F4[stateScoreP >> 2];
       
         // transitionScores[prev + 1][cur]
-        transitionScore = +F4[transitionScoreP >> 2];
+        transitionScore = (+F4[transitionScoreP >> 2]) +
+          (+F4[transitionFromAnyScoreP >> 2]);
         
         score = stateScore + transitionScore + biasScore;
 
@@ -88,13 +98,15 @@ export default function updateFeatureScores(biasScoreP, transitionScoreP,
         
         stateScoreP = (stateScoreP + 4) | 0;
         transitionScoreP = (transitionScoreP + 4) | 0;
+        transitionFromAnyScoreP = (transitionFromAnyScoreP + 4) | 0;
         outP = (outP + 4) | 0;
       }
       
       stateScoreP = stateScorePSave;
+      transitionFromAnyScoreP = transitionFromAnyScorePSave;
     }
 
-    stateScoreP = (stateScoreP + nosBytes) | 0;    
+    stateScoreP = (stateScoreP + nosBytes) | 0;
     transitionScoreP = transitionScorePSave;
-  }     
+  }
 }

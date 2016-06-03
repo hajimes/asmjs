@@ -1,5 +1,5 @@
 /**
- * Suffers a loss, or the negative log-likelihood.
+ * Suffers loss, or the negative log-likelihood.
  *
  * Exactly 4-bytes will be written into lossP.
  *

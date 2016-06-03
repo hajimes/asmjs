@@ -29,16 +29,19 @@ export default function sort(nz, valueP, indexP,
     return;
   }
   
+  // fill an array with pointers to the original indices
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
     I4[(outIndexP + (i << 2)) >> 2] = (indexP + (i << 2)) | 0;
   }
 
+  // sort pointers by their value at destination
   qsortBM(outIndexP, nz, 4, 2);
   
+  // write real values
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
     p = I4[outIndexP >> 2] | 0;
     I4[outIndexP >> 2] = I4[p >> 2] | 0;
-    p = (p - indexP) | 0;
+    p = (p - indexP) | 0; // get the relative byte offset
     F4[outValueP >> 2] = F4[(valueP + p) >> 2];
     
     outValueP = (outValueP + 4) | 0;

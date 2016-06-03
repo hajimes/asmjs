@@ -22,14 +22,14 @@ export default function adagradUpdateLazyRange(from, to, foiP, soiP, weightP,
   var relativeByteOffset = 0;
   var foiV = 0.0;
   var soiV = 0.0;
-  
+
   /*
    * Main
    */
   if ((to | 0) <= (from | 0)) {
     return;
   }
-  
+
   relativeByteOffset = (from << 2);
   foiP = (foiP + relativeByteOffset) | 0;
   soiP = (soiP + relativeByteOffset) | 0;

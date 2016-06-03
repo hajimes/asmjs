@@ -30,7 +30,7 @@ export default function featureHashingSequence(nzP, valueP, indexP,
 
   /*
    * Main
-   */  
+   */
   end = (nzP + (pathLength << 2)) | 0;
 
   while ((nzP | 0) < (end | 0)) {

@@ -647,7 +647,8 @@ describe('This handwritten asm.js module', function() {
         p2 += nz[i];
       }
       expect(F4[(outValueP + (p << 2)) >> 2]).to.equal(0.0);
-      
+      expect(I4[(outIndexP + (p << 2)) >> 2]).to.equal(0);
+
       // TODO: Add more tests
     });
     
@@ -1071,7 +1072,7 @@ describe('This handwritten asm.js module', function() {
         outNzP, outValueP, outIndexP);
       
       expect(I4[outNzP >> 2]).to.
-        equal(12 + numberOfStates * (numberOfStates + 1) + 1);
+        equal(12 + numberOfStates * (numberOfStates + 1) + numberOfStates + 1);
       // TODO add more test
     });
     

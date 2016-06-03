@@ -7,6 +7,8 @@ import hash from './util/MurmurHash3_x86_32';
 import math_sparse_susdot from './math/sparse/susdot';
 import math_sparse_sort from './math/sparse/sort';
 import math_sparse_unique from './math/sparse/unique';
+import math_l0 from './math/l0';
+import math_rounding from './math/rounding';
 import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8';
 import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
 import isLittleEndian from './util/isLittleEndian';
@@ -55,6 +57,8 @@ var EXPORTS = {
   sumInt32: sumInt32,
   hash: hash,
   logsumexp: logsumexp,
+  math_l0: math_l0,
+  math_rounding: math_rounding,
   math_sparse_susdot: math_sparse_susdot,
   math_sparse_sort: math_sparse_sort,
   math_sparse_unique: math_sparse_unique,

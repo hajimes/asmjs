@@ -53,6 +53,8 @@ export default function updateGradient(nzP, valueP, indexP,
   var indexPSave = 0;
   var tmpValuePSave = 0;
   var tmpIndexPSave = 0;
+  var transitionFromAnyIndex = 0;
+  var transitionFromAnyIndexSave = 0;
   
   /*
    * Main
@@ -61,6 +63,8 @@ export default function updateGradient(nzP, valueP, indexP,
   correctState = I4[correctPathP >> 2] | 0;
   tmpValuePSave = tmpValueP;
   tmpIndexPSave = tmpIndexP;
+  transitionFromAnyIndex = (transitionIndex + imul(numberOfStates + 1, numberOfStates)) | 0;
+  transitionFromAnyIndexSave = transitionFromAnyIndex;
 
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     prob = +F4[jointScoreP >> 2];
@@ -82,6 +86,12 @@ export default function updateGradient(nzP, valueP, indexP,
     tmpIndexP = (tmpIndexP + 4) | 0;
     tmpValueP = (tmpValueP + 4) | 0;
     totalNz = (totalNz + 1) | 0;
+    
+    I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
+    F4[tmpValueP >> 2] = coef;
+    tmpIndexP = (tmpIndexP + 4) | 0;
+    tmpValueP = (tmpValueP + 4) | 0;
+    totalNz = (totalNz + 1) | 0;
 
     for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
       value = +F4[valueP >> 2];
@@ -98,6 +108,7 @@ export default function updateGradient(nzP, valueP, indexP,
     }
     
     transitionIndex = (transitionIndex + 1) | 0;
+    transitionFromAnyIndex = (transitionFromAnyIndex + 1) | 0;
     transitionScoreP = (transitionScoreP + 4) | 0;
     jointScoreP = (jointScoreP + 4) | 0;
   }
@@ -108,6 +119,7 @@ export default function updateGradient(nzP, valueP, indexP,
   nzP = (nzP + 4) | 0;
   correctPathP = (correctPathP + 4) | 0;
   correctPreviousState = correctState;
+  transitionFromAnyIndex = transitionFromAnyIndexSave;
 
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
     transitionIndexSave = transitionIndex;
@@ -116,9 +128,12 @@ export default function updateGradient(nzP, valueP, indexP,
     
     correctState = I4[correctPathP >> 2] | 0;
 
+    valuePSave = valueP;
+    indexPSave = indexP;
+
     for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
-      valuePSave = valueP;
-      indexPSave = indexP;
+
+      transitionFromAnyIndexSave = transitionFromAnyIndex;
       
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
         prob = +F4[jointScoreP >> 2];
@@ -141,6 +156,12 @@ export default function updateGradient(nzP, valueP, indexP,
         tmpValueP = (tmpValueP + 4) | 0;
         totalNz = (totalNz + 1) | 0;
 
+        I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
+        F4[tmpValueP >> 2] = coef;
+        tmpIndexP = (tmpIndexP + 4) | 0;
+        tmpValueP = (tmpValueP + 4) | 0;
+        totalNz = (totalNz + 1) | 0;
+
         for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
           value = +F4[valueP >> 2];
           index = I4[indexP >> 2] | 0;
@@ -157,11 +178,13 @@ export default function updateGradient(nzP, valueP, indexP,
 
         jointScoreP = (jointScoreP + 4) | 0;
         transitionIndex = (transitionIndex + 1) | 0;
+        transitionFromAnyIndex = (transitionFromAnyIndex + 1) | 0;
         transitionScoreP = (transitionScoreP + 4) | 0;
       }
       
       valueP = valuePSave;
       indexP = indexPSave;
+      transitionFromAnyIndex = transitionFromAnyIndexSave;
     }
 
     valueP = (valueP + imul((nz << 2), numberOfStates)) | 0;
@@ -173,6 +196,7 @@ export default function updateGradient(nzP, valueP, indexP,
     correctPathP = (correctPathP + 4) | 0;
     correctPreviousState = correctState;
   }
+
   tmpValueP = tmpValuePSave;
   tmpIndexP = tmpIndexPSave;
 

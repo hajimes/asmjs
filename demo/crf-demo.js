@@ -3,9 +3,11 @@
   
   var MAX_PATH_LENGTH = 2048;
   var MAX_NUMBER_OF_STATES = 32;
+  var DEV_TEST_CYCLE = 5000;
+  var ROUNDING_TEST_ROUND = 20000;
   
   var crfMod = {};
-  var heapSize = 1 << 28;
+  var heapSize = 1 << 29;
   var mod = {};
   var parsedData = {};
   var devData = {};
@@ -41,6 +43,26 @@
     };
 
     head.insertBefore(script, head.firstChild);
+  }
+  
+  function inspectSparseVector(heap, nz, valueP, indexP) {
+    var i = 0;
+    var result = {};
+    var f4 = new Float32Array(heap);
+    var i4 = new Int32Array(heap);
+    
+    result.nz = nz;
+    result.values = [];
+    result.indices = [];
+    
+    for (i = 0; i < nz; i += 1) {
+      result.values.push(f4[valueP >> 2]);
+      result.indices.push(i4[indexP >> 2]);
+      valueP += 4;
+      indexP += 4;
+    }
+    
+    return result;
   }
   
   function ConfusionMatrix(size) {
@@ -148,7 +170,7 @@
     
     var heap = new ArrayBuffer(heapSize);
     var tmpAllocation = 1 << 14;
-    var stateDimension = 1 << 23;
+    var stateDimension = 1 << 24;
     var totalDimension = 0;
     var numberOfStates = 0;
     
@@ -169,7 +191,8 @@
     
     this.stateDimension = stateDimension;
     this.totalDimension = stateDimension +
-      (this.numberOfStates + 1) * this.numberOfStates + 1;
+      ((this.numberOfStates + 1) * this.numberOfStates + this.numberOfStates) +
+     1;
     
     this.heap = heap;
     this.I4 = new Int32Array(heap);
@@ -232,7 +255,7 @@
     this.round = 1;
     
     this.delta = 1.0;
-    this.eta = 0.5;
+    this.eta = 1.0;
     this.lambda = 0.0001;
     
     this.cumulativeLoss = 0.0;
@@ -241,6 +264,10 @@
     this.trainDevCycle = 0;
     
     this.confusionMatrix = new ConfusionMatrix(this.numberOfStates);
+    
+    for (var i = 0; i < this.totalDimension; i += 1) {
+      this.F4[(this.soiP + (i << 2)) >> 2] = 1.0;
+    }
   }
   
   CrfModule.prototype.trainOnline = function(instanceId) {
@@ -299,6 +326,12 @@
       this.lambda
     );
     
+    console.log('l0: ' + this.mod.math_l0(this.weightP, this.totalDimension));
+    
+    if (this.round >= ROUNDING_TEST_ROUND) {
+      this.mod.math_rounding(this.weightP, this.totalDimension, 2, 1);
+    }
+    
     this.confusionMatrix.clear();
   };
   
@@ -328,8 +361,7 @@
     
     this.devLoss += this.F4[this.lossP >> 2];
     this.devIdCurrent += 1;
-    
-    
+        
     pathLength = this.I4[(instanceByteOffset + 4) >> 2];
     for (i = 0; i < pathLength; i += 1) {
       predicted.push(this.I4[(this.predictionP + (i << 2)) >> 2]);      
@@ -538,7 +570,7 @@
     
     info.averagePathLength /= info.numberOfInstances;
 
-    info.numberOfLabels = Object.getOwnPropertyNames(info.labels). length;
+    info.numberOfLabels = Object.getOwnPropertyNames(info.labels).length;
     info.numberOfFeatures = Object.getOwnPropertyNames(info.features).length;
 
     return info;
@@ -635,7 +667,7 @@
     var refreshStep = 10;
     var ms = 0;
     var fps = 0;
-    var devCount = 8000;
+    var devCount = DEV_TEST_CYCLE;
     var isProcessingDev = false;
 
     function loopSub() {
@@ -665,6 +697,7 @@
           if (((ms % trainStep) | 0) === 0) {
             for (i = 0; i < trainBatchSize; i += 1) {
               id = (Math.random() * parsedData.data.length) | 0;
+
               crfMod.trainOnline(id);
             }
           }

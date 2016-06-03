@@ -34,7 +34,6 @@ import updateGradient from './updateGradient';
  *
  * To sum up, each instance header occupies 28 bytes
  */
-// Incomplete
 export default function trainOnline(instanceP, numberOfStates, dimension, round,
   foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP) {
   /*
@@ -110,7 +109,8 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   totalNz = sumInt32(nzP, chainLength) | 0;
   
   stateScoreTableSize = imul(chainLength, numberOfStates);
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  transitionScoreTableSize = (imul(numberOfStates + 1, numberOfStates) +
+    numberOfStates) | 0;
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
   gradientMaxSize = 
     (imul(totalNz, transitionScoreTableSize) + 
@@ -166,7 +166,6 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   //
   // Main routine
   //
-  
   featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
     dimension, featureHashedValueP, featureHashedIndexP);
     

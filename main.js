@@ -980,16 +980,19 @@ function sort(nz, valueP, indexP,
     return;
   }
   
+  // fill an array with pointers to the original indices
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
     I4[(outIndexP + (i << 2)) >> 2] = (indexP + (i << 2)) | 0;
   }
 
+  // sort pointers by their value at destination
   qsortBM(outIndexP, nz, 4, 2);
   
+  // write real values
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
     p = I4[outIndexP >> 2] | 0;
     I4[outIndexP >> 2] = I4[p >> 2] | 0;
-    p = (p - indexP) | 0;
+    p = (p - indexP) | 0; // get the relative byte offset
     F4[outValueP >> 2] = F4[(valueP + p) >> 2];
     
     outValueP = (outValueP + 4) | 0;
@@ -1072,6 +1075,83 @@ function unique(nz, valueP, indexP,
   I4[outNzP >> 2] = newNz;
   F4[outValueP >> 2] = newValue;
   U4[outIndexP >> 2] = previousIndex;
+}
+
+/**
+ * Returns the l0 of a dense vector.
+ */
+function l0(p, len) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  len = len | 0;
+  
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var l0 = 0;
+
+  /*
+   * Main
+   */
+  for (i = 0; (i | 0) < (len | 0); i = (i + 1) | 0) {
+    if (+F4[p >> 2] != 0.0) {
+      l0 = (l0 + 1) | 0;
+    }
+    
+    p = (p + 4) | 0;
+  }
+  
+  return l0 | 0;
+}
+
+function rounding(p, len, m, degree) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  len = len | 0;
+  m = m | 0;
+  degree = degree | 0;
+  
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var v = 0.0;
+  var t = 0;
+  var quant = 0.0;
+  var maxValue = 0;
+  var minValue = 0;
+
+  /*
+   * Main
+   */
+  quant = pow(2.0, +(degree | 0));
+  maxValue = ((1 << (m + degree)) - 1) | 0;
+  minValue = -maxValue | 0;
+  
+  for (i = 0; (i | 0) < (len | 0); i = (i + 1) | 0) {
+    v = +F4[p >> 2];
+
+    v = v * quant;
+    t = ~~v;
+    
+    t = min(t | 0, maxValue | 0);
+    t = max(t | 0, minValue | 0);
+    v = +(t | 0);
+    v = v / quant;
+
+    F4[p >> 2] = v;
+    
+    // if (F4[p >> 2] != 0.0) {
+    //   console.log(F4[p >> 2]);
+    // }
+    
+    p = (p + 4) | 0;
+  }
 }
 
 /**
@@ -1436,7 +1516,7 @@ function featureHashing(nz, valueP, indexP, seed, dimension,
   mask = (dimension - 1) | 0;
   for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
     value = +F4[valueP >> 2];
-    hashValue = MurmurHash3_x86_32(indexP, 1, seed) | 0;
+    hashValue = MurmurHash3_x86_32(indexP, 4, seed) | 0;
     sign = +((hashValue >> 31) | 1);
     value = sign * value;
     index = (hashValue & mask) | 0;
@@ -1481,7 +1561,7 @@ function featureHashingSequence(nzP, valueP, indexP,
 
   /*
    * Main
-   */  
+   */
   end = (nzP + (pathLength << 2)) | 0;
 
   while ((nzP | 0) < (end | 0)) {
@@ -1540,6 +1620,8 @@ function updateFeatureScores(biasScoreP, transitionScoreP,
   var score = 0.0;
   var stateScore = 0.0;
   var transitionScore = 0.0;
+  var transitionFromAnyScoreP = 0;
+  var transitionFromAnyScorePSave = 0;
   var biasScore = 0.0;
   var stateScorePSave = 0;
   var transitionScorePSave = 0;
@@ -1554,20 +1636,26 @@ function updateFeatureScores(biasScoreP, transitionScoreP,
 
   nosBytes = numberOfStates << 2;
   biasScore = +F4[biasScoreP >> 2];
+  transitionFromAnyScoreP = (transitionScoreP +
+    (imul(numberOfStates + 1, numberOfStates) << 2)) | 0;
+  transitionFromAnyScorePSave = transitionFromAnyScoreP;
   
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     // stateScores[0][cur]
     stateScore = +F4[stateScoreP >> 2];
     // transitionScores[0][cur]
-    transitionScore = +F4[transitionScoreP >> 2];
+    transitionScore = (+F4[transitionScoreP >> 2]) +
+      (+F4[transitionFromAnyScoreP >> 2]);
 
     score = stateScore + transitionScore + biasScore;    
     F4[outP >> 2] = score;
     
     stateScoreP = (stateScoreP + 4) | 0;
     transitionScoreP = (transitionScoreP + 4) | 0;
+    transitionFromAnyScoreP = (transitionFromAnyScoreP + 4) | 0;
     outP = (outP + 4) | 0;
   }
+  transitionFromAnyScoreP = transitionFromAnyScorePSave;
   
   outP = (outP + ((imul(numberOfStates, numberOfStates - 1) << 2))) | 0;
   
@@ -1576,13 +1664,15 @@ function updateFeatureScores(biasScoreP, transitionScoreP,
     
     for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
       stateScorePSave = stateScoreP;
+      transitionFromAnyScorePSave = transitionFromAnyScoreP;
 
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
         // stateScores[time][cur]
         stateScore = +F4[stateScoreP >> 2];
       
         // transitionScores[prev + 1][cur]
-        transitionScore = +F4[transitionScoreP >> 2];
+        transitionScore = (+F4[transitionScoreP >> 2]) +
+          (+F4[transitionFromAnyScoreP >> 2]);
         
         score = stateScore + transitionScore + biasScore;
 
@@ -1590,15 +1680,17 @@ function updateFeatureScores(biasScoreP, transitionScoreP,
         
         stateScoreP = (stateScoreP + 4) | 0;
         transitionScoreP = (transitionScoreP + 4) | 0;
+        transitionFromAnyScoreP = (transitionFromAnyScoreP + 4) | 0;
         outP = (outP + 4) | 0;
       }
       
       stateScoreP = stateScorePSave;
+      transitionFromAnyScoreP = transitionFromAnyScorePSave;
     }
 
-    stateScoreP = (stateScoreP + nosBytes) | 0;    
+    stateScoreP = (stateScoreP + nosBytes) | 0;
     transitionScoreP = transitionScorePSave;
-  }     
+  }
 }
 
 /**
@@ -1905,7 +1997,6 @@ function updateJointScores(featureScoreP, forwardScoreP,
     
     backwardScoreP = (backwardScoreP + 4) | 0;
     outP = (outP + 4) | 0;
-
   }
   
   outP = (outP + ((imul(numberOfStates, numberOfStates - 1) << 2))) | 0;
@@ -1934,7 +2025,28 @@ function updateJointScores(featureScoreP, forwardScoreP,
     }
     backwardScoreP = (backwardScoreP + nosBytes) | 0;
   }
+ 
 }
+
+// function inspectSparseVector(nz, valueP, indexP) {
+//   var i = 0;
+//   var result = {};
+//
+//   result.nz = nz;
+//   result.values = [];
+//   result.indices = [];
+//   result.unique = new Set();
+//
+//   for (i = 0; i < nz; i += 1) {
+//     result.values.push(F4[valueP >> 2]);
+//     result.indices.push(I4[indexP >> 2]);
+//     result.unique.add(I4[indexP >> 2]);
+//     valueP += 4;
+//     indexP += 4;
+//   }
+//
+//   return result;
+// }
 
 /**
  * Computes a gradient.
@@ -1989,6 +2101,8 @@ function updateGradient(nzP, valueP, indexP,
   var indexPSave = 0;
   var tmpValuePSave = 0;
   var tmpIndexPSave = 0;
+  var transitionFromAnyIndex = 0;
+  var transitionFromAnyIndexSave = 0;
   
   /*
    * Main
@@ -1997,6 +2111,17 @@ function updateGradient(nzP, valueP, indexP,
   correctState = I4[correctPathP >> 2] | 0;
   tmpValuePSave = tmpValueP;
   tmpIndexPSave = tmpIndexP;
+  transitionFromAnyIndex = (transitionIndex + imul(numberOfStates + 1, numberOfStates)) | 0;
+  transitionFromAnyIndexSave = transitionFromAnyIndex;
+
+  // console.log('valueP ' + valueP);
+  // var tnz = 0;
+  // for (i = 0; i < chainLength; i += 1) {
+  //   tnz += I4[(nzP + (i << 2)) >> 2];
+  // }
+  // console.log(inspectSparseVector(imul(tnz, numberOfStates), valueP, indexP));
+  //
+  
 
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     prob = +F4[jointScoreP >> 2];
@@ -2018,6 +2143,12 @@ function updateGradient(nzP, valueP, indexP,
     tmpIndexP = (tmpIndexP + 4) | 0;
     tmpValueP = (tmpValueP + 4) | 0;
     totalNz = (totalNz + 1) | 0;
+    
+    I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
+    F4[tmpValueP >> 2] = coef;
+    tmpIndexP = (tmpIndexP + 4) | 0;
+    tmpValueP = (tmpValueP + 4) | 0;
+    totalNz = (totalNz + 1) | 0;
 
     for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
       value = +F4[valueP >> 2];
@@ -2034,6 +2165,7 @@ function updateGradient(nzP, valueP, indexP,
     }
     
     transitionIndex = (transitionIndex + 1) | 0;
+    transitionFromAnyIndex = (transitionFromAnyIndex + 1) | 0;
     transitionScoreP = (transitionScoreP + 4) | 0;
     jointScoreP = (jointScoreP + 4) | 0;
   }
@@ -2044,6 +2176,7 @@ function updateGradient(nzP, valueP, indexP,
   nzP = (nzP + 4) | 0;
   correctPathP = (correctPathP + 4) | 0;
   correctPreviousState = correctState;
+  transitionFromAnyIndex = transitionFromAnyIndexSave;
 
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
     transitionIndexSave = transitionIndex;
@@ -2052,9 +2185,12 @@ function updateGradient(nzP, valueP, indexP,
     
     correctState = I4[correctPathP >> 2] | 0;
 
+    valuePSave = valueP;
+    indexPSave = indexP;
+
     for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
-      valuePSave = valueP;
-      indexPSave = indexP;
+
+      transitionFromAnyIndexSave = transitionFromAnyIndex;
       
       for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
         prob = +F4[jointScoreP >> 2];
@@ -2077,6 +2213,12 @@ function updateGradient(nzP, valueP, indexP,
         tmpValueP = (tmpValueP + 4) | 0;
         totalNz = (totalNz + 1) | 0;
 
+        I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
+        F4[tmpValueP >> 2] = coef;
+        tmpIndexP = (tmpIndexP + 4) | 0;
+        tmpValueP = (tmpValueP + 4) | 0;
+        totalNz = (totalNz + 1) | 0;
+
         for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
           value = +F4[valueP >> 2];
           index = I4[indexP >> 2] | 0;
@@ -2093,11 +2235,13 @@ function updateGradient(nzP, valueP, indexP,
 
         jointScoreP = (jointScoreP + 4) | 0;
         transitionIndex = (transitionIndex + 1) | 0;
+        transitionFromAnyIndex = (transitionFromAnyIndex + 1) | 0;
         transitionScoreP = (transitionScoreP + 4) | 0;
       }
       
       valueP = valuePSave;
       indexP = indexPSave;
+      transitionFromAnyIndex = transitionFromAnyIndexSave;
     }
 
     valueP = (valueP + imul((nz << 2), numberOfStates)) | 0;
@@ -2109,10 +2253,15 @@ function updateGradient(nzP, valueP, indexP,
     correctPathP = (correctPathP + 4) | 0;
     correctPreviousState = correctState;
   }
+
+  // console.log('valueP after' + valueP);
   tmpValueP = tmpValuePSave;
   tmpIndexP = tmpIndexPSave;
 
+  // console.log('grad');
+  // console.log(inspectSparseVector(totalNz, tmpValueP, tmpIndexP));
   unique(totalNz, tmpValueP, tmpIndexP, outNzP, outValueP, outIndexP);
+  // console.log(inspectSparseVector(I4[outNzP >> 2], outValueP, outIndexP));
 }
 
 /**
@@ -2409,6 +2558,26 @@ function sufferLoss(featureScoreP, normalizationFactorP,
   F4[lossP >> 2] = -logLikelihood;
 }
 
+// function inspectSparseVector(nz, valueP, indexP) {
+//   var i = 0;
+//   var result = {};
+//
+//   result.nz = nz;
+//   result.values = [];
+//   result.indices = [];
+//   result.unique = new Set();
+//
+//   for (i = 0; i < nz; i += 1) {
+//     result.values.push(F4[valueP >> 2]);
+//     result.indices.push(I4[indexP >> 2]);
+//     result.unique.add(I4[indexP >> 2]);
+//     valueP += 4;
+//     indexP += 4;
+//   }
+//
+//   return result;
+// }
+
 /**
  * Each instance is structured as
  *
@@ -2507,7 +2676,8 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   totalNz = sumInt32(nzP, chainLength) | 0;
   
   stateScoreTableSize = imul(chainLength, numberOfStates);
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  transitionScoreTableSize = (imul(numberOfStates + 1, numberOfStates) +
+    numberOfStates) | 0;
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
   gradientMaxSize = 
     (imul(totalNz, transitionScoreTableSize) + 
@@ -2563,6 +2733,14 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   //
   // Main routine
   //
+  
+  // console.log('online enter ' + valueP);
+  // var tnz = 0;
+  // for (i = 0; i < chainLength; i += 1) {
+  //   tnz += I4[(nzP + (i << 2)) >> 2];
+  // }
+  // console.log(inspectSparseVector(tnz, valueP, indexP));
+  
   
   featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
     dimension, featureHashedValueP, featureHashedIndexP);
@@ -2806,9 +2984,10 @@ function predict(instanceP, numberOfStates, stateDimension,
   totalNz = sumInt32(nzP, chainLength) | 0;
   
   stateScoreTableSize = imul(chainLength, numberOfStates);
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  transitionScoreTableSize = (imul(numberOfStates + 1, numberOfStates) +
+    numberOfStates) | 0;
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  gradientMaxSize = 
+  gradientMaxSize =
     (imul(totalNz, transitionScoreTableSize) + 
     imul(featureScoreTableSize, 2)) | 0;
   
@@ -2963,14 +3142,14 @@ function adagradUpdateLazyRange(from, to, foiP, soiP, weightP,
   var relativeByteOffset = 0;
   var foiV = 0.0;
   var soiV = 0.0;
-  
+
   /*
    * Main
    */
   if ((to | 0) <= (from | 0)) {
     return;
   }
-  
+
   relativeByteOffset = (from << 2);
   foiP = (foiP + relativeByteOffset) | 0;
   soiP = (soiP + relativeByteOffset) | 0;
@@ -3196,6 +3375,8 @@ return {
   sumInt32: sumInt32,
   hash: MurmurHash3_x86_32,
   logsumexp: logsumexpFloat32,
+  math_l0: l0,
+  math_rounding: rounding,
   math_sparse_susdot: susdot,
   math_sparse_sort: sort,
   math_sparse_unique: unique,
