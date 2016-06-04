@@ -86,6 +86,21 @@ describe('This handwritten asm.js module', function() {
     mod = myAsmjsModule(root, {}, heap);
   });
 
+  describe('implements efficient bitwise operations such as', function() {
+    it('popcount to count the number of bits in a 32-bit integer', function () {
+      expect(mod.bit_popcount(0)).to.equal(0);
+      expect(mod.bit_popcount(7)).to.equal(3);
+      expect(mod.bit_popcount(0x80000000)).to.equal(1);
+      expect(mod.bit_popcount(0x80000001)).to.equal(2);
+      expect(mod.bit_popcount(0x80000080)).to.equal(2);
+      expect(mod.bit_popcount(0xaaaaaaaa)).to.equal(16);
+      expect(mod.bit_popcount(0xfffeffff)).to.equal(31);
+      expect(mod.bit_popcount(0xffffffff)).to.equal(32);
+      expect(mod.bit_popcount(-1)).to.equal(32);
+      expect(mod.bit_popcount(-2147483648)).to.equal(1);
+    });
+  });
+
   describe('implements ufmap', function() {
     it('a hash map for uint32 keys and float32 values', function() {
       var p = 100;

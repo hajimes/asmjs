@@ -1146,12 +1146,33 @@ function rounding(p, len, m, degree) {
 
     F4[p >> 2] = v;
     
-    // if (F4[p >> 2] != 0.0) {
-    //   console.log(F4[p >> 2]);
-    // }
-    
     p = (p + 4) | 0;
   }
+}
+
+/**
+ * Fast <code>popcount</code> (also known as sideways addition)
+ * for 32-bit integers, that is, counting non-zero bits in an integer.
+ * 
+ * See {@link
+ * http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel}
+ * or {@link http://stackoverflow.com/a/15979139/3211373}.
+ * 
+ * @param {int} n - 32-bit integer
+ * @return {signed} number of non-zero bits in <code>n</code>
+ */
+function popcount(n) {
+  /*
+   * Type annotations
+   */
+  n = n |0;
+
+  /*
+   * Main
+   */
+  n = (n - ((n >>> 1) & 0x55555555)) | 0;
+  n = (n & 0x33333333) + ((n >>> 2) & 0x33333333) | 0;
+  return (imul(((n + (n >>> 4)) & 0x0F0F0F0F), 0x01010101) >>> 24) | 0;
 }
 
 /**
@@ -2028,26 +2049,6 @@ function updateJointScores(featureScoreP, forwardScoreP,
  
 }
 
-// function inspectSparseVector(nz, valueP, indexP) {
-//   var i = 0;
-//   var result = {};
-//
-//   result.nz = nz;
-//   result.values = [];
-//   result.indices = [];
-//   result.unique = new Set();
-//
-//   for (i = 0; i < nz; i += 1) {
-//     result.values.push(F4[valueP >> 2]);
-//     result.indices.push(I4[indexP >> 2]);
-//     result.unique.add(I4[indexP >> 2]);
-//     valueP += 4;
-//     indexP += 4;
-//   }
-//
-//   return result;
-// }
-
 /**
  * Computes a gradient.
  *
@@ -2113,15 +2114,6 @@ function updateGradient(nzP, valueP, indexP,
   tmpIndexPSave = tmpIndexP;
   transitionFromAnyIndex = (transitionIndex + imul(numberOfStates + 1, numberOfStates)) | 0;
   transitionFromAnyIndexSave = transitionFromAnyIndex;
-
-  // console.log('valueP ' + valueP);
-  // var tnz = 0;
-  // for (i = 0; i < chainLength; i += 1) {
-  //   tnz += I4[(nzP + (i << 2)) >> 2];
-  // }
-  // console.log(inspectSparseVector(imul(tnz, numberOfStates), valueP, indexP));
-  //
-  
 
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     prob = +F4[jointScoreP >> 2];
@@ -2254,14 +2246,10 @@ function updateGradient(nzP, valueP, indexP,
     correctPreviousState = correctState;
   }
 
-  // console.log('valueP after' + valueP);
   tmpValueP = tmpValuePSave;
   tmpIndexP = tmpIndexPSave;
 
-  // console.log('grad');
-  // console.log(inspectSparseVector(totalNz, tmpValueP, tmpIndexP));
   unique(totalNz, tmpValueP, tmpIndexP, outNzP, outValueP, outIndexP);
-  // console.log(inspectSparseVector(I4[outNzP >> 2], outValueP, outIndexP));
 }
 
 /**
@@ -2488,7 +2476,7 @@ function updateStateScores(nzP, valueP, indexP, weightP,
 }
 
 /**
- * Suffers a loss, or the negative log-likelihood.
+ * Suffers loss, or the negative log-likelihood.
  *
  * Exactly 4-bytes will be written into lossP.
  *
@@ -2558,26 +2546,6 @@ function sufferLoss(featureScoreP, normalizationFactorP,
   F4[lossP >> 2] = -logLikelihood;
 }
 
-// function inspectSparseVector(nz, valueP, indexP) {
-//   var i = 0;
-//   var result = {};
-//
-//   result.nz = nz;
-//   result.values = [];
-//   result.indices = [];
-//   result.unique = new Set();
-//
-//   for (i = 0; i < nz; i += 1) {
-//     result.values.push(F4[valueP >> 2]);
-//     result.indices.push(I4[indexP >> 2]);
-//     result.unique.add(I4[indexP >> 2]);
-//     valueP += 4;
-//     indexP += 4;
-//   }
-//
-//   return result;
-// }
-
 /**
  * Each instance is structured as
  *
@@ -2600,7 +2568,6 @@ function sufferLoss(featureScoreP, normalizationFactorP,
  *
  * To sum up, each instance header occupies 28 bytes
  */
-// Incomplete
 function trainOnline(instanceP, numberOfStates, dimension, round,
   foiP, soiP, weightP, delta, eta, lambda, tmpP, lossP) {
   /*
@@ -2733,15 +2700,6 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   //
   // Main routine
   //
-  
-  // console.log('online enter ' + valueP);
-  // var tnz = 0;
-  // for (i = 0; i < chainLength; i += 1) {
-  //   tnz += I4[(nzP + (i << 2)) >> 2];
-  // }
-  // console.log(inspectSparseVector(tnz, valueP, indexP));
-  
-  
   featureHashingSequence(nzP, valueP, indexP, numberOfStates, chainLength,
     dimension, featureHashedValueP, featureHashedIndexP);
     
@@ -3365,6 +3323,7 @@ var CMP_FUNCTION_TABLE = [compareInt32, compareUint32, compareSparseVectorElemen
  * Definition of exported functions
  */
 return {
+  bit_popcount: popcount,
   ufmap_create: ufmap_create,
   ufmap_has: ufmap_has,
   ufmap_add: ufmap_add,

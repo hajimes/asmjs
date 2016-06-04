@@ -9,6 +9,7 @@ import math_sparse_sort from './math/sparse/sort';
 import math_sparse_unique from './math/sparse/unique';
 import math_l0 from './math/l0';
 import math_rounding from './math/rounding';
+import bit_popcount from './bit/popcount';
 import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8';
 import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
 import isLittleEndian from './util/isLittleEndian';
@@ -47,6 +48,7 @@ var _CMP_FUNCTION_TABLE = [compareInt32, compareUint32, compareSparseVectorEleme
  * Definition of exported functions
  */
 var EXPORTS = {
+  bit_popcount: bit_popcount,
   ufmap_create: ufmap.ufmap_create,
   ufmap_has: ufmap.ufmap_has,
   ufmap_add: ufmap.ufmap_add,
