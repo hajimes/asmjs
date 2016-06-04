@@ -10,6 +10,8 @@ import math_sparse_unique from './math/sparse/unique';
 import math_l0 from './math/l0';
 import math_rounding from './math/rounding';
 import bit_popcount from './bit/popcount';
+import bit_deBruijnSelectInit from './bit/deBruijnSelectInit';
+import bit_deBruijnSelect from './bit/deBruijnSelect';
 import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8';
 import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
 import isLittleEndian from './util/isLittleEndian';
@@ -49,6 +51,8 @@ var _CMP_FUNCTION_TABLE = [compareInt32, compareUint32, compareSparseVectorEleme
  */
 var EXPORTS = {
   bit_popcount: bit_popcount,
+  bit_deBruijnSelectInit: bit_deBruijnSelectInit,
+  bit_deBruijnSelect: bit_deBruijnSelect,
   ufmap_create: ufmap.ufmap_create,
   ufmap_has: ufmap.ufmap_has,
   ufmap_add: ufmap.ufmap_add,

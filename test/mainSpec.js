@@ -99,6 +99,56 @@ describe('This handwritten asm.js module', function() {
       expect(mod.bit_popcount(-1)).to.equal(32);
       expect(mod.bit_popcount(-2147483648)).to.equal(1);
     });
+    
+    it('fast select operation for words with a de Bruijn sequence', function() {
+      var i = 0;
+      var isTableValid = true;
+      var isResultValid = true;
+      var p = 1000;
+      var outP = 2000;
+      var numberOfOnes = 0;
+      var deBruijn32Table = [
+        0, 1, 28, 2, 29, 14, 24, 3,
+        30, 22, 20, 15, 25, 17, 4, 8,
+        31, 27, 13, 23, 21, 19, 16, 7,
+        26, 12, 18, 6, 11, 5, 10, 9
+      ];
+      
+      U1[p + 32] = 255;
+      
+      mod.bit_deBruijnSelectInit(p);
+      
+      isTableValid = true;
+      for (i = 0; i < 32; i += 1) {
+        isTableValid = isTableValid && (U1[p + i] === deBruijn32Table[i]);
+      }
+ 
+      expect(isTableValid).to.be.true;
+      expect(U1[p + 32]).to.equal(255); // this area should remain untouched
+      
+      numberOfOnes = mod.bit_deBruijnSelect(p, 1, outP);
+      expect(numberOfOnes).to.equal(1);
+      expect(U1[outP]).to.equal(0);
+
+      numberOfOnes = mod.bit_deBruijnSelect(p, 2, outP);
+      expect(numberOfOnes).to.equal(1);
+      expect(U1[outP]).to.equal(1);
+      
+      numberOfOnes = mod.bit_deBruijnSelect(p, 0x80003001, outP);
+      expect(numberOfOnes).to.equal(4);
+      expect(U1[outP]).to.equal(0);
+      expect(U1[outP + 1]).to.equal(12);
+      expect(U1[outP + 2]).to.equal(13);
+      expect(U1[outP + 3]).to.equal(31);
+  
+      numberOfOnes = mod.bit_deBruijnSelect(p, 0xffffffff, outP);
+      expect(numberOfOnes).to.equal(32);
+      isResultValid = true;
+      for (i = 0; i < 32; i += 1) {
+        isResultValid = isResultValid && (U1[outP + i] === i);
+      }
+      expect(isResultValid).to.be.true;
+    });
   });
 
   describe('implements ufmap', function() {
