@@ -51,6 +51,108 @@
     var F8 = new stdlib.Float64Array(heap);
 
 /**
+ * Returns the number of 1s in a 32-bit integer and
+ * writes out the actual indices of the 1s (0 <= i < 32) into <code>outP</code>.
+ * Each index occupies one byte, so at most 32 bytes (32 uint8 integers) will
+ * be written into <code>outP</code>.
+ *
+ * Before using this function, precompute a table at <code>tableP</code>
+ * by <code>deBruijnSelectInit</code>.
+ *
+ * @param {int} tableP - byte offset to the precomputed table
+ * @param {int} n - 32-bit integer to be examined
+ * @param {int} outP - byte offset into which the results are to be written
+ * @returns {signed} - number of 1s found in a word
+ *
+ * @see Peter Wegner. 1960. A Technique for Counting Ones in a Binary Computer.
+ *   Communications of the ACM, 3(5):322, May.
+ * @see Charles E. Leiserson, Harald Prokop, and Keith H. Randall. 1998. Using
+ *   de Bruijn Sequences to Index a 1 in a Computer Word. Technical report.
+ */
+function deBruijnSelect(tableP, n, outP) {
+  /*
+   * Type annotations
+   */
+  tableP = tableP | 0;
+  n = n | 0;
+  outP = outP | 0;
+  
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var t = 0;
+  var offset = 0;
+
+  /*
+   * Main
+   */
+  while ((n | 0) != 0) {
+    // Since 2147483648 & -2147483648 returns -2147483648 in ECMAScript,
+    // we need type casting (>>> 0) to unsigned.
+    t = (n & -n) >>> 0;
+    // 0x077cb531 is a de Bruijn sequence 00000111011111001011010100110001
+    offset = imul(t, 0x077cb531) >>> 27;
+    U1[(outP + i) >> 0] = U1[(tableP + offset) >> 0];
+    n = (n - t) | 0;
+    i = (i + 1) | 0;
+  }
+
+  return i | 0;
+}
+
+/**
+ * Initializes a table used in <code>deBruijnSelect</code>.
+ * Exactly 32 bytes will be written into outP.
+ */
+function deBruijnSelectInit(outP) {
+  /*
+   * Type annotations
+   */
+  outP = outP | 0;
+  
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var offset = 0;
+
+  /*
+   * Main
+   */
+  for (i = 0; (i | 0) < 32; i = (i + 1) | 0) {
+    // 0x077cb531 is a de Bruijn sequence 00000111011111001011010100110001
+    offset = (0x077cb531 << i) >>> 27;
+    U1[(outP + offset) >> 0] = i;
+  }
+}
+
+/**
+ * Fast <code>popcount</code> (also known as sideways addition)
+ * for 32-bit integers, that is, counting non-zero bits in an integer.
+ * 
+ * See {@link
+ * http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel}
+ * or {@link http://stackoverflow.com/a/15979139/3211373}.
+ * 
+ * @param {int} n - 32-bit integer
+ * @return {signed} number of non-zero bits in <code>n</code>
+ */
+function popcount(n) {
+  /*
+   * Type annotations
+   */
+  n = n |0;
+
+  /*
+   * Main
+   */
+  n = (n - ((n >>> 1) & 0x55555555)) | 0;
+  n = (n & 0x33333333) + ((n >>> 2) & 0x33333333) | 0;
+  return (imul(((n + (n >>> 4)) & 0x0F0F0F0F), 0x01010101) >>> 24) | 0;
+}
+
+/**
  * Returns the largest number of one or more 32-bit floats.
  * If the specified length is less than 1, the behavior is undefined.
  *
@@ -214,6 +316,112 @@ function logsumexpFloat32(p, len) {
 }
 
 /**
+ * Lazily calculates an updated value for AdaGrad-L1 primal-dual subgradient.
+ * See p. 2137, Duchi, Hazan, and Singer (2011).
+ *
+ * @param {double} fov
+ * @param {double} sov
+ * @param {double} round
+ * @param {double} delta
+ * @param {double} eta
+ * @param {double} lambda
+ * @returns {double}
+ */
+function lazyValue(fov, sov, round, delta, eta, lambda) {
+  /*
+   * Type annotations
+   */
+  fov = +fov;
+  sov = +sov;
+  round = +round;
+  delta = +delta;
+  eta = +eta;
+  lambda = +lambda;
+  
+  /*
+   * Local variables
+   */
+  var result = 0.0;
+  
+  /*
+   * Main
+   */
+
+  if (fov == 0.0) {
+    return 0.0;
+  }
+
+  result = abs(fov) / round;
+  result = result - lambda;
+  result = max(0.0, result);
+
+  if (result == 0.0) {
+   return 0.0;
+  }
+
+  if (fov > 0.0) {
+   result = result * -1.0;
+  }
+
+  result = result * eta * round;
+
+  result = result / (delta + sqrt(sov));
+
+  return +result;
+}
+
+// from inclusive, to exclusive
+function updateLazyRange(from, to, foiP, soiP, weightP,
+    round, delta, eta, lambda) {
+  /*
+   * Type annotations
+   */
+  from = from | 0;
+  to = to | 0;
+  foiP = foiP | 0;
+  soiP = soiP | 0;
+  weightP = weightP | 0;
+  round = +round;
+  delta = +delta;
+  eta = +eta;
+  lambda = +lambda;
+  
+  /*
+   * Local variables
+   */
+  var relativeByteOffset = 0;
+  var foiV = 0.0;
+  var soiV = 0.0;
+
+  /*
+   * Main
+   */
+  if ((to | 0) <= (from | 0)) {
+    return;
+  }
+
+  relativeByteOffset = (from << 2);
+  foiP = (foiP + relativeByteOffset) | 0;
+  soiP = (soiP + relativeByteOffset) | 0;
+  weightP = (weightP + relativeByteOffset) | 0;
+
+  for (; (from | 0) < (to | 0); from = (from + 1) | 0) {
+    foiV = +F4[foiP >> 2];
+    
+    if (foiV != 0.0) {
+      soiV = +F4[soiP >> 2];
+      F4[weightP >> 2] = +lazyValue(
+        foiV, soiV, round, delta, eta, lambda
+      );
+    }
+    
+    foiP = (foiP + 4) | 0;
+    soiP = (soiP + 4) | 0;
+    weightP = (weightP + 4) | 0;
+  }
+}
+
+/**
  * Returns a signed 32-bit hash value by using MurmurHash3_x86_32.
  *
  * Use ">>> 0" to convert its result to an unsigned integer.
@@ -302,1272 +510,6 @@ function MurmurHash3_x86_32(p, len, seed) {
   h1 = h1 ^ (h1 >>> 16);    
 
   return h1 | 0;
-}
-
-/********************
- * ufmap
- *
- * A hash map implementation where
- * a key is limited to an unsigned 32-bit integer and
- * a value is limited to a 32-bit float.
- *
- * For efficiency, the maximum number of keys must be specified at creation.
- *
- * +-------+---+---+---+---+---+---+
- * |  TMP  |TBS|LEN|MNK|LLP|FRP|FLG| (more-->)
- * +-------+---+---+---+---+---+---+
- *
- * +===============+===============+
- * |... BUCKETS ...|... ENTRIES ...|
- * +===============+===============+
- *
- * TMP: free 64-bit space to allocate temporary variables
- * TBS: table size
- * LEN: current number of items in this map
- * MNK: maximum number of keys this map can contain
- * LLP: relative byte offset to the linked list
- * FRP: relative byte offset to the next free entry space
- * FLG: flags
- * BUCKETS: hash table
- * ENTRIES: a sequence of entries
- *
- * This data structure uses 
- * 32 + tableSize * 4 (bytes) + maxNumberOfKeys * 12 (bytes)
- *
- * This hash map uses separated chaining with linked lists as collision
- * resolution. Each bucket uses signed 32-bit integer as a pointer to the
- * first entry of a linked list. 0 denotes the key is not used.
- *
- * Each entry occupies 12 bytes.
- *
- * +---+---+---+
- * |KEY|VAL|NXT|
- * +---+---+---+
- *
- * KEY: 32-bit unsigned value for a key
- * VAL: 32-bit float value for a value
- * NXT: relative byte offset to the next entry
- *
- * NXT == 0 indicates that the entry is the last one in a linked list.
- * NXT == 0xffffffff indicates that the entry is free and can be
- * reallocated, and in this case KEY represents the relative byte offset to
- * next free space.
- ********************/
-
-/**
- * Creates a new hash map.
- *
- * `tableSize` must be a power of 2. No validation is employed.
- *
- * @param {int} p - byte offset
- * @param {int} tableSize - size of table
- * @param {int} maxNumberOfKeys - unsigned 32-bit integer
- *   to specify the maximum number of keys
- */
-function ufmap_create(p, tableSize, maxNumberOfKeys) {
-  /*
-   * Type annotations
-   */
-  p = p | 0;
-  tableSize = tableSize | 0;
-  maxNumberOfKeys = maxNumberOfKeys | 0;
-  
-  /*
-   * Local variables
-   */
-  var linkedListP = 0; // byte offset to the first linked list entry
-  
-  /*
-   * Main
-   */
-  U4[(p + 8) >> 2] = tableSize;
-  U4[(p + 12) >> 2] = 0;
-  U4[(p + 16) >> 2] = maxNumberOfKeys;
-  linkedListP = (32 + tableSize) | 0;
-  U4[(p + 20) >> 2] = linkedListP;
-  U4[(p + 24) >> 2] = linkedListP;
-}
-
-/**
- * Find an entry for a key.
- *
- * After this operation, byte offset to the start of an entry (relative to
- * the start of this map) is written into the first 32-bit of TMP
- * relative byte offset to a position where the pointer to the entry is
- * written into the second 32-bit of TMP.
- *
- * When the key is not found, the first 32-bit of TMP will be 0.
- * The second 32-bit of TMP will be ...
- *
- * @param {int} p - byte offset
- * @param {int} key - 32-bit unsigned integer
- */
-function _ufmap_find(p, key) {
-  /*
-   * Type annotations
-   */
-  p = p | 0;
-  key = key | 0;
-  
-  /*
-   * Local variables
-   */
-  var TMP1 = 0;
-  var TMP2 = 4;
-  var TBS = 8;
-  var TABLE_START = 32;
-  var SEED = 42; // 42 is a seed chosen arbitrarily
-  var mask = 0;
-  var hashValue = 0;
-  var k = 0;
-  var prevP = 0;
-  var nextP = 0;
-  var entryP = 0;
-  var tmp1P = 0;
-  
-  /*
-   * Main
-   */
-  tmp1P = (p + TMP1) | 0;
-
-  mask = ((U4[(p + TBS) >> 2] | 0) - 1) >>> 0;
-  U4[tmp1P >> 2] = key;
-  hashValue = MurmurHash3_x86_32(tmp1P, 1, SEED) | 0;
-
-  prevP = (TABLE_START + (hashValue & mask)) | 0;
-  nextP = U4[(p + prevP) >> 2] | 0;
-  
-  // while (nextP is not empty and key is not matched)
-  while (((nextP | 0) != 0) & ((k >>> 0) != (key >>> 0))) {
-    entryP = nextP;
-    k = U4[(p + entryP) >> 2] | 0;
-    prevP = entryP;
-    nextP = U4[((p + entryP + 8) | 0) >> 2] | 0;
-  }
-  
-  U4[(p + TMP2) >> 2] = prevP | 0;
-
-  if ((k | 0) == (key | 0)) {
-    // Key matched
-    U4[tmp1P >> 2] = entryP | 0;
-  } else {
-    U4[tmp1P >> 2] = 0;
-  }
-}
-
-/**
- * @param {int} p - byte offset
- * @param {signed} key - 32-bit unsigned integer
- */
-function ufmap_has(p, key) {
-  /*
-   * Type annotations
-   */
-  p = p | 0;
-  key = key | 0;
-  
-  /*
-   * Local variables
-   */
-  var TMP1 = 0;
-  var matched = 0;
-
-  /*
-   * Main
-   */
-  _ufmap_find(p, key);
-  matched = U4[(p + TMP1) >> 2] | 0;
-  
-  if ((matched | 0) != 0) {
-    // Key matched
-    return 1;
-  }
-  
-  return 0;
-}
-
-/**
- * Updates the value by the following formula in 32-bit precision
- * map[key] = coef * map[key] + value
- *
- * @param {int} p - byte offset
- * @param {int} key - 32-bit unsigned integer
- * @param {double} value - 64-bit float
- * @param {double} coef - 64-bit float
- */
-function ufmap_add(p, key, value, coef) {
-  /*
-   * Type annotations
-   */
-  p = p | 0;
-  key = key | 0;
-  value = +value;
-  coef = +coef;
-
-  /*
-   * Local variables
-   */
-  var TMP1 = 0;
-  var TMP2 = 4;
-  var LEN = 12;
-  var MNK = 16;
-  var FRP = 24;
-  var lenP = 0;
-  var mnkP = 0;
-  var frpP = 0;
-  var freeAbsP = 0; // byte offset for a new entry
-  var entryP = 0;
-  var prevP = 0;
-  var valueAbsP = 0;
-  var v = 0.0;
-  var currentSize = 0;
-  var maximumNumberOfKeys = 0;
-
-  /*
-   * Main
-   */
-  lenP = (p + LEN) | 0;
-  mnkP = (p + MNK) | 0;
-  frpP = (p + FRP) | 0;
-  
-  _ufmap_find(p, key);
-  entryP = U4[(p + TMP1) >> 2] | 0;
-  prevP = U4[(p + TMP2) >> 2] | 0;
-
-  if ((entryP | 0) != 0) {
-    // Key matched
-    valueAbsP = (p + entryP + 4) | 0;
-    v = +F4[valueAbsP >> 2];
-    v = coef * v + value;
-    F4[valueAbsP >> 2] = v;
-    return;
-  }
-
-  currentSize = U4[lenP >> 2] >>> 0;
-  maximumNumberOfKeys = U4[mnkP >> 2] >>> 0;
-  
-  if ((currentSize >>> 0) == (maximumNumberOfKeys >>> 0)) {       
-    return;
-  }
-
-  // Add a new entry
-  freeAbsP = (p + (U4[frpP >> 2] | 0)) | 0;
-  U4[(p + prevP) >> 2] = (freeAbsP - p) | 0;
-  U4[freeAbsP >> 2] = key;
-  freeAbsP = (freeAbsP + 4) | 0;
-  F4[freeAbsP >> 2] = value;
-  freeAbsP = (freeAbsP + 4) | 0;
-  U4[frpP >> 2] = (freeAbsP - p) | 0;
-
-  // increment the number of entries
-  U4[lenP >> 2] = (currentSize + 1) >>> 0;
-}
-
-/**
- * @param {int} p - byte offset
- * @param {int} key - 32-bit unsigned integer
- */
-function ufmap_get(p, key) {
-  /*
-   * Type annotations
-   */
-  p = p | 0;
-  key = key | 0;
-
-  /*
-   * Local variables
-   */
-  var TMP1 = 0;
-  var TMP2 = 4;
-  var matched = 0;
-  var entryP = 0;
-  var prevP = 0;
-
-  /*
-   * Main
-   */
-  _ufmap_find(p, key);
-  matched = U4[(p + TMP1) >> 2] | 0;
-  entryP = (p + matched) | 0;
-  prevP = (p + (U4[(p + TMP2) >> 2] | 0)) | 0;
-
-  if ((matched | 0) != 0) {
-    // Key matched
-    return +F4[(entryP + 4) >> 2];
-  }
-  
-  return 0.0;
-}
-
-/**
- * Returns the number of entries contained in this map.
- *
- * @param {int} p - byte offset
- * @returns {signed} - size 
- */
-function ufmap_size(p) {
-  /*
-   * Type annotations
-   */
-  p = p | 0;
-
-  /*
-   * Local variables
-   */
-  var LEN = 12;
-
-  /*
-   * Main
-   */
-  return U4[(p + LEN) >> 2] | 0;
-}
-
-/**
- * Returns the dot product between a sparse vector x and a dense vector y.
- * Unlike the original Sparse BLAS, repeated indices in x are allowed.
- */
-function susdot(nz, xP, indexP, yP, outP) {
-  /*
-   * Type annotations
-   */
-  nz = nz | 0;
-  xP = xP | 0;
-  indexP = indexP | 0;
-  yP = yP | 0;
-  outP = outP | 0;
- 
-  /*
-   * Local variables
-   */
-  var result = 0.0;
-  var end = 0;
-  var index = 0;
-  var value = 0.0;
-
-  /*
-   * Main
-   */
-  end = (indexP + (nz << 2)) | 0;
-  while ((indexP | 0) < (end | 0)) {
-    index = I4[indexP >> 2] | 0;
-    value = +F4[xP >> 2];
-    
-    result = +(result + value * +F4[(yP + (index << 2)) >> 2]);
-    
-    indexP = (indexP + 4) | 0;
-    xP = (xP + 4) | 0;
-  }
-  
-  F4[outP >> 2] = result;
-}
-
-/* global CMP_FUNCTION_TABLE */
-
-// LICENSE issue
-// original C code is copyrighted by John Wiley & Sons Inc.
-// http://www.cs.dartmouth.edu/~doug/qsort.c
-// we will rewrite this code to BSD's qsort
-
-/**
- * Sorts things quickly.
- *
- * qsortBM uses an improved version of the quick sort algorithm developed by
- * Jon L. Bentley and M. Douglas McIlroy in 1993.
- *
- * TODO: the original B&M variably changes the size used for swap,
- * though currently this implementation swaps data byte by byte.
- * This issue will be solved soon.
- *
- * @param {int} inP - byte offset to an array
- * @param {int} n - number of elements of the specified array
- * @param {int} es - byte size of each element
- * @param {int} cmpId - id of a comparator
- * @see Jon L. Bentley and M. Douglas McIlroy. 1993.
- *   Engineering a sort function. Software: Practice and Experience,
- *   23(11):1249–1265.
- */
-function qsortBM(inP, n, es, cmpId) {
-  /*
-   * Type annotations
-   */
-  inP = inP | 0;
-  n = n | 0;
-  es = es | 0;
-  cmpId = cmpId | 0;
-  
-  /*
-   * Local variables
-   */
-  var a = 0;
-  var pa = 0;
-  var pb = 0;
-  var pc = 0;
-  var pd = 0;
-  var pl = 0;
-  var pm = 0;
-  var pn = 0;
-  var pv = 0;
-  
-  var r = 0;
-  // var swapType = 0;
-  // var t = 0;
-  var s = 0;
-  
-  var isTrue1 = 0;
-  var isTrue2 = 0;
-
-  /*
-   * Main
-   */
-  // this variable is used only for convenience to compare this code
-  // with the original source code of B&M
-  a = inP;
-  
-  // Insertion sort if an array is very small
-  if ((n | 0) < 7) {
-    //for (pm = a + es; pm < a + n * es; pm += es) 
-    pm = (a + es) | 0;
-    isTrue1 = (pm | 0) < ((a + imul(n, es)) | 0);
-    while (isTrue1) {
-      
-      // for (pl = pm; pl > a && cmp(pl - es, pl) > 0; pl -= es)
-      pl = pm;
-      isTrue2 = (pl | 0) > (a | 0);
-      if (isTrue2) {
-        isTrue2 = (CMP_FUNCTION_TABLE[cmpId & 3]((pl - es) | 0, pl) | 0) > 0;
-      }
-      while (isTrue2) {
-        swap(pl, (pl - es) | 0, es);
-
-        pl = (pl - es) | 0;
-
-        isTrue2 = (pl | 0) > (a | 0);
-        if (isTrue2) {
-          isTrue2 = (CMP_FUNCTION_TABLE[cmpId & 3]((pl - es) | 0, pl) | 0) > 0;
-        }
-      }
-      
-      pm = (pm + es) | 0;
-      isTrue1 = (pm | 0) < ((a + imul(n, es)) | 0);
-    }
-    
-    return;
-  }
-  
-  pm = (a + imul(((n | 0) / 2) | 0, es)) | 0;
-  
-  if ((n | 0) > 7) {
-    pl = a;
-    pn = (a + imul(n - 1, es)) | 0;
-    if ((n | 0) > 40) {
-      // big arrays
-      s = imul(n >> 3, es);
-      pl = med3(pl, (pl + s) | 0, (pl + (s << 1)) | 0, cmpId) | 0;
-      pm = med3((pm - s) | 0, pm, (pm + s) | 0, cmpId) | 0;
-      pn = med3((pn - (s << 1)) | 0, (pn - s) | 0, pn, cmpId) | 0;
-    }
-    pm = med3(pl, pm, pn, cmpId) | 0;
-  }
-  
-  // PVINIT
-  // Unlike the original C implementation, we always swap here, since
-  // in ECMAScript it is impossible to obtain the address of a local variable
-  pv = a;
-  swap(pv, pm, es);
-  
-  // pa = pb = a;
-  pb = a;
-  pa = pb;
-  
-  // pc = pd = a + (n - 1) * es;
-  pd = (a + imul(n - 1, es)) | 0;
-  pc = pd;
-    
-  for (;;) {
-    // while (pb <= pc && (r = cmp(pb, pv)) <= 0)
-    isTrue1 = (pb | 0) <= (pc | 0);
-    if (isTrue1) {
-      r = CMP_FUNCTION_TABLE[cmpId & 3](pb, pv) | 0;
-      isTrue1 = (r | 0) <= 0;
-    }
-    
-    while (isTrue1) {
-      if ((r | 0) == 0) {
-        swap(pa, pb, es);
-        pa = (pa + es) | 0;
-      }
-
-      pb = (pb + es) | 0;
-      
-      isTrue1 = (pb | 0) <= (pc | 0);
-      if (isTrue1) {
-        r = CMP_FUNCTION_TABLE[cmpId & 3](pb, pv) | 0;
-        isTrue1 = (r | 0) <= 0;
-      }
-    }
-    
-    // while (pc >= pb && (r = cmp(pc, pv)) >= 0)
-    isTrue1 = (pc | 0) >= (pb | 0);
-    if (isTrue1) {
-      r = CMP_FUNCTION_TABLE[cmpId & 3](pc, pv) | 0;
-      isTrue1 = (r | 0) >= 0;
-    }
-    while (isTrue1) {
-      if ((r | 0) == 0) {
-        swap(pc, pd, es);
-        pd = (pd - es) | 0;
-      }
-      
-      pc = (pc - es) | 0;
-
-      isTrue1 = (pc | 0) >= (pb | 0);
-      if (isTrue1) {
-        r = CMP_FUNCTION_TABLE[cmpId & 3](pc, pv) | 0;
-        isTrue1 = (r | 0) >= 0;
-      }
-    }
-    
-    if ((pb | 0) > (pc | 0)) {
-      break;
-    }
-    
-    swap(pb, pc, es);
-    pb = (pb + es) | 0;
-    pc = (pc - es) | 0;
-  }
-  
-  pn = (a + imul(n, es)) | 0;
-  s = min((pa - a) | 0, (pb - pa) | 0);
-  vecswap(a, (pb - s) | 0, s);
-  s = min((pd - pc) | 0, (pn - pd - es) | 0);
-  vecswap(pb, (pn - s) | 0, s);  
-  
-  s = (pb - pa) | 0;
-  if ((s | 0) > (es | 0)) {
-    qsortBM(a, ((s | 0) / (es | 0)) | 0, es, cmpId);
-  }
-  
-  s = (pd - pc) | 0;
-  if ((s | 0) > (es | 0)) {
-    qsortBM((pn - s) | 0, ((s | 0) / (es | 0)) | 0, es, cmpId);
-  }
-}
-
-function swap(a, b, n) {
-  /*
-   * Type annotations
-   */
-  a = a | 0;
-  b = b | 0;
-  n = n | 0;
-
-  /*
-   * Local variables
-   */
-  var t = 0;
-
-  /*
-   * Main
-   */  
-  for (; (n | 0) > 0; a = (a + 1) | 0, b = (b + 1) | 0, n = (n - 1) | 0) {
-    t = U1[a >> 0] | 0;
-    U1[a >> 0] = U1[b >> 0];
-    U1[b >> 0] = t | 0;
-  }
-}
-
-function vecswap(a, b, n) {
-  /*
-   * Type annotations
-   */
-  a = a | 0;
-  b = b | 0;
-  n = n | 0;
-
-  /*
-   * Main
-   */
-  if ((n | 0) > 0) {
-    swap(a, b, n);    
-  }
-}
-
-function med3(a, b, c, cmpId) {
-  /*
-   * Type annotations
-   */
-  a = a | 0;
-  b = b | 0;
-  c = c | 0;
-  cmpId = cmpId | 0;
-
-  /*
-   * Local variables
-   */
-  var t = 0;
-
-  /*
-   * Main
-   */
-  t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, b) | 0) < 0) | 0;
-
-  if (t) {
-    // a < b
-
-    t = ((CMP_FUNCTION_TABLE[cmpId & 3](b, c) | 0) < 0) | 0;
-    
-    if (t) {
-      // a < b <c      
-      return b | 0;
-    }
-    // a < b & b >= c    
-    t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, c) | 0) < 0) | 0;
-
-    if (t) {
-      // a < c <= b      
-      return c | 0;
-    }
-    // c <= a < b
-    return a | 0;
-  }
-  // b <= a
-
-  t = ((CMP_FUNCTION_TABLE[cmpId & 3](b, c) | 0) > 0) | 0;
-  
-  if (t) {
-    // c < b <= a
-    return b | 0;
-  }
-  
-  // b <= a & b <= c
-  
-  t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, c) | 0) > 0) | 0;
-  
-  if (t) {
-    // b <= c < a
-    return c | 0;
-  }
-  // b <= a <= c
-  return a | 0;
-}
-
-/**
- * Sort the element in a sparse vector with ascending order of indices.
- *
- * Exactly (nz * 4) will be written into each of outValueP and outIndexP.
- */
-function sort(nz, valueP, indexP,
-    outValueP, outIndexP) {
-  /*
-   * Type annotations
-   */
-  nz = nz | 0;
-  valueP = valueP | 0;
-  indexP = indexP | 0;
-  outValueP = outValueP | 0;
-  outIndexP = outIndexP | 0;
-
-  /*
-   * Local variables
-   */
-  var i = 0;
-  var p = 0;
-
-  /*
-   * Main
-   */
-  if ((nz | 0) <= 0) {
-    return;
-  }
-  
-  // fill an array with pointers to the original indices
-  for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
-    I4[(outIndexP + (i << 2)) >> 2] = (indexP + (i << 2)) | 0;
-  }
-
-  // sort pointers by their value at destination
-  qsortBM(outIndexP, nz, 4, 2);
-  
-  // write real values
-  for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
-    p = I4[outIndexP >> 2] | 0;
-    I4[outIndexP >> 2] = I4[p >> 2] | 0;
-    p = (p - indexP) | 0; // get the relative byte offset
-    F4[outValueP >> 2] = F4[(valueP + p) >> 2];
-    
-    outValueP = (outValueP + 4) | 0;
-    outIndexP = (outIndexP + 4) | 0;
-  }
-}
-
-/**
- * Sums up repeated indices in a sparse vector
- * and returns a new sparse vector with unique indices.
- *
- * This method uses exactly (nz * 4) bytes at tmpP.
- *
- * Exactly 4 bytes will be written into outNzP.
- * This function uses exactly (nz * 4) bytes at outValueP and outIndexP,
- * even when the resulting vector is smaller than that.
- *
- * The current implementation sorts elements by indices but this behavior may
- * change in future.
- */
-function unique(nz, valueP, indexP,
-    outNzP, outValueP, outIndexP) {
-  /*
-   * Type annotations
-   */
-  nz = nz | 0;
-  valueP = valueP | 0;
-  indexP = indexP | 0;
-  outNzP = outNzP | 0;
-  outValueP = outValueP | 0;
-  outIndexP = outIndexP | 0;
-  
-  /*
-   * Local variables
-   */
-  var i = 0;
-  var value = 0.0;
-  var index = 0;
-  var previousIndex = 0;
-  var newNz = 0;
-  var newValue = 0.0;
-
-  /*
-   * Main
-   */
-  sort(nz, valueP, indexP, outValueP, outIndexP);
-  valueP = outValueP;
-  indexP = outIndexP;
-
-  index = I4[indexP >> 2] | 0;
-  indexP = (indexP + 4) | 0;
-  value = +F4[valueP >> 2];
-  valueP = (valueP + 4) | 0;
-  newValue = value;
-  previousIndex = index;
-
-  for (i = 1; (i | 0) < (nz | 0); i = (i + 1) | 0) {
-    index = I4[indexP >> 2] | 0;
-    indexP = (indexP + 4) | 0;
-    value = +F4[valueP >> 2];
-    valueP = (valueP + 4) | 0;
-    
-    if ((index >>> 0) == (previousIndex >>> 0)) {
-      newValue = newValue + value;
-    } else {
-      F4[outValueP >> 2] = newValue;
-      U4[outIndexP >> 2] = previousIndex;
-      
-      newValue = value;
-      
-      newNz = (newNz + 1) | 0;
-      outValueP = (outValueP + 4) | 0;
-      outIndexP = (outIndexP + 4) | 0;
-    }
-    
-    previousIndex = index;
-  }
-
-  newNz = (newNz + 1) | 0;
-  I4[outNzP >> 2] = newNz;
-  F4[outValueP >> 2] = newValue;
-  U4[outIndexP >> 2] = previousIndex;
-}
-
-/**
- * Returns the l0 of a dense vector.
- */
-function l0(p, len) {
-  /*
-   * Type annotations
-   */
-  p = p | 0;
-  len = len | 0;
-  
-  /*
-   * Local variables
-   */
-  var i = 0;
-  var l0 = 0;
-
-  /*
-   * Main
-   */
-  for (i = 0; (i | 0) < (len | 0); i = (i + 1) | 0) {
-    if (+F4[p >> 2] != 0.0) {
-      l0 = (l0 + 1) | 0;
-    }
-    
-    p = (p + 4) | 0;
-  }
-  
-  return l0 | 0;
-}
-
-function rounding(p, len, m, degree) {
-  /*
-   * Type annotations
-   */
-  p = p | 0;
-  len = len | 0;
-  m = m | 0;
-  degree = degree | 0;
-  
-  /*
-   * Local variables
-   */
-  var i = 0;
-  var v = 0.0;
-  var t = 0;
-  var quant = 0.0;
-  var maxValue = 0;
-  var minValue = 0;
-
-  /*
-   * Main
-   */
-  quant = pow(2.0, +(degree | 0));
-  maxValue = ((1 << (m + degree)) - 1) | 0;
-  minValue = -maxValue | 0;
-  
-  for (i = 0; (i | 0) < (len | 0); i = (i + 1) | 0) {
-    v = +F4[p >> 2];
-
-    v = v * quant;
-    t = ~~v;
-    
-    t = min(t | 0, maxValue | 0);
-    t = max(t | 0, minValue | 0);
-    v = +(t | 0);
-    v = v / quant;
-
-    F4[p >> 2] = v;
-    
-    p = (p + 4) | 0;
-  }
-}
-
-/**
- * Fast <code>popcount</code> (also known as sideways addition)
- * for 32-bit integers, that is, counting non-zero bits in an integer.
- * 
- * See {@link
- * http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel}
- * or {@link http://stackoverflow.com/a/15979139/3211373}.
- * 
- * @param {int} n - 32-bit integer
- * @return {signed} number of non-zero bits in <code>n</code>
- */
-function popcount(n) {
-  /*
-   * Type annotations
-   */
-  n = n |0;
-
-  /*
-   * Main
-   */
-  n = (n - ((n >>> 1) & 0x55555555)) | 0;
-  n = (n & 0x33333333) + ((n >>> 2) & 0x33333333) | 0;
-  return (imul(((n + (n >>> 4)) & 0x0F0F0F0F), 0x01010101) >>> 24) | 0;
-}
-
-/**
- * Initializes a table used in <code>deBruijnSelect</code>.
- * Exactly 32 bytes will be written into outP.
- */
-function deBruijnSelectInit(outP) {
-  /*
-   * Type annotations
-   */
-  outP = outP | 0;
-  
-  /*
-   * Local variables
-   */
-  var i = 0;
-  var offset = 0;
-
-  /*
-   * Main
-   */
-  for (i = 0; (i | 0) < 32; i = (i + 1) | 0) {
-    // 0x077cb531 is a de Bruijn sequence 00000111011111001011010100110001
-    offset = (0x077cb531 << i) >>> 27;
-    U1[(outP + offset) >> 0] = i;
-  }
-}
-
-/**
- * Returns the number of 1s in a 32-bit integer and
- * writes out the actual indices of the 1s (0 <= i < 32) into <code>outP</code>.
- * Each index occupies one byte, so at most 32 bytes (32 int8 integers) will
- * be written into <code>outP</code>.
- *
- * Before using this function, precompute a table at <code>tableP</code>
- * by <code>deBruijnSelectInit</code>.
- *
- * @param {int} tableP - byte offset to the precomputed table
- * @param {int} n - 32-bit integer to be examined
- * @param {int} outP - byte offset into which the results are to be written
- * @returns {signed} - number of 1s found in a word
- *
- * @see Peter Wegner. 1960. A Technique for Counting Ones in a Binary Computer.
- *   Communications of the ACM, 3(5):322, May.
- * @see Charles E. Leiserson, Harald Prokop, and Keith H. Randall. 1998. Using
- *   de Bruijn Sequences to Index a 1 in a Computer Word. Technical report.
- */
-function deBruijnSelect(tableP, n, outP) {
-  /*
-   * Type annotations
-   */
-  tableP = tableP | 0;
-  n = n | 0;
-  outP = outP | 0;
-  
-  /*
-   * Local variables
-   */
-  var i = 0;
-  var t = 0;
-  var offset = 0;
-
-  /*
-   * Main
-   */
-  while ((n | 0) != 0) {
-    // Since 2147483648 & -2147483648 returns -2147483648 in ECMAScript,
-    // we need type casting (>>> 0) to unsigned.
-    t = (n & -n) >>> 0;
-    // 0x077cb531 is a de Bruijn sequence 00000111011111001011010100110001
-    offset = imul(t, 0x077cb531) >>> 27;
-    U1[(outP + i) >> 0] = U1[(tableP + offset) >> 0];
-    n = (n - t) | 0;
-    i = (i + 1) | 0;
-  }
-
-  return i | 0;
-}
-
-/**
- * Based on ConvertUTF.c by Unicode, Inc.
- * Endian dependent.
- *
- * @param {int} inPP - byte offset to a byte offset to uint16s
- * @param {int} inEnd - byte offset to the end of inputs
- * @param {int} outPP - byte offset to a byte offset to uint8s
- * @param {int} outEnd - byte offset to the end of outputs
- * @returns {signed} - error code
- */
-function uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd) {
-  /*
-   * Type annotations
-   */
-  inPP = inPP | 0;
-  inEnd = inEnd | 0;
-  outPP = outPP | 0;
-  outEnd = outEnd | 0;
-  
-  /*
-   * Local variables
-   */
-  var SUR_HIGH_START = 0xd800;
-  var SUR_HIGH_END = 0xdbff;
-  var SUR_LOW_START = 0xdc00;
-  var SUR_LOW_END = 0xdfff;
-  var HALF_SHIFT = 10;
-  var HALF_BASE = 0x0010000;
-  // var HALF_MASK = 0x3ff;
-  var BYTE_MASK = 0xBF;
-  var BYTE_MARK = 0x80;
-  // var ERROR_SOURCE_EXHAUSTED = 1;
-  var ERROR_TARGET_EXHAUSTED = 2;
-  var ERROR_SOURCE_ILLEGAL = 3;
-  var ch = 0;
-  var ch2 = 0;
-  var bytesToWrite = 0;
-  var inP = 0;
-  var outP = 0;
-  var firstByteMask = 0;
-  
-  /*
-   * Main
-   */
-  inP = U4[inPP >> 2] | 0;
-  outP = U4[outPP >> 2] | 0;      
-  while ((inP | 0) < (inEnd | 0)) {
-    ch = U2[inP >> 1] | 0;
-    inP = (inP + 2) | 0;
-    
-    // check if ch is a high surrogate
-    if (((ch | 0) >= (SUR_HIGH_START | 0)) &
-          ((ch | 0) <= (SUR_HIGH_END | 0))) {
-      if ((inP | 0) < (inEnd | 0)) {
-        ch2 = U2[inP >> 1] | 0;
-        
-        // check if ch2 is a low surrogate
-        if (((ch2 | 0) >= (SUR_LOW_START | 0)) &
-            ((ch2 | 0) <= (SUR_LOW_END | 0))) {
-          ch = (((ch - SUR_HIGH_START) << HALF_SHIFT) +
-            ((ch2 - SUR_LOW_START) + HALF_BASE)) | 0;
-          inP = (inP + 2) | 0;
-        }
-      } else {
-        // Input utf-16 string is ill-formed.
-        inP = (inP - 2) | 0;
-        return ERROR_SOURCE_ILLEGAL | 0;
-      }
-      
-      U1[outP >> 0] = ch;
-    } // end if surroge
-    
-    // How many bytes will the result require?
-    if ((ch | 0) < 0x80) {
-      bytesToWrite = 1;
-    } else if ((ch | 0) < 0x800) {
-      bytesToWrite = 2;
-    } else if ((ch | 0) < 0x10000) {
-      bytesToWrite = 3;
-    } else if ((ch | 0) < 0x110000) {
-      bytesToWrite = 4;
-    } else {
-      bytesToWrite = 3;
-      ch = 0xffffffff;
-    }
-    
-    // Write bytes
-    outP = (outP + bytesToWrite) | 0;
-    if ((outP | 0) > (outEnd | 0)) {
-      return ERROR_TARGET_EXHAUSTED | 0;
-    }
-    
-    switch (bytesToWrite | 0) {
-      case 4:
-        outP = (outP - 1) | 0;
-        U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
-        ch = ch >> 6;
-        /* falls through */
-      case 3:
-        outP = (outP - 1) | 0;
-        U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
-        ch = ch >> 6;
-        /* falls through */
-      case 2:
-        outP = (outP - 1) | 0;
-        U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
-        ch = ch >> 6;
-        /* falls through */
-      case 1:
-        outP = (outP - 1) | 0;
-        if ((bytesToWrite | 0) == 1){
-          firstByteMask = 0;
-        } else if ((bytesToWrite | 0) == 2) {
-          firstByteMask = 0xc0;
-        } else if ((bytesToWrite | 0) == 3) {
-          firstByteMask = 0xe0;              
-        } else {
-          firstByteMask = 0xf0;
-        }
-
-        U1[outP >> 0] = (ch | firstByteMask);
-    } // end switch
-    outP = (outP + bytesToWrite) | 0;
-  } // end while
-  
-  U4[inPP >> 2] = inP | 0;
-  U4[outPP >> 2] = outP | 0;
-  
-  return 0;
-}
-
-/**
- * @parma {int} b - first byte of a utf-8 sequence
- * @returns {signed} - number of trailing bytes for the sequence
- */
-function trailingBytesForUtf8(b) {
-  /*
-   * Type annotations
-   */
-  b = b | 0;
-  
-  /*
-   * Main
-   */   
-  b = b & 0xff;
-  if ((b | 0) < 192) {
-    return 0;
-  } else if ((b | 0) < 224) {
-    return 1;
-  } else if ((b | 0) < 240) {
-    return 2;
-  } else if ((b | 0) < 248){
-    return 3;
-  }
-  
-  
-  // invalid
-  return 0xff;
-}
-
-/**
- * Based on ConvertUTF.c by Unicode, Inc.
- * Endian dependent.
- *
- * @param {int} inPP - byte offset to a byte offset to uint16s
- * @param {int} inEnd - byte offset to the end of inputs
- * @param {int} outPP - byte offset to a byte offset to uint8s
- * @param {int} outEnd - byte offset to the end of outputs
- * @returns {signed} - error code
- */
-function convertUtf8toUtf16(inPP, inEnd, outPP, outEnd) {
-  /*
-   * Type annotations
-   */
-  inPP = inPP | 0;
-  inEnd = inEnd | 0;
-  outPP = outPP | 0;
-  outEnd = outEnd | 0;
-  
-  /*
-   * Local variables
-   */
-  var SUR_HIGH_START = 0xd800;
-  var SUR_LOW_START = 0xdc00;
-  var SUR_LOW_END = 0xdfff;
-  var HALF_SHIFT = 10;
-  var HALF_BASE = 0x0010000;
-  var HALF_MASK = 0x3ff;
-  var ERROR_SOURCE_EXHAUSTED = 1;
-  var ERROR_TARGET_EXHAUSTED = 2;
-  var ERROR_SOURCE_ILLEGAL = 3;
-  var result = 0;
-  var ch = 0;
-  var v = 0;
-  var inP = 0;
-  var outP = 0;
-  var extraBytesToRead = 0;
-  
-  /*
-   * Main
-   */
-  inP = U4[inPP >> 2] | 0;
-  outP = U4[outPP >> 2] | 0;  
-  while ((inP | 0) < (inEnd | 0)) {
-    ch = 0;
-    v = U1[inP >> 0] | 0;
-    extraBytesToRead = trailingBytesForUtf8(v) | 0;
-    if ((extraBytesToRead | 0) >= ((inEnd - inP) | 0)) {
-      result = ERROR_SOURCE_EXHAUSTED | 0;
-      break;
-    }
-    
-    // if (!isLegalUtf8)
-            
-    switch (extraBytesToRead | 0) {
-      case 3:
-        v = U1[inP >> 0] | 0;
-        ch = (ch + v) | 0;
-        inP = (inP + 1) | 0;
-        ch = ch << 6;
-        /* falls through */
-      case 2:
-        v = U1[inP >> 0] | 0;
-        ch = (ch + v) | 0;
-        inP = (inP + 1) | 0;
-        ch = ch << 6;
-        /* falls through */
-      case 1:
-        v = U1[inP >> 0] | 0;
-        ch = (ch + v) | 0;
-        inP = (inP + 1) | 0;
-        ch = ch << 6;
-        /* falls through */
-      case 0:
-        v = U1[inP >> 0] | 0;
-        ch = (ch + v) | 0;
-        inP = (inP + 1) | 0;
-    }
-    
-    switch (extraBytesToRead | 0) {
-      case 3:
-        ch = (ch - 0x3c82080) | 0;
-        break;
-      case 2:
-        ch = (ch - 0xe2080) | 0;
-        break;
-      case 1:
-        ch = (ch - 0x3080) | 0;
-        break;
-    }
-
-    if ((outP | 0) >= (outEnd | 0)) {
-      inP = (inP - extraBytesToRead + 1) | 0;
-      result = ERROR_TARGET_EXHAUSTED;
-      break;
-    }
-    
-    if ((ch | 0) <= 0xffff) {
-      // if BMP
-      if (((ch | 0) >= (SUR_HIGH_START | 0)) &
-        ((ch | 0) <= (SUR_LOW_END | 0))) {
-        inP = (inP - extraBytesToRead + 1) | 0;
-        result = ERROR_SOURCE_ILLEGAL = 3;
-        break;
-      } else {
-        U2[outP >> 1] = ch | 0;
-        outP = (outP + 2) | 0;
-      }
-    } else if ((ch | 0) > 0x10ffff) {
-      // if outside Unicode
-      result = ERROR_SOURCE_ILLEGAL | 0;
-      inP = (inP - extraBytesToRead + 1) | 0;
-      break;
-    } else {
-      // if non-BMP
-      if ((outP | 0) >= (outEnd | 0)) {
-        inP = (inP - extraBytesToRead + 1) | 0;
-        result = ERROR_TARGET_EXHAUSTED;
-        break;
-      }
-      ch = (ch - HALF_BASE) | 0;
-      U2[outP >> 1] = ((ch >> HALF_SHIFT) + SUR_HIGH_START) | 0;
-      outP = (outP + 2) | 0;
-      U2[outP >> 1] = ((ch & HALF_MASK) + SUR_LOW_START) | 0;
-    }
-    
-  } // end while
-  
-  U4[inPP >> 2] = inP | 0;
-  U4[outPP >> 2] = outP | 0;
-  
-  return result | 0;
-}
-
-/**
- * Check if the current environment is little-endian or not.
- *
- * @returns {signed} - 1 if little-endian, otherwise 0
- */
-function isLittleEndian() {
-  /*
-   * Local variables
-   */
-  var c = 0;
-  var result = 0;
-  
-  /*
-   * Main
-   */
-  c = U2[0 >> 1] | 0;
-  U1[0 >> 0] = 0;
-  U1[1 >> 0] = 1;
-  result = U2[0 >> 1] >>> 8;
-  U2[0 >> 1] = c | 0;
-  
-  return result | 0;
 }
 
 /**
@@ -2126,6 +1068,422 @@ function updateJointScores(featureScoreP, forwardScoreP,
  
 }
 
+/* global CMP_FUNCTION_TABLE */
+
+// LICENSE issue
+// original C code is copyrighted by John Wiley & Sons Inc.
+// http://www.cs.dartmouth.edu/~doug/qsort.c
+// we will rewrite this code to BSD's qsort
+
+/**
+ * Sorts things quickly.
+ *
+ * qsortBM uses an improved version of the quick sort algorithm developed by
+ * Jon L. Bentley and M. Douglas McIlroy in 1993.
+ *
+ * TODO: the original B&M variably changes the size used for swap,
+ * though currently this implementation swaps data byte by byte.
+ * This issue will be solved soon.
+ *
+ * @param {int} inP - byte offset to an array
+ * @param {int} n - number of elements of the specified array
+ * @param {int} es - byte size of each element
+ * @param {int} cmpId - id of a comparator
+ * @see Jon L. Bentley and M. Douglas McIlroy. 1993.
+ *   Engineering a sort function. Software: Practice and Experience,
+ *   23(11):1249–1265.
+ */
+function qsortBM(inP, n, es, cmpId) {
+  /*
+   * Type annotations
+   */
+  inP = inP | 0;
+  n = n | 0;
+  es = es | 0;
+  cmpId = cmpId | 0;
+  
+  /*
+   * Local variables
+   */
+  var a = 0;
+  var pa = 0;
+  var pb = 0;
+  var pc = 0;
+  var pd = 0;
+  var pl = 0;
+  var pm = 0;
+  var pn = 0;
+  var pv = 0;
+  
+  var r = 0;
+  // var swapType = 0;
+  // var t = 0;
+  var s = 0;
+  
+  var isTrue1 = 0;
+  var isTrue2 = 0;
+
+  /*
+   * Main
+   */
+  // this variable is used only for convenience to compare this code
+  // with the original source code of B&M
+  a = inP;
+  
+  // Insertion sort if an array is very small
+  if ((n | 0) < 7) {
+    //for (pm = a + es; pm < a + n * es; pm += es) 
+    pm = (a + es) | 0;
+    isTrue1 = (pm | 0) < ((a + imul(n, es)) | 0);
+    while (isTrue1) {
+      
+      // for (pl = pm; pl > a && cmp(pl - es, pl) > 0; pl -= es)
+      pl = pm;
+      isTrue2 = (pl | 0) > (a | 0);
+      if (isTrue2) {
+        isTrue2 = (CMP_FUNCTION_TABLE[cmpId & 3]((pl - es) | 0, pl) | 0) > 0;
+      }
+      while (isTrue2) {
+        swap(pl, (pl - es) | 0, es);
+
+        pl = (pl - es) | 0;
+
+        isTrue2 = (pl | 0) > (a | 0);
+        if (isTrue2) {
+          isTrue2 = (CMP_FUNCTION_TABLE[cmpId & 3]((pl - es) | 0, pl) | 0) > 0;
+        }
+      }
+      
+      pm = (pm + es) | 0;
+      isTrue1 = (pm | 0) < ((a + imul(n, es)) | 0);
+    }
+    
+    return;
+  }
+  
+  pm = (a + imul(((n | 0) / 2) | 0, es)) | 0;
+  
+  if ((n | 0) > 7) {
+    pl = a;
+    pn = (a + imul(n - 1, es)) | 0;
+    if ((n | 0) > 40) {
+      // big arrays
+      s = imul(n >> 3, es);
+      pl = med3(pl, (pl + s) | 0, (pl + (s << 1)) | 0, cmpId) | 0;
+      pm = med3((pm - s) | 0, pm, (pm + s) | 0, cmpId) | 0;
+      pn = med3((pn - (s << 1)) | 0, (pn - s) | 0, pn, cmpId) | 0;
+    }
+    pm = med3(pl, pm, pn, cmpId) | 0;
+  }
+  
+  // PVINIT
+  // Unlike the original C implementation, we always swap here, since
+  // in ECMAScript it is impossible to obtain the address of a local variable
+  pv = a;
+  swap(pv, pm, es);
+  
+  // pa = pb = a;
+  pb = a;
+  pa = pb;
+  
+  // pc = pd = a + (n - 1) * es;
+  pd = (a + imul(n - 1, es)) | 0;
+  pc = pd;
+    
+  for (;;) {
+    // while (pb <= pc && (r = cmp(pb, pv)) <= 0)
+    isTrue1 = (pb | 0) <= (pc | 0);
+    if (isTrue1) {
+      r = CMP_FUNCTION_TABLE[cmpId & 3](pb, pv) | 0;
+      isTrue1 = (r | 0) <= 0;
+    }
+    
+    while (isTrue1) {
+      if ((r | 0) == 0) {
+        swap(pa, pb, es);
+        pa = (pa + es) | 0;
+      }
+
+      pb = (pb + es) | 0;
+      
+      isTrue1 = (pb | 0) <= (pc | 0);
+      if (isTrue1) {
+        r = CMP_FUNCTION_TABLE[cmpId & 3](pb, pv) | 0;
+        isTrue1 = (r | 0) <= 0;
+      }
+    }
+    
+    // while (pc >= pb && (r = cmp(pc, pv)) >= 0)
+    isTrue1 = (pc | 0) >= (pb | 0);
+    if (isTrue1) {
+      r = CMP_FUNCTION_TABLE[cmpId & 3](pc, pv) | 0;
+      isTrue1 = (r | 0) >= 0;
+    }
+    while (isTrue1) {
+      if ((r | 0) == 0) {
+        swap(pc, pd, es);
+        pd = (pd - es) | 0;
+      }
+      
+      pc = (pc - es) | 0;
+
+      isTrue1 = (pc | 0) >= (pb | 0);
+      if (isTrue1) {
+        r = CMP_FUNCTION_TABLE[cmpId & 3](pc, pv) | 0;
+        isTrue1 = (r | 0) >= 0;
+      }
+    }
+    
+    if ((pb | 0) > (pc | 0)) {
+      break;
+    }
+    
+    swap(pb, pc, es);
+    pb = (pb + es) | 0;
+    pc = (pc - es) | 0;
+  }
+  
+  pn = (a + imul(n, es)) | 0;
+  s = min((pa - a) | 0, (pb - pa) | 0);
+  vecswap(a, (pb - s) | 0, s);
+  s = min((pd - pc) | 0, (pn - pd - es) | 0);
+  vecswap(pb, (pn - s) | 0, s);  
+  
+  s = (pb - pa) | 0;
+  if ((s | 0) > (es | 0)) {
+    qsortBM(a, ((s | 0) / (es | 0)) | 0, es, cmpId);
+  }
+  
+  s = (pd - pc) | 0;
+  if ((s | 0) > (es | 0)) {
+    qsortBM((pn - s) | 0, ((s | 0) / (es | 0)) | 0, es, cmpId);
+  }
+}
+
+function swap(a, b, n) {
+  /*
+   * Type annotations
+   */
+  a = a | 0;
+  b = b | 0;
+  n = n | 0;
+
+  /*
+   * Local variables
+   */
+  var t = 0;
+
+  /*
+   * Main
+   */  
+  for (; (n | 0) > 0; a = (a + 1) | 0, b = (b + 1) | 0, n = (n - 1) | 0) {
+    t = U1[a >> 0] | 0;
+    U1[a >> 0] = U1[b >> 0];
+    U1[b >> 0] = t | 0;
+  }
+}
+
+function vecswap(a, b, n) {
+  /*
+   * Type annotations
+   */
+  a = a | 0;
+  b = b | 0;
+  n = n | 0;
+
+  /*
+   * Main
+   */
+  if ((n | 0) > 0) {
+    swap(a, b, n);    
+  }
+}
+
+function med3(a, b, c, cmpId) {
+  /*
+   * Type annotations
+   */
+  a = a | 0;
+  b = b | 0;
+  c = c | 0;
+  cmpId = cmpId | 0;
+
+  /*
+   * Local variables
+   */
+  var t = 0;
+
+  /*
+   * Main
+   */
+  t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, b) | 0) < 0) | 0;
+
+  if (t) {
+    // a < b
+
+    t = ((CMP_FUNCTION_TABLE[cmpId & 3](b, c) | 0) < 0) | 0;
+    
+    if (t) {
+      // a < b <c      
+      return b | 0;
+    }
+    // a < b & b >= c    
+    t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, c) | 0) < 0) | 0;
+
+    if (t) {
+      // a < c <= b      
+      return c | 0;
+    }
+    // c <= a < b
+    return a | 0;
+  }
+  // b <= a
+
+  t = ((CMP_FUNCTION_TABLE[cmpId & 3](b, c) | 0) > 0) | 0;
+  
+  if (t) {
+    // c < b <= a
+    return b | 0;
+  }
+  
+  // b <= a & b <= c
+  
+  t = ((CMP_FUNCTION_TABLE[cmpId & 3](a, c) | 0) > 0) | 0;
+  
+  if (t) {
+    // b <= c < a
+    return c | 0;
+  }
+  // b <= a <= c
+  return a | 0;
+}
+
+/**
+ * Sort the element in a sparse vector with ascending order of indices.
+ *
+ * Exactly (nz * 4) will be written into each of outValueP and outIndexP.
+ */
+function sort(nz, valueP, indexP,
+    outValueP, outIndexP) {
+  /*
+   * Type annotations
+   */
+  nz = nz | 0;
+  valueP = valueP | 0;
+  indexP = indexP | 0;
+  outValueP = outValueP | 0;
+  outIndexP = outIndexP | 0;
+
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var p = 0;
+
+  /*
+   * Main
+   */
+  if ((nz | 0) <= 0) {
+    return;
+  }
+  
+  // fill an array with pointers to the original indices
+  for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
+    I4[(outIndexP + (i << 2)) >> 2] = (indexP + (i << 2)) | 0;
+  }
+
+  // sort pointers by their value at destination
+  qsortBM(outIndexP, nz, 4, 2);
+  
+  // write real values
+  for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
+    p = I4[outIndexP >> 2] | 0;
+    I4[outIndexP >> 2] = I4[p >> 2] | 0;
+    p = (p - indexP) | 0; // get the relative byte offset
+    F4[outValueP >> 2] = F4[(valueP + p) >> 2];
+    
+    outValueP = (outValueP + 4) | 0;
+    outIndexP = (outIndexP + 4) | 0;
+  }
+}
+
+/**
+ * Sums up repeated indices in a sparse vector
+ * and returns a new sparse vector with unique indices.
+ *
+ * This method uses exactly (nz * 4) bytes at tmpP.
+ *
+ * Exactly 4 bytes will be written into outNzP.
+ * This function uses exactly (nz * 4) bytes at outValueP and outIndexP,
+ * even when the resulting vector is smaller than that.
+ *
+ * The current implementation sorts elements by indices but this behavior may
+ * change in future.
+ */
+function unique(nz, valueP, indexP,
+    outNzP, outValueP, outIndexP) {
+  /*
+   * Type annotations
+   */
+  nz = nz | 0;
+  valueP = valueP | 0;
+  indexP = indexP | 0;
+  outNzP = outNzP | 0;
+  outValueP = outValueP | 0;
+  outIndexP = outIndexP | 0;
+  
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var value = 0.0;
+  var index = 0;
+  var previousIndex = 0;
+  var newNz = 0;
+  var newValue = 0.0;
+
+  /*
+   * Main
+   */
+  sort(nz, valueP, indexP, outValueP, outIndexP);
+  valueP = outValueP;
+  indexP = outIndexP;
+
+  index = I4[indexP >> 2] | 0;
+  indexP = (indexP + 4) | 0;
+  value = +F4[valueP >> 2];
+  valueP = (valueP + 4) | 0;
+  newValue = value;
+  previousIndex = index;
+
+  for (i = 1; (i | 0) < (nz | 0); i = (i + 1) | 0) {
+    index = I4[indexP >> 2] | 0;
+    indexP = (indexP + 4) | 0;
+    value = +F4[valueP >> 2];
+    valueP = (valueP + 4) | 0;
+    
+    if ((index >>> 0) == (previousIndex >>> 0)) {
+      newValue = newValue + value;
+    } else {
+      F4[outValueP >> 2] = newValue;
+      U4[outIndexP >> 2] = previousIndex;
+      
+      newValue = value;
+      
+      newNz = (newNz + 1) | 0;
+      outValueP = (outValueP + 4) | 0;
+      outIndexP = (outIndexP + 4) | 0;
+    }
+    
+    previousIndex = index;
+  }
+
+  newNz = (newNz + 1) | 0;
+  I4[outNzP >> 2] = newNz;
+  F4[outValueP >> 2] = newValue;
+  U4[outIndexP >> 2] = previousIndex;
+}
+
 /**
  * Computes a gradient.
  *
@@ -2329,62 +1687,7 @@ function updateGradient(nzP, valueP, indexP,
   unique(totalNz, tmpValueP, tmpIndexP, outNzP, outValueP, outIndexP);
 }
 
-/**
- * Lazily calculates an updated value for AdaGrad-L1 primal-dual subgradient.
- * See p. 2137, Duchi, Hazan, and Singer (2011).
- *
- * @param {double} fov
- * @param {double} sov
- * @param {double} round
- * @param {double} delta
- * @param {double} eta
- * @param {double} lambda
- * @returns {double}
- */
-function adagradLazyValue(fov, sov, round, delta, eta, lambda) {
-  /*
-   * Type annotations
-   */
-  fov = +fov;
-  sov = +sov;
-  round = +round;
-  delta = +delta;
-  eta = +eta;
-  lambda = +lambda;
-  
-  /*
-   * Local variables
-   */
-  var result = 0.0;
-  
-  /*
-   * Main
-   */
-
-  if (fov == 0.0) {
-    return 0.0;
-  }
-
-  result = abs(fov) / round;
-  result = result - lambda;
-  result = max(0.0, result);
-
-  if (result == 0.0) {
-   return 0.0;
-  }
-
-  if (fov > 0.0) {
-   result = result * -1.0;
-  }
-
-  result = result * eta * round;
-
-  result = result / (delta + sqrt(sov));
-
-  return +result;
-}
-
-function adagradUpdateLazyAt(index, foiP, soiP, weightP,
+function updateLazyAt(index, foiP, soiP, weightP,
     round, delta, eta, lambda) {
   /*
    * Type annotations
@@ -2414,13 +1717,13 @@ function adagradUpdateLazyAt(index, foiP, soiP, weightP,
   p2 = (soiP + relativeByteOffset) | 0;
   p3 = (weightP + relativeByteOffset) | 0;
 
-  F4[p3 >> 2] = +adagradLazyValue(
+  F4[p3 >> 2] = +lazyValue(
     +F4[p1 >> 2], +F4[p2 >> 2],
     round, delta, eta, lambda
   );
 }
 
-function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
+function updateLazy(nz, indexP, foiP, soiP, weightP,
   round, delta, eta, lambda) {
   /*
    * Type annotations
@@ -2448,7 +1751,7 @@ function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
   while ((indexP | 0) < (end | 0)) {
     index = I4[indexP >> 2] | 0;
 
-    adagradUpdateLazyAt(index, foiP, soiP, weightP,
+    updateLazyAt(index, foiP, soiP, weightP,
       round, delta, eta, lambda);
 
     indexP = (indexP + 4) | 0;        
@@ -2457,7 +1760,7 @@ function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
 
 /**
  * Performs temporary updating for the first order information and
- * second order information of AdaGrady with a gradient.
+ * second order information of AdaGrad with a gradient.
  * Actual values will be calculated lazily.
  *
  * @param {int} nz - number of non-zero elements in a gradient
@@ -2466,7 +1769,7 @@ function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
  * @param {int} foiP - byte offset to a float dense vec 1st order info
  * @param {int} soiP - byte offset to a float dense vec 2nd order info
  */
-function adagradUpdateTemp(nz, xP, indexP, foiP, soiP) {
+function updateTemporary(nz, xP, indexP, foiP, soiP) {
   /*
    * Type annotations
    */
@@ -2502,6 +1805,45 @@ function adagradUpdateTemp(nz, xP, indexP, foiP, soiP) {
     indexP = (indexP + 4) | 0;
     xP = (xP + 4) | 0;
   }
+}
+
+/**
+ * Returns the dot product between a sparse vector x and a dense vector y.
+ * Unlike the original Sparse BLAS, repeated indices in x are allowed.
+ */
+function susdot(nz, xP, indexP, yP, outP) {
+  /*
+   * Type annotations
+   */
+  nz = nz | 0;
+  xP = xP | 0;
+  indexP = indexP | 0;
+  yP = yP | 0;
+  outP = outP | 0;
+ 
+  /*
+   * Local variables
+   */
+  var result = 0.0;
+  var end = 0;
+  var index = 0;
+  var value = 0.0;
+
+  /*
+   * Main
+   */
+  end = (indexP + (nz << 2)) | 0;
+  while ((indexP | 0) < (end | 0)) {
+    index = I4[indexP >> 2] | 0;
+    value = +F4[xP >> 2];
+    
+    result = +(result + value * +F4[(yP + (index << 2)) >> 2]);
+    
+    indexP = (indexP + 4) | 0;
+    xP = (xP + 4) | 0;
+  }
+  
+  F4[outP >> 2] = result;
 }
 
 /**
@@ -2782,11 +2124,11 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
     
   // update bias and transition scores positions
   for (i = 0; (i | 0) < ((transitionScoreTableSize + 1) | 0); i = (i + 1) | 0) {
-    adagradUpdateLazyAt((i + dimension) | 0, foiP, soiP, weightP,
+    updateLazyAt((i + dimension) | 0, foiP, soiP, weightP,
       +(round | 0), delta, eta, lambda);
   }
 
-  adagradUpdateLazy(imul(totalNz, numberOfStates), featureHashedIndexP, foiP, soiP, weightP,
+  updateLazy(imul(totalNz, numberOfStates), featureHashedIndexP, foiP, soiP, weightP,
     +(round | 0), delta, eta, lambda);
 
   updateStateScores(nzP, featureHashedValueP, featureHashedIndexP, weightP,
@@ -2818,7 +2160,7 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
     tmpValueP, tmpIndexP,
     gradientNzP, gradientValueP, gradientIndexP);
   nz = I4[gradientNzP >> 2] | 0;
-  adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
+  updateTemporary(nz, gradientValueP, gradientIndexP, foiP, soiP);
 }
 
 /**
@@ -3155,55 +2497,395 @@ function getByteSize(numberOfStates,
   return result | 0;
 }
 
-// from inclusive, to exclusive
-function adagradUpdateLazyRange(from, to, foiP, soiP, weightP,
-    round, delta, eta, lambda) {
+/**
+ * Returns the l0 of a dense vector.
+ */
+function l0(p, len) {
   /*
    * Type annotations
    */
-  from = from | 0;
-  to = to | 0;
-  foiP = foiP | 0;
-  soiP = soiP | 0;
-  weightP = weightP | 0;
-  round = +round;
-  delta = +delta;
-  eta = +eta;
-  lambda = +lambda;
+  p = p | 0;
+  len = len | 0;
   
   /*
    * Local variables
    */
-  var relativeByteOffset = 0;
-  var foiV = 0.0;
-  var soiV = 0.0;
+  var i = 0;
+  var l0 = 0;
 
   /*
    * Main
    */
-  if ((to | 0) <= (from | 0)) {
-    return;
-  }
-
-  relativeByteOffset = (from << 2);
-  foiP = (foiP + relativeByteOffset) | 0;
-  soiP = (soiP + relativeByteOffset) | 0;
-  weightP = (weightP + relativeByteOffset) | 0;
-
-  for (; (from | 0) < (to | 0); from = (from + 1) | 0) {
-    foiV = +F4[foiP >> 2];
-    
-    if (foiV != 0.0) {
-      soiV = +F4[soiP >> 2];
-      F4[weightP >> 2] = +adagradLazyValue(
-        foiV, soiV, round, delta, eta, lambda
-      );
+  for (i = 0; (i | 0) < (len | 0); i = (i + 1) | 0) {
+    if (+F4[p >> 2] != 0.0) {
+      l0 = (l0 + 1) | 0;
     }
     
-    foiP = (foiP + 4) | 0;
-    soiP = (soiP + 4) | 0;
-    weightP = (weightP + 4) | 0;
+    p = (p + 4) | 0;
   }
+  
+  return l0 | 0;
+}
+
+function rounding(p, len, m, degree) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  len = len | 0;
+  m = m | 0;
+  degree = degree | 0;
+  
+  /*
+   * Local variables
+   */
+  var i = 0;
+  var v = 0.0;
+  var t = 0;
+  var quant = 0.0;
+  var maxValue = 0;
+  var minValue = 0;
+
+  /*
+   * Main
+   */
+  quant = pow(2.0, +(degree | 0));
+  maxValue = ((1 << (m + degree)) - 1) | 0;
+  minValue = -maxValue | 0;
+  
+  for (i = 0; (i | 0) < (len | 0); i = (i + 1) | 0) {
+    v = +F4[p >> 2];
+
+    v = v * quant;
+    t = ~~v;
+    
+    t = min(t | 0, maxValue | 0);
+    t = max(t | 0, minValue | 0);
+    v = +(t | 0);
+    v = v / quant;
+
+    F4[p >> 2] = v;
+    
+    p = (p + 4) | 0;
+  }
+}
+
+/**
+ * Based on ConvertUTF.c by Unicode, Inc.
+ * Endian dependent.
+ *
+ * @param {int} inPP - byte offset to a byte offset to uint16s
+ * @param {int} inEnd - byte offset to the end of inputs
+ * @param {int} outPP - byte offset to a byte offset to uint8s
+ * @param {int} outEnd - byte offset to the end of outputs
+ * @returns {signed} - error code
+ */
+function uc_convertUtf16toUtf8(inPP, inEnd, outPP, outEnd) {
+  /*
+   * Type annotations
+   */
+  inPP = inPP | 0;
+  inEnd = inEnd | 0;
+  outPP = outPP | 0;
+  outEnd = outEnd | 0;
+  
+  /*
+   * Local variables
+   */
+  var SUR_HIGH_START = 0xd800;
+  var SUR_HIGH_END = 0xdbff;
+  var SUR_LOW_START = 0xdc00;
+  var SUR_LOW_END = 0xdfff;
+  var HALF_SHIFT = 10;
+  var HALF_BASE = 0x0010000;
+  // var HALF_MASK = 0x3ff;
+  var BYTE_MASK = 0xBF;
+  var BYTE_MARK = 0x80;
+  // var ERROR_SOURCE_EXHAUSTED = 1;
+  var ERROR_TARGET_EXHAUSTED = 2;
+  var ERROR_SOURCE_ILLEGAL = 3;
+  var ch = 0;
+  var ch2 = 0;
+  var bytesToWrite = 0;
+  var inP = 0;
+  var outP = 0;
+  var firstByteMask = 0;
+  
+  /*
+   * Main
+   */
+  inP = U4[inPP >> 2] | 0;
+  outP = U4[outPP >> 2] | 0;      
+  while ((inP | 0) < (inEnd | 0)) {
+    ch = U2[inP >> 1] | 0;
+    inP = (inP + 2) | 0;
+    
+    // check if ch is a high surrogate
+    if (((ch | 0) >= (SUR_HIGH_START | 0)) &
+          ((ch | 0) <= (SUR_HIGH_END | 0))) {
+      if ((inP | 0) < (inEnd | 0)) {
+        ch2 = U2[inP >> 1] | 0;
+        
+        // check if ch2 is a low surrogate
+        if (((ch2 | 0) >= (SUR_LOW_START | 0)) &
+            ((ch2 | 0) <= (SUR_LOW_END | 0))) {
+          ch = (((ch - SUR_HIGH_START) << HALF_SHIFT) +
+            ((ch2 - SUR_LOW_START) + HALF_BASE)) | 0;
+          inP = (inP + 2) | 0;
+        }
+      } else {
+        // Input utf-16 string is ill-formed.
+        inP = (inP - 2) | 0;
+        return ERROR_SOURCE_ILLEGAL | 0;
+      }
+      
+      U1[outP >> 0] = ch;
+    } // end if surroge
+    
+    // How many bytes will the result require?
+    if ((ch | 0) < 0x80) {
+      bytesToWrite = 1;
+    } else if ((ch | 0) < 0x800) {
+      bytesToWrite = 2;
+    } else if ((ch | 0) < 0x10000) {
+      bytesToWrite = 3;
+    } else if ((ch | 0) < 0x110000) {
+      bytesToWrite = 4;
+    } else {
+      bytesToWrite = 3;
+      ch = 0xffffffff;
+    }
+    
+    // Write bytes
+    outP = (outP + bytesToWrite) | 0;
+    if ((outP | 0) > (outEnd | 0)) {
+      return ERROR_TARGET_EXHAUSTED | 0;
+    }
+    
+    switch (bytesToWrite | 0) {
+      case 4:
+        outP = (outP - 1) | 0;
+        U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
+        ch = ch >> 6;
+        /* falls through */
+      case 3:
+        outP = (outP - 1) | 0;
+        U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
+        ch = ch >> 6;
+        /* falls through */
+      case 2:
+        outP = (outP - 1) | 0;
+        U1[outP >> 0] = (ch | BYTE_MARK) & BYTE_MASK;
+        ch = ch >> 6;
+        /* falls through */
+      case 1:
+        outP = (outP - 1) | 0;
+        if ((bytesToWrite | 0) == 1){
+          firstByteMask = 0;
+        } else if ((bytesToWrite | 0) == 2) {
+          firstByteMask = 0xc0;
+        } else if ((bytesToWrite | 0) == 3) {
+          firstByteMask = 0xe0;              
+        } else {
+          firstByteMask = 0xf0;
+        }
+
+        U1[outP >> 0] = (ch | firstByteMask);
+    } // end switch
+    outP = (outP + bytesToWrite) | 0;
+  } // end while
+  
+  U4[inPP >> 2] = inP | 0;
+  U4[outPP >> 2] = outP | 0;
+  
+  return 0;
+}
+
+/**
+ * @parma {int} b - first byte of a utf-8 sequence
+ * @returns {signed} - number of trailing bytes for the sequence
+ */
+function trailingBytesForUtf8(b) {
+  /*
+   * Type annotations
+   */
+  b = b | 0;
+  
+  /*
+   * Main
+   */   
+  b = b & 0xff;
+  if ((b | 0) < 192) {
+    return 0;
+  } else if ((b | 0) < 224) {
+    return 1;
+  } else if ((b | 0) < 240) {
+    return 2;
+  } else if ((b | 0) < 248){
+    return 3;
+  }
+  
+  
+  // invalid
+  return 0xff;
+}
+
+/**
+ * Based on ConvertUTF.c by Unicode, Inc.
+ * Endian dependent.
+ *
+ * @param {int} inPP - byte offset to a byte offset to uint16s
+ * @param {int} inEnd - byte offset to the end of inputs
+ * @param {int} outPP - byte offset to a byte offset to uint8s
+ * @param {int} outEnd - byte offset to the end of outputs
+ * @returns {signed} - error code
+ */
+function convertUtf8toUtf16(inPP, inEnd, outPP, outEnd) {
+  /*
+   * Type annotations
+   */
+  inPP = inPP | 0;
+  inEnd = inEnd | 0;
+  outPP = outPP | 0;
+  outEnd = outEnd | 0;
+  
+  /*
+   * Local variables
+   */
+  var SUR_HIGH_START = 0xd800;
+  var SUR_LOW_START = 0xdc00;
+  var SUR_LOW_END = 0xdfff;
+  var HALF_SHIFT = 10;
+  var HALF_BASE = 0x0010000;
+  var HALF_MASK = 0x3ff;
+  var ERROR_SOURCE_EXHAUSTED = 1;
+  var ERROR_TARGET_EXHAUSTED = 2;
+  var ERROR_SOURCE_ILLEGAL = 3;
+  var result = 0;
+  var ch = 0;
+  var v = 0;
+  var inP = 0;
+  var outP = 0;
+  var extraBytesToRead = 0;
+  
+  /*
+   * Main
+   */
+  inP = U4[inPP >> 2] | 0;
+  outP = U4[outPP >> 2] | 0;  
+  while ((inP | 0) < (inEnd | 0)) {
+    ch = 0;
+    v = U1[inP >> 0] | 0;
+    extraBytesToRead = trailingBytesForUtf8(v) | 0;
+    if ((extraBytesToRead | 0) >= ((inEnd - inP) | 0)) {
+      result = ERROR_SOURCE_EXHAUSTED | 0;
+      break;
+    }
+    
+    // if (!isLegalUtf8)
+            
+    switch (extraBytesToRead | 0) {
+      case 3:
+        v = U1[inP >> 0] | 0;
+        ch = (ch + v) | 0;
+        inP = (inP + 1) | 0;
+        ch = ch << 6;
+        /* falls through */
+      case 2:
+        v = U1[inP >> 0] | 0;
+        ch = (ch + v) | 0;
+        inP = (inP + 1) | 0;
+        ch = ch << 6;
+        /* falls through */
+      case 1:
+        v = U1[inP >> 0] | 0;
+        ch = (ch + v) | 0;
+        inP = (inP + 1) | 0;
+        ch = ch << 6;
+        /* falls through */
+      case 0:
+        v = U1[inP >> 0] | 0;
+        ch = (ch + v) | 0;
+        inP = (inP + 1) | 0;
+    }
+    
+    switch (extraBytesToRead | 0) {
+      case 3:
+        ch = (ch - 0x3c82080) | 0;
+        break;
+      case 2:
+        ch = (ch - 0xe2080) | 0;
+        break;
+      case 1:
+        ch = (ch - 0x3080) | 0;
+        break;
+    }
+
+    if ((outP | 0) >= (outEnd | 0)) {
+      inP = (inP - extraBytesToRead + 1) | 0;
+      result = ERROR_TARGET_EXHAUSTED;
+      break;
+    }
+    
+    if ((ch | 0) <= 0xffff) {
+      // if BMP
+      if (((ch | 0) >= (SUR_HIGH_START | 0)) &
+        ((ch | 0) <= (SUR_LOW_END | 0))) {
+        inP = (inP - extraBytesToRead + 1) | 0;
+        result = ERROR_SOURCE_ILLEGAL = 3;
+        break;
+      } else {
+        U2[outP >> 1] = ch | 0;
+        outP = (outP + 2) | 0;
+      }
+    } else if ((ch | 0) > 0x10ffff) {
+      // if outside Unicode
+      result = ERROR_SOURCE_ILLEGAL | 0;
+      inP = (inP - extraBytesToRead + 1) | 0;
+      break;
+    } else {
+      // if non-BMP
+      if ((outP | 0) >= (outEnd | 0)) {
+        inP = (inP - extraBytesToRead + 1) | 0;
+        result = ERROR_TARGET_EXHAUSTED;
+        break;
+      }
+      ch = (ch - HALF_BASE) | 0;
+      U2[outP >> 1] = ((ch >> HALF_SHIFT) + SUR_HIGH_START) | 0;
+      outP = (outP + 2) | 0;
+      U2[outP >> 1] = ((ch & HALF_MASK) + SUR_LOW_START) | 0;
+    }
+    
+  } // end while
+  
+  U4[inPP >> 2] = inP | 0;
+  U4[outPP >> 2] = outP | 0;
+  
+  return result | 0;
+}
+
+/**
+ * Check if the current environment is little-endian or not.
+ *
+ * @returns {signed} - 1 if little-endian, otherwise 0
+ */
+function isLittleEndian() {
+  /*
+   * Local variables
+   */
+  var c = 0;
+  var result = 0;
+  
+  /*
+   * Main
+   */
+  c = U2[0 >> 1] | 0;
+  U1[0 >> 0] = 0;
+  U1[1 >> 0] = 1;
+  result = U2[0 >> 1] >>> 8;
+  U2[0 >> 1] = c | 0;
+  
+  return result | 0;
 }
 
 function compareInt32(xP, yP) {
@@ -3385,6 +3067,324 @@ function memmove(destP, srcP, length) {
   return destPSave | 0;
 }
 
+/********************
+ * ufmap
+ *
+ * A hash map implementation where
+ * a key is limited to an unsigned 32-bit integer and
+ * a value is limited to a 32-bit float.
+ *
+ * For efficiency, the maximum number of keys must be specified at creation.
+ *
+ * +-------+---+---+---+---+---+---+
+ * |  TMP  |TBS|LEN|MNK|LLP|FRP|FLG| (more-->)
+ * +-------+---+---+---+---+---+---+
+ *
+ * +===============+===============+
+ * |... BUCKETS ...|... ENTRIES ...|
+ * +===============+===============+
+ *
+ * TMP: free 64-bit space to allocate temporary variables
+ * TBS: table size
+ * LEN: current number of items in this map
+ * MNK: maximum number of keys this map can contain
+ * LLP: relative byte offset to the linked list
+ * FRP: relative byte offset to the next free entry space
+ * FLG: flags
+ * BUCKETS: hash table
+ * ENTRIES: a sequence of entries
+ *
+ * This data structure uses 
+ * 32 + tableSize * 4 (bytes) + maxNumberOfKeys * 12 (bytes)
+ *
+ * This hash map uses separated chaining with linked lists as collision
+ * resolution. Each bucket uses signed 32-bit integer as a pointer to the
+ * first entry of a linked list. 0 denotes the key is not used.
+ *
+ * Each entry occupies 12 bytes.
+ *
+ * +---+---+---+
+ * |KEY|VAL|NXT|
+ * +---+---+---+
+ *
+ * KEY: 32-bit unsigned value for a key
+ * VAL: 32-bit float value for a value
+ * NXT: relative byte offset to the next entry
+ *
+ * NXT == 0 indicates that the entry is the last one in a linked list.
+ * NXT == 0xffffffff indicates that the entry is free and can be
+ * reallocated, and in this case KEY represents the relative byte offset to
+ * next free space.
+ ********************/
+
+/**
+ * Creates a new hash map.
+ *
+ * `tableSize` must be a power of 2. No validation is employed.
+ *
+ * @param {int} p - byte offset
+ * @param {int} tableSize - size of table
+ * @param {int} maxNumberOfKeys - unsigned 32-bit integer
+ *   to specify the maximum number of keys
+ */
+function ufmap_create(p, tableSize, maxNumberOfKeys) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  tableSize = tableSize | 0;
+  maxNumberOfKeys = maxNumberOfKeys | 0;
+  
+  /*
+   * Local variables
+   */
+  var linkedListP = 0; // byte offset to the first linked list entry
+  
+  /*
+   * Main
+   */
+  U4[(p + 8) >> 2] = tableSize;
+  U4[(p + 12) >> 2] = 0;
+  U4[(p + 16) >> 2] = maxNumberOfKeys;
+  linkedListP = (32 + tableSize) | 0;
+  U4[(p + 20) >> 2] = linkedListP;
+  U4[(p + 24) >> 2] = linkedListP;
+}
+
+/**
+ * Find an entry for a key.
+ *
+ * After this operation, byte offset to the start of an entry (relative to
+ * the start of this map) is written into the first 32-bit of TMP
+ * relative byte offset to a position where the pointer to the entry is
+ * written into the second 32-bit of TMP.
+ *
+ * When the key is not found, the first 32-bit of TMP will be 0.
+ * The second 32-bit of TMP will be ...
+ *
+ * @param {int} p - byte offset
+ * @param {int} key - 32-bit unsigned integer
+ */
+function _ufmap_find(p, key) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  key = key | 0;
+  
+  /*
+   * Local variables
+   */
+  var TMP1 = 0;
+  var TMP2 = 4;
+  var TBS = 8;
+  var TABLE_START = 32;
+  var SEED = 42; // 42 is a seed chosen arbitrarily
+  var mask = 0;
+  var hashValue = 0;
+  var k = 0;
+  var prevP = 0;
+  var nextP = 0;
+  var entryP = 0;
+  var tmp1P = 0;
+  
+  /*
+   * Main
+   */
+  tmp1P = (p + TMP1) | 0;
+
+  mask = ((U4[(p + TBS) >> 2] | 0) - 1) >>> 0;
+  U4[tmp1P >> 2] = key;
+  hashValue = MurmurHash3_x86_32(tmp1P, 1, SEED) | 0;
+
+  prevP = (TABLE_START + (hashValue & mask)) | 0;
+  nextP = U4[(p + prevP) >> 2] | 0;
+  
+  // while (nextP is not empty and key is not matched)
+  while (((nextP | 0) != 0) & ((k >>> 0) != (key >>> 0))) {
+    entryP = nextP;
+    k = U4[(p + entryP) >> 2] | 0;
+    prevP = entryP;
+    nextP = U4[((p + entryP + 8) | 0) >> 2] | 0;
+  }
+  
+  U4[(p + TMP2) >> 2] = prevP | 0;
+
+  if ((k | 0) == (key | 0)) {
+    // Key matched
+    U4[tmp1P >> 2] = entryP | 0;
+  } else {
+    U4[tmp1P >> 2] = 0;
+  }
+}
+
+/**
+ * @param {int} p - byte offset
+ * @param {signed} key - 32-bit unsigned integer
+ */
+function ufmap_has(p, key) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  key = key | 0;
+  
+  /*
+   * Local variables
+   */
+  var TMP1 = 0;
+  var matched = 0;
+
+  /*
+   * Main
+   */
+  _ufmap_find(p, key);
+  matched = U4[(p + TMP1) >> 2] | 0;
+  
+  if ((matched | 0) != 0) {
+    // Key matched
+    return 1;
+  }
+  
+  return 0;
+}
+
+/**
+ * Updates the value by the following formula in 32-bit precision
+ * map[key] = coef * map[key] + value
+ *
+ * @param {int} p - byte offset
+ * @param {int} key - 32-bit unsigned integer
+ * @param {double} value - 64-bit float
+ * @param {double} coef - 64-bit float
+ */
+function ufmap_add(p, key, value, coef) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  key = key | 0;
+  value = +value;
+  coef = +coef;
+
+  /*
+   * Local variables
+   */
+  var TMP1 = 0;
+  var TMP2 = 4;
+  var LEN = 12;
+  var MNK = 16;
+  var FRP = 24;
+  var lenP = 0;
+  var mnkP = 0;
+  var frpP = 0;
+  var freeAbsP = 0; // byte offset for a new entry
+  var entryP = 0;
+  var prevP = 0;
+  var valueAbsP = 0;
+  var v = 0.0;
+  var currentSize = 0;
+  var maximumNumberOfKeys = 0;
+
+  /*
+   * Main
+   */
+  lenP = (p + LEN) | 0;
+  mnkP = (p + MNK) | 0;
+  frpP = (p + FRP) | 0;
+  
+  _ufmap_find(p, key);
+  entryP = U4[(p + TMP1) >> 2] | 0;
+  prevP = U4[(p + TMP2) >> 2] | 0;
+
+  if ((entryP | 0) != 0) {
+    // Key matched
+    valueAbsP = (p + entryP + 4) | 0;
+    v = +F4[valueAbsP >> 2];
+    v = coef * v + value;
+    F4[valueAbsP >> 2] = v;
+    return;
+  }
+
+  currentSize = U4[lenP >> 2] >>> 0;
+  maximumNumberOfKeys = U4[mnkP >> 2] >>> 0;
+  
+  if ((currentSize >>> 0) == (maximumNumberOfKeys >>> 0)) {       
+    return;
+  }
+
+  // Add a new entry
+  freeAbsP = (p + (U4[frpP >> 2] | 0)) | 0;
+  U4[(p + prevP) >> 2] = (freeAbsP - p) | 0;
+  U4[freeAbsP >> 2] = key;
+  freeAbsP = (freeAbsP + 4) | 0;
+  F4[freeAbsP >> 2] = value;
+  freeAbsP = (freeAbsP + 4) | 0;
+  U4[frpP >> 2] = (freeAbsP - p) | 0;
+
+  // increment the number of entries
+  U4[lenP >> 2] = (currentSize + 1) >>> 0;
+}
+
+/**
+ * @param {int} p - byte offset
+ * @param {int} key - 32-bit unsigned integer
+ */
+function ufmap_get(p, key) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  key = key | 0;
+
+  /*
+   * Local variables
+   */
+  var TMP1 = 0;
+  var TMP2 = 4;
+  var matched = 0;
+  var entryP = 0;
+  var prevP = 0;
+
+  /*
+   * Main
+   */
+  _ufmap_find(p, key);
+  matched = U4[(p + TMP1) >> 2] | 0;
+  entryP = (p + matched) | 0;
+  prevP = (p + (U4[(p + TMP2) >> 2] | 0)) | 0;
+
+  if ((matched | 0) != 0) {
+    // Key matched
+    return +F4[(entryP + 4) >> 2];
+  }
+  
+  return 0.0;
+}
+
+/**
+ * Returns the number of entries contained in this map.
+ *
+ * @param {int} p - byte offset
+ * @returns {signed} - size 
+ */
+function ufmap_size(p) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+
+  /*
+   * Local variables
+   */
+  var LEN = 12;
+
+  /*
+   * Main
+   */
+  return U4[(p + LEN) >> 2] | 0;
+}
+
 /*
  * Definition of function tables.
  * The size of a table must be a power of 2.
@@ -3400,41 +3400,45 @@ var CMP_FUNCTION_TABLE = [compareInt32, compareUint32, compareSparseVectorElemen
  * Definition of exported functions
  */
 return {
-  bit_popcount: popcount,
-  bit_deBruijnSelectInit: deBruijnSelectInit,
   bit_deBruijnSelect: deBruijnSelect,
+  bit_deBruijnSelectInit: deBruijnSelectInit,
+  bit_popcount: popcount,
+
+  learn_adagrad_updateLazyRange: updateLazyRange,
+  learn_crf_trainOnline: trainOnline,
+  learn_crf_sufferLoss: sufferLoss,
+  learn_crf_featureHashing: featureHashing,
+  learn_crf_featureHashingSequence: featureHashingSequence,
+  learn_crf_updateFeatureScores: updateFeatureScores,
+  learn_crf_updateForwardScores: updateForwardScores,
+  learn_crf_updateBackwardScores: updateBackwardScores,
+  learn_crf_updateNormalizationFactor: updateNormalizationFactor,
+  learn_crf_updateJointScores: updateJointScores,
+  learn_crf_updateGradient: updateGradient,
+  learn_crf_getByteSize: getByteSize,
+  learn_crf_viterbi: viterbi,
+  learn_crf_predict: predict,
+  isLittleEndian: isLittleEndian,
+  
+  math_rounding: rounding,
+  math_sparse_susdot: susdot,
+  math_sparse_sort: sort,
+  math_sparse_unique: unique,
+  maxFloat32: maxFloat32,
+  sumFloat32: sumFloat32,
+  sumInt32: sumInt32,
+  logsumexp: logsumexpFloat32,
+  math_l0: l0,
+
   ufmap_create: ufmap_create,
   ufmap_has: ufmap_has,
   ufmap_add: ufmap_add,
   ufmap_get: ufmap_get,
   ufmap_size: ufmap_size,
-  maxFloat32: maxFloat32,
-  sumFloat32: sumFloat32,
-  sumInt32: sumInt32,
+
   hash: MurmurHash3_x86_32,
-  logsumexp: logsumexpFloat32,
-  math_l0: l0,
-  math_rounding: rounding,
-  math_sparse_susdot: susdot,
-  math_sparse_sort: sort,
-  math_sparse_unique: unique,
   uc_convertUtf16toUtf8: uc_convertUtf16toUtf8,
   uc_convertUtf8toUtf16: convertUtf8toUtf16,
-  crf_trainOnline: trainOnline,
-  crf_sufferLoss: sufferLoss,
-  crf_featureHashing: featureHashing,
-  crf_featureHashingSequence: featureHashingSequence,
-  crf_updateFeatureScores: updateFeatureScores,
-  crf_updateForwardScores: updateForwardScores,
-  crf_updateBackwardScores: updateBackwardScores,
-  crf_updateNormalizationFactor: updateNormalizationFactor,
-  crf_updateJointScores: updateJointScores,
-  crf_updateGradient: updateGradient,
-  crf_getByteSize: getByteSize,
-  crf_viterbi: viterbi,
-  crf_predict: predict,
-  crf_adagradUpdateLazyRange: adagradUpdateLazyRange,
-  isLittleEndian: isLittleEndian,
   compareInt32: compareInt32,
   compareUint32: compareUint32,
   qsortBM: qsortBM,

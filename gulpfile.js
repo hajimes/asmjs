@@ -17,7 +17,7 @@
 
   gulp.task('bundle', () => {
     return rollup({
-      entry: 'src/main.js'
+      entry: 'src/asmjs/main.js'
     }).then(bundle => {
       return bundle.write({
         format: 'es6',
@@ -34,9 +34,9 @@
   
   gulp.task('concat-bundle', ['reformat-bundle'], () => {
     return gulp.src([
-        './src/pre.txt',
+        './src/asmjs/pre.txt',
         './tmp/main-replaced.js',
-        './src/post.txt'
+        './src/asmjs/post.txt'
       ])
       .pipe(concat('main.js'))
       .pipe(gulp.dest('./'));

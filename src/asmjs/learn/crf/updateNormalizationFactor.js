@@ -1,4 +1,4 @@
-import logsumexp from '../math/logsumexpFloat32';
+import logsumexp from '../../math/logsumexpFloat32';
 
 export default function updateNormalizationFactor(forwardScoreP,
     numberOfStates, chainLength, outP) {

@@ -1,4 +1,4 @@
-import susdot from '../math/sparse/susdot';
+import susdot from '../../math/sparse/susdot';
 
 /**
  * Updates a table of state scores.

@@ -1,7 +1,7 @@
-import sumInt32 from '../math/sumInt32';
-import adagradUpdateLazy from './adagradUpdateLazy';
-import adagradUpdateLazyAt from './adagradUpdateLazyAt';
-import adagradUpdateTemp from './adagradUpdateTemp';
+import sumInt32 from '../../math/sumInt32';
+import adagradUpdateLazy from '../adagrad/updateLazy';
+import adagradUpdateLazyAt from '../adagrad/updateLazyAt';
+import adagradUpdateTemporary from '../adagrad/updateTemporary';
 import featureHashingSequence from './featureHashingSequence';
 import updateStateScores from './updateStateScores';
 import updateFeatureScores from './updateFeatureScores';
@@ -207,5 +207,5 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
     tmpValueP, tmpIndexP,
     gradientNzP, gradientValueP, gradientIndexP);
   nz = I4[gradientNzP >> 2] | 0;
-  adagradUpdateTemp(nz, gradientValueP, gradientIndexP, foiP, soiP);
+  adagradUpdateTemporary(nz, gradientValueP, gradientIndexP, foiP, soiP);
 }

@@ -1,6 +1,6 @@
-import adagradUpdateLazyAt from './adagradUpdateLazyAt';
+import updateLazyAt from './updateLazyAt';
 
-export default function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
+export default function updateLazy(nz, indexP, foiP, soiP, weightP,
   round, delta, eta, lambda) {
   /*
    * Type annotations
@@ -28,7 +28,7 @@ export default function adagradUpdateLazy(nz, indexP, foiP, soiP, weightP,
   while ((indexP | 0) < (end | 0)) {
     index = I4[indexP >> 2] | 0;
 
-    adagradUpdateLazyAt(index, foiP, soiP, weightP,
+    updateLazyAt(index, foiP, soiP, weightP,
       round, delta, eta, lambda);
 
     indexP = (indexP + 4) | 0;        

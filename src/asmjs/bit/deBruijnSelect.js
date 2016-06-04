@@ -1,7 +1,7 @@
 /**
  * Returns the number of 1s in a 32-bit integer and
  * writes out the actual indices of the 1s (0 <= i < 32) into <code>outP</code>.
- * Each index occupies one byte, so at most 32 bytes (32 int8 integers) will
+ * Each index occupies one byte, so at most 32 bytes (32 uint8 integers) will
  * be written into <code>outP</code>.
  *
  * Before using this function, precompute a table at <code>tableP</code>

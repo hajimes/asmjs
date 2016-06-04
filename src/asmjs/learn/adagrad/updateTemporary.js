@@ -1,6 +1,6 @@
 /**
  * Performs temporary updating for the first order information and
- * second order information of AdaGrady with a gradient.
+ * second order information of AdaGrad with a gradient.
  * Actual values will be calculated lazily.
  *
  * @param {int} nz - number of non-zero elements in a gradient
@@ -9,7 +9,7 @@
  * @param {int} foiP - byte offset to a float dense vec 1st order info
  * @param {int} soiP - byte offset to a float dense vec 2nd order info
  */
-export default function adagradUpdateTemp(nz, xP, indexP, foiP, soiP) {
+export default function updateTemporary(nz, xP, indexP, foiP, soiP) {
   /*
    * Type annotations
    */

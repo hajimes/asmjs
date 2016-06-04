@@ -643,7 +643,7 @@ describe('This handwritten asm.js module', function() {
       putFloat(F4, xP, x);
       putUint32(U4, indexP, index);
 
-      mod.crf_featureHashing(x.length,
+      mod.learn_crf_featureHashing(x.length,
         xP, indexP, 0, dimension, outValueP, outIndexP);
       for (i = 0; i < x.length; i += 1) {
         expect(U4[(outIndexP + i << 2) >> 2]).to.be.
@@ -697,7 +697,7 @@ describe('This handwritten asm.js module', function() {
       putFloat(F4, xP, x);
       putUint32(U4, indexP, index);
 
-      mod.crf_featureHashingSequence(
+      mod.learn_crf_featureHashingSequence(
         nzP, xP, indexP,
         numberOfClasses, pathLength, dimension, outValueP, outIndexP);
 
@@ -755,28 +755,28 @@ describe('This handwritten asm.js module', function() {
       putFloat(F4, stateScoreP, stateScores);
       
       // do nothing if either # of states or chain length is less than 1
-      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+      mod.learn_crf_updateFeatureScores(biasScoreP, transitionScoreP,
         stateScoreP, 0, chainLength, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+      mod.learn_crf_updateFeatureScores(biasScoreP, transitionScoreP,
         stateScoreP, -1, chainLength, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+      mod.learn_crf_updateFeatureScores(biasScoreP, transitionScoreP,
         stateScoreP, numberOfStates, 0, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+      mod.learn_crf_updateFeatureScores(biasScoreP, transitionScoreP,
         stateScoreP, numberOfStates, -1, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
       
-      mod.crf_updateFeatureScores(biasScoreP, transitionScoreP,
+      mod.learn_crf_updateFeatureScores(biasScoreP, transitionScoreP,
         stateScoreP, numberOfStates, chainLength, outP);
       
       for (i = 0; i < numberOfStates * numberOfStates * chainLength; i += 1) {
@@ -824,24 +824,24 @@ describe('This handwritten asm.js module', function() {
       putFloat(F4, inP, featureScores);
 
       // do nothing if either # of states or chain length is less than 1
-      mod.crf_updateForwardScores(inP, -1, chainLength, tmpP, outP);
+      mod.learn_crf_updateForwardScores(inP, -1, chainLength, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateForwardScores(inP, 0, chainLength, tmpP, outP);
+      mod.learn_crf_updateForwardScores(inP, 0, chainLength, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateForwardScores(inP, numberOfStates, 0, tmpP, outP);
+      mod.learn_crf_updateForwardScores(inP, numberOfStates, 0, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateForwardScores(inP, numberOfStates, -1, tmpP, outP);
+      mod.learn_crf_updateForwardScores(inP, numberOfStates, -1, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
 
-      mod.crf_updateForwardScores(inP, numberOfStates, chainLength, tmpP, outP);
+      mod.learn_crf_updateForwardScores(inP, numberOfStates, chainLength, tmpP, outP);
 
       for (i = 0; i < numberOfStates * chainLength; i += 1) {
         expect(F4[outP >> 2]).to.closeTo(expectedForwardScores[i], 0.00001);
@@ -884,24 +884,24 @@ describe('This handwritten asm.js module', function() {
 
       // This function does nothing if either # of states or chain length is
       // less than 1
-      mod.crf_updateBackwardScores(inP, -1, chainLength, tmpP, outP);
+      mod.learn_crf_updateBackwardScores(inP, -1, chainLength, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateBackwardScores(inP, 0, chainLength, tmpP, outP);
+      mod.learn_crf_updateBackwardScores(inP, 0, chainLength, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateBackwardScores(inP, numberOfStates, 0, tmpP, outP);
+      mod.learn_crf_updateBackwardScores(inP, numberOfStates, 0, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
-      mod.crf_updateBackwardScores(inP, numberOfStates, -1, tmpP, outP);
+      mod.learn_crf_updateBackwardScores(inP, numberOfStates, -1, tmpP, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
       expect(F4[(outP - 4) >> 2]).to.equal(0.0);
       expect(F4[(outP + 4) >> 2]).to.equal(0.0);
 
-      mod.crf_updateBackwardScores(inP, numberOfStates,
+      mod.learn_crf_updateBackwardScores(inP, numberOfStates,
         chainLength, tmpP, outP);
       for (i = 0; i < numberOfStates * chainLength; i += 1) {
         expect(F4[outP >> 2]).to.closeTo(expectedBackwardScores[i], 0.00001);
@@ -926,17 +926,17 @@ describe('This handwritten asm.js module', function() {
       
       putFloat(F4, inP, forwardScores);
       
-      mod.crf_updateNormalizationFactor(inP, 0, chainLength, outP);
+      mod.learn_crf_updateNormalizationFactor(inP, 0, chainLength, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
-      mod.crf_updateNormalizationFactor(inP, -1, chainLength, outP);
-      expect(F4[outP >> 2]).to.equal(0.0);
-
-      mod.crf_updateNormalizationFactor(inP, numberOfStates, 0, outP);
-      expect(F4[outP >> 2]).to.equal(0.0);
-      mod.crf_updateNormalizationFactor(inP, numberOfStates, -1, outP);
+      mod.learn_crf_updateNormalizationFactor(inP, -1, chainLength, outP);
       expect(F4[outP >> 2]).to.equal(0.0);
 
-      mod.crf_updateNormalizationFactor(inP, numberOfStates, chainLength, outP);
+      mod.learn_crf_updateNormalizationFactor(inP, numberOfStates, 0, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+      mod.learn_crf_updateNormalizationFactor(inP, numberOfStates, -1, outP);
+      expect(F4[outP >> 2]).to.equal(0.0);
+
+      mod.learn_crf_updateNormalizationFactor(inP, numberOfStates, chainLength, outP);
       expect(F4[outP >> 2]).to.closeTo(1.126928, 0.00001);
     });
     
@@ -964,20 +964,20 @@ describe('This handwritten asm.js module', function() {
       putFloat(F4, normalizationFactorP, normalizationFactor);
       putInt32(I4, correctPathP, correctPath);
       
-      mod.crf_sufferLoss(featureScoreP, normalizationFactorP,
+      mod.learn_crf_sufferLoss(featureScoreP, normalizationFactorP,
         correctPathP, 0, chainLength, lossP);
       expect(F4[lossP >> 2]).to.equal(0.0);
-      mod.crf_sufferLoss(featureScoreP, normalizationFactorP,
+      mod.learn_crf_sufferLoss(featureScoreP, normalizationFactorP,
         correctPathP, numberOfStates, 0, lossP);
       expect(F4[lossP >> 2]).to.equal(0.0);
       
-      mod.crf_sufferLoss(featureScoreP, normalizationFactorP,
+      mod.learn_crf_sufferLoss(featureScoreP, normalizationFactorP,
         correctPathP, numberOfStates, chainLength, lossP);
         
       expect(F4[lossP >> 2]).to.closeTo(-(1.6 + 3.6 + 0.6 - 0.1), 0.00001);
       
       correctPath = [0, 0, 0];
-      mod.crf_sufferLoss(featureScoreP, normalizationFactorP,
+      mod.learn_crf_sufferLoss(featureScoreP, normalizationFactorP,
         correctPathP, numberOfStates, chainLength, lossP);
         expect(F4[lossP >> 2]).to.closeTo(-(1.6 + 1.6 + 2.6 - 0.1), 0.00001);
     });
@@ -1026,28 +1026,28 @@ describe('This handwritten asm.js module', function() {
       
       // This function does nothing if either # of states or chain length is
       // less than 1
-      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+      mod.learn_crf_updateJointScores(featureScoreP, forwardScoreP,
         backwardScoreP, normalizationFactorP, 0, chainLength);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.0001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
-      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+      mod.learn_crf_updateJointScores(featureScoreP, forwardScoreP,
         backwardScoreP, normalizationFactorP, -1, chainLength);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
-      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+      mod.learn_crf_updateJointScores(featureScoreP, forwardScoreP,
         backwardScoreP, normalizationFactorP, numberOfStates, 0);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
-      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+      mod.learn_crf_updateJointScores(featureScoreP, forwardScoreP,
         backwardScoreP, normalizationFactorP, numberOfStates, -1);
       expect(F4[featureScoreP >> 2]).to.closeTo(1.6, 0.00001);
       expect(F4[(featureScoreP - 4) >> 2]).to.closeTo(0.0, 0.00001);
       expect(F4[(featureScoreP + 4) >> 2]).to.closeTo(-2.9, 0.00001);
       
-      mod.crf_updateJointScores(featureScoreP, forwardScoreP,
+      mod.learn_crf_updateJointScores(featureScoreP, forwardScoreP,
         backwardScoreP, normalizationFactorP, numberOfStates, chainLength);
       for (i = 0; i < numberOfStates * numberOfStates * chainLength; i += 1) {
         expect(F4[featureScoreP >> 2]).
@@ -1128,7 +1128,7 @@ describe('This handwritten asm.js module', function() {
       putFloat(F4, jointScoreP, jointScores);
       putFloat(I4, correctPathP, correctPath);
       
-      mod.crf_updateGradient(nzP, valueP, indexP,
+      mod.learn_crf_updateGradient(nzP, valueP, indexP,
         biasScoreP, biasIndex, 
         transitionScoreP, transitionIndex,
         jointScoreP, correctPathP,
@@ -1160,15 +1160,15 @@ describe('This handwritten asm.js module', function() {
 
       putFloat(F4, scoreP, scores);
 
-      mod.crf_viterbi(scoreP, 0, chainLength,
+      mod.learn_crf_viterbi(scoreP, 0, chainLength,
         tmpP, predictionP, predictionScoreP);
       expect(F4[predictionScoreP >> 2]).to.equal(0);
       
-      mod.crf_viterbi(scoreP, numberOfStates, 0,
+      mod.learn_crf_viterbi(scoreP, numberOfStates, 0,
         tmpP, predictionP, predictionScoreP);
       expect(F4[predictionScoreP >> 2]).to.equal(0);
       
-      mod.crf_viterbi(scoreP, numberOfStates, chainLength,
+      mod.learn_crf_viterbi(scoreP, numberOfStates, chainLength,
         tmpP, predictionP, predictionScoreP);
       
       expect(F4[predictionScoreP >> 2]).to.closeTo(5.9, 0.00001);

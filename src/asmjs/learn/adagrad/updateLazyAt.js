@@ -1,6 +1,6 @@
-import adagradLazyValue from './adagradLazyValue';
+import lazyValue from './lazyValue';
 
-export default function adagradUpdateLazyAt(index, foiP, soiP, weightP,
+export default function updateLazyAt(index, foiP, soiP, weightP,
     round, delta, eta, lambda) {
   /*
    * Type annotations
@@ -30,7 +30,7 @@ export default function adagradUpdateLazyAt(index, foiP, soiP, weightP,
   p2 = (soiP + relativeByteOffset) | 0;
   p3 = (weightP + relativeByteOffset) | 0;
 
-  F4[p3 >> 2] = +adagradLazyValue(
+  F4[p3 >> 2] = +lazyValue(
     +F4[p1 >> 2], +F4[p2 >> 2],
     round, delta, eta, lambda
   );

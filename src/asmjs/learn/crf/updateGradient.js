@@ -1,4 +1,4 @@
-import unique from '../math/sparse/unique';
+import unique from '../../math/sparse/unique';
 
 /**
  * Computes a gradient.

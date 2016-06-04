@@ -1,4 +1,4 @@
-import sumInt32 from '../math/sumInt32';
+import sumInt32 from '../../math/sumInt32';
 import featureHashingSequence from './featureHashingSequence';
 import updateStateScores from './updateStateScores';
 import updateFeatureScores from './updateFeatureScores';

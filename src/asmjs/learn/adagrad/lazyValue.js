@@ -10,7 +10,7 @@
  * @param {double} lambda
  * @returns {double}
  */
-export default function adagradLazyValue(fov, sov, round, delta, eta, lambda) {
+export default function lazyValue(fov, sov, round, delta, eta, lambda) {
   /*
    * Type annotations
    */

@@ -1,7 +1,7 @@
-import adagradLazyValue from './adagradLazyValue';
+import lazyValue from './lazyValue';
 
 // from inclusive, to exclusive
-export default function adagradUpdateLazyRange(from, to, foiP, soiP, weightP,
+export default function updateLazyRange(from, to, foiP, soiP, weightP,
     round, delta, eta, lambda) {
   /*
    * Type annotations
@@ -40,7 +40,7 @@ export default function adagradUpdateLazyRange(from, to, foiP, soiP, weightP,
     
     if (foiV != 0.0) {
       soiV = +F4[soiP >> 2];
-      F4[weightP >> 2] = +adagradLazyValue(
+      F4[weightP >> 2] = +lazyValue(
         foiV, soiV, round, delta, eta, lambda
       );
     }

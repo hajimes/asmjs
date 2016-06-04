@@ -245,7 +245,7 @@
     p += 4;
 
     this.tmp2P = p;
-    p += this.mod.crf_getByteSize(this.numberOfStates, MAX_PATH_LENGTH,
+    p += this.mod.learn_crf_getByteSize(this.numberOfStates, MAX_PATH_LENGTH,
       MAX_PATH_LENGTH * 32);
     
     if (p >= this.heapSize) {
@@ -273,7 +273,7 @@
   CrfModule.prototype.trainOnline = function(instanceId) {
     var loss = 0.0;
     
-    this.mod.crf_trainOnline(
+    this.mod.learn_crf_trainOnline(
       this.trainingSetP + (28 * instanceId),
       this.numberOfStates,
       this.stateDimension,
@@ -314,7 +314,7 @@
     this.devSize = devSize | 0;
     this.trainDevCycle = 0;
     
-    this.mod.crf_adagradUpdateLazyRange(
+    this.mod.learn_adagrad_updateLazyRange(
       0,
       this.totalDimension,
       this.foiP,
@@ -348,7 +348,7 @@
       return false;
     }
     
-    this.mod.crf_predict(
+    this.mod.learn_crf_predict(
       instanceByteOffset,
       this.numberOfStates,
       this.stateDimension,
