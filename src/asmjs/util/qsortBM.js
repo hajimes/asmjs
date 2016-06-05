@@ -1,19 +1,44 @@
 /* global CMP_FUNCTION_TABLE */
 
-// LICENSE issue
-// original C code is copyrighted by John Wiley & Sons Inc.
-// http://www.cs.dartmouth.edu/~doug/qsort.c
-// we will rewrite this code to BSD's qsort
+/*-
+ * Copyright (c) 1992, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /**
  * Sorts things quickly.
  *
- * qsortBM uses an improved version of the quick sort algorithm developed by
- * Jon L. Bentley and M. Douglas McIlroy in 1993.
- *
- * TODO: the original B&M variably changes the size used for swap,
- * though currently this implementation swaps data byte by byte.
- * This issue will be solved soon.
+ * <code>qsortBM</code> uses an improved version of the quick sort algorithm
+ * developed by Jon L. Bentley and M. Douglas McIlroy in 1993.
+ * The code itself was ported from BSD's qsort implementation.
  *
  * @param {int} inP - byte offset to an array
  * @param {int} n - number of elements of the specified array
@@ -56,6 +81,10 @@ export default function qsortBM(inP, n, es, cmpId) {
   /*
    * Main
    */
+  // TODO: the original B&M variably changes the size used for swap,
+  // though currently this implementation swaps data byte by byte.
+  // This issue will be solved soon.
+  
   // this variable is used only for convenience to compare this code
   // with the original source code of B&M
   a = inP;
@@ -107,8 +136,9 @@ export default function qsortBM(inP, n, es, cmpId) {
   }
   
   // PVINIT
-  // Unlike the original C implementation, we always swap here, since
-  // in ECMAScript it is impossible to obtain the address of a local variable
+  // Unlike the original C implementation of the paper,
+  // we always swap here, since in ECMAScript it is impossible to obtain
+  // the address of a local variable
   pv = a;
   swap(pv, pm, es);
   
@@ -173,6 +203,9 @@ export default function qsortBM(inP, n, es, cmpId) {
     pc = (pc - es) | 0;
   }
   
+  // TODO:
+  // BSD's code switch to insertion sort here depending on the swap size
+  
   pn = (a + imul(n, es)) | 0;
   s = min((pa - a) | 0, (pb - pa) | 0);
   vecswap(a, (pb - s) | 0, s);
@@ -186,6 +219,9 @@ export default function qsortBM(inP, n, es, cmpId) {
   
   s = (pd - pc) | 0;
   if ((s | 0) > (es | 0)) {
+    // Unlike the BSD's implementation (but similar to the original C code)
+    // we recursively call the function here
+    // since ECMAScript does not have GOTO
     qsortBM((pn - s) | 0, ((s | 0) / (es | 0)) | 0, es, cmpId);
   }
 }
