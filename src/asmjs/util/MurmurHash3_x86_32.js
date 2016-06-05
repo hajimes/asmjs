@@ -3,6 +3,9 @@
  *
  * Use ">>> 0" to convert its result to an unsigned integer.
  *
+ * The original C code was written by Austin Appleby in 2010-2011
+ * under public domain.
+ *
  * @param {int} p - byte offset to the start of a byte sequence
  * @param {int} len - length of the specified byte sequence
  * @param {int} seed - unsigned 32-bit integer used as a seed

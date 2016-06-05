@@ -43,7 +43,18 @@ describe('This handwritten asm.js module', function() {
     }
   }
   
-  function putASCII(str, U1, pos) {
+  function getASCII(U1, pos, len) {
+    var i = 0;
+    var str = [];
+    
+    for (i = 0; i < len; i += 1) {
+      str.push(U1[pos + i]);
+    }
+    
+    return String.fromCharCode.apply(null, str);
+  }
+  
+  function setASCII(U1, pos, str) {
     var i = 0;
     
     for (i = 0; i < str.length; i += 1) {
@@ -267,7 +278,6 @@ describe('This handwritten asm.js module', function() {
       mod.math_sparse_susdot(-1, xP, indexP, yP, outP);
       expect(F4[outP >> 2]).to.closeTo(0.0, 0.000001);
       
-      
       x = [1.0, 0.5, -1.5];
       index = [2, 0, 2];
       y = [1.0, -1.5, 2.0, 0.5, 1.0];
@@ -424,6 +434,112 @@ describe('This handwritten asm.js module', function() {
   });
   
   describe('has a collection of utility functions', function() {
+    it('base64 decoding', function() {
+      var inP = 1000;
+      var outP = 2000;
+
+      expect(mod.util_base64DecodeLength(-1)).to.be.lessThan(0);
+
+      // test vectors from RFC 4648
+      setASCII(U1, inP, '');
+      expect(mod.util_base64DecodeLength(0)).to.equal(0);
+      expect(mod.util_base64Decode(inP, 0, outP)).to.equal(0);
+      expect(U1[outP]).to.equal(0);
+      
+      setASCII(U1, inP, 'Zg==');
+      expect(mod.util_base64DecodeLength(4)).to.equal(3);
+      expect(mod.util_base64Decode(inP, 4, outP)).to.equal(1);
+      expect(getASCII(U1, outP, 1)).to.equal('f');
+
+      setASCII(U1, inP, 'Zm8=');
+      expect(mod.util_base64Decode(inP, 4, outP)).to.equal(2);
+      expect(getASCII(U1, outP, 2)).to.equal('fo');
+
+      setASCII(U1, inP, 'Zm9v');
+      expect(mod.util_base64Decode(inP, 4, outP)).to.equal(3);
+      expect(getASCII(U1, outP, 3)).to.equal('foo');
+
+      setASCII(U1, inP, 'Zm9vYg==');
+      expect(mod.util_base64DecodeLength(8)).to.equal(6);
+      expect(mod.util_base64Decode(inP, 8, outP)).to.equal(4);
+      expect(getASCII(U1, outP, 4)).to.equal('foob');
+
+      setASCII(U1, inP, 'Zm9vYmE=');
+      expect(mod.util_base64Decode(inP, 8, outP)).to.equal(5);
+      expect(getASCII(U1, outP, 5)).to.equal('fooba');
+
+      setASCII(U1, inP, 'Zm9vYmFy');
+      expect(mod.util_base64Decode(inP, 8, outP)).to.equal(6);
+      expect(getASCII(U1, outP, 6)).to.equal('foobar');
+      
+      // other test vectors
+      setASCII(U1, inP, '+A==');
+      expect(mod.util_base64Decode(inP, 4, outP)).to.equal(1);
+      expect(U1[outP]).to.equal(62 << 2);
+
+      setASCII(U1, inP, '/A==');
+      expect(mod.util_base64Decode(inP, 4, outP)).to.equal(1);
+      expect(U1[outP]).to.equal(63 << 2);
+      
+      setASCII(U1, inP, '/A=');
+      expect(mod.util_base64Decode(inP, 3, outP)).lessThan(0);
+
+      setASCII(U1, inP, '/A?=');
+      expect(mod.util_base64Decode(inP, 4, outP)).lessThan(0);
+    });
+    
+    it('base64 encoding', function() {
+      var inP = 1000;
+      var outP = 2000;
+      
+      U1[inP >> 0] = 102;
+      
+      // test vectors from RFC 4648
+      expect(mod.util_base64Encode(inP, 0, outP)).to.equal(0);
+      expect(mod.util_base64EncodeLength(0)).to.equal(0);
+      expect(mod.util_base64EncodeLength(-1)).to.be.lessThan(0);
+      expect(U1[outP >> 0]).to.equal(0);
+      
+      setASCII(U1, inP, 'f');
+      expect(mod.util_base64EncodeLength(1)).to.equal(4);
+      expect(mod.util_base64Encode(inP, 1, outP)).to.equal(4);
+      expect(getASCII(U1, outP, 4)).to.equal('Zg==');
+
+      setASCII(U1, inP, 'fo');
+      expect(mod.util_base64EncodeLength(2)).to.equal(4);
+      expect(mod.util_base64Encode(inP, 2, outP)).to.equal(4);
+      expect(getASCII(U1, outP, 4)).to.equal('Zm8=');
+
+      setASCII(U1, inP, 'foo');
+      expect(mod.util_base64EncodeLength(3)).to.equal(4);
+      mod.util_base64Encode(inP, 3, outP);
+      expect(getASCII(U1, outP, 4)).to.equal('Zm9v');
+
+      setASCII(U1, inP, 'foob');
+      expect(mod.util_base64EncodeLength(4)).to.equal(8);
+      expect(mod.util_base64Encode(inP, 4, outP)).to.equal(8);
+      expect(getASCII(U1, outP, 8)).to.equal('Zm9vYg==');
+
+      setASCII(U1, inP, 'fooba');
+      expect(mod.util_base64EncodeLength(5)).to.equal(8);
+      expect(mod.util_base64Encode(inP, 5, outP)).to.equal(8);
+      expect(getASCII(U1, outP, 8)).to.equal('Zm9vYmE=');
+
+      setASCII(U1, inP, 'foobar');
+      expect(mod.util_base64EncodeLength(6)).to.equal(8);
+      expect(mod.util_base64Encode(inP, 6, outP)).to.equal(8);
+      expect(getASCII(U1, outP, 8)).to.equal('Zm9vYmFy');
+      
+      // other test vectors
+      U1[inP] = 62 << 2;
+      expect(mod.util_base64Encode(inP, 1, outP)).to.equal(4);
+      expect(getASCII(U1, outP, 4)).to.equal('+A==');
+      
+      U1[inP] = 63 << 2;
+      expect(mod.util_base64Encode(inP, 1, outP)).to.equal(4);
+      expect(getASCII(U1, outP, 4)).to.equal('/A==');
+    });
+    
     it('memmove', function() {
       I4[1000 >> 2] = 213523;
       I4[1004 >> 2] = -1279355;
@@ -583,7 +699,7 @@ describe('This handwritten asm.js module', function() {
       expect(mod.hash(16, 1, 0) >>> 0).to.equal(0x514E28B7);
 
       str = 'Hello, world!';
-      putASCII(str, U1, 16);
+      setASCII(U1, 16, str);
       expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).
         to.equal(0x24884CBA);
       
@@ -594,18 +710,18 @@ describe('This handwritten asm.js module', function() {
       for (i = 0; i < 256; i += 1) {
         str += 'a';
       }
-      putASCII(str, U1, 16);
+      setASCII(U1, 16, str);
       expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).to.equal(0x37405BDC);
 
       str = 'abc';
-      putASCII(str, U1, 16);
+      setASCII(U1, 16, str);
       expect(mod.hash(16, str.length, 0) >>> 0).to.equal(0xB3DD93FA);
       str = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq';
-      putASCII(str, U1, 16);
+      setASCII(U1, 16, str);
       expect(mod.hash(16, str.length, 0) >>> 0).to.equal(0xEE925B90);
 
       str = 'The quick brown fox jumps over the lazy dog';
-      putASCII(str, U1, 16);
+      setASCII(U1, 16, str);
       expect(mod.hash(16, str.length, 0x9747b28c) >>> 0).
         to.equal(0x2FA826CD);
       

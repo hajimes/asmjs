@@ -42,7 +42,10 @@ import qsortBM from './util/qsortBM';
 import memmove from './util/memmove.js';
 import * as ufmap from './util/ufmap.js';
 import hash from './util/MurmurHash3_x86_32';
-
+import util_base64Decode from './util/base64Decode';
+import util_base64DecodeLength from './util/base64DecodeLength';
+import util_base64Encode from './util/base64Encode';
+import util_base64EncodeLength from './util/base64EncodeLength';
 
 /*
  * Definition of function tables.
@@ -101,7 +104,11 @@ var EXPORTS = {
   compareInt32: compareInt32,
   compareUint32: compareUint32,
   qsortBM: qsortBM,
-  memmove: memmove
+  memmove: memmove,
+  util_base64Decode: util_base64Decode,
+  util_base64DecodeLength: util_base64DecodeLength,
+  util_base64Encode: util_base64Encode,
+  util_base64EncodeLength: util_base64EncodeLength
 };
 
 export {EXPORTS};
