@@ -96,6 +96,10 @@ describe('This handwritten asm.js module', function() {
     F4 = new Float32Array(heap);
     mod = myAsmjsModule(root, {}, heap);
   });
+  
+  afterEach(function() {
+    heap = null;
+  })
 
   describe('implements efficient bitwise operations such as', function() {
     it('popcount to count the number of bits in a 32-bit integer', function () {
@@ -358,8 +362,32 @@ describe('This handwritten asm.js module', function() {
       expect(F4[(outValueP + (2 << 2)) >> 2]).to.closeTo(-1.5, 0.00001);
       expect(F4[(outValueP + (3 << 2)) >> 2]).to.equal(3.0);
     });
+    
+    it('has a builder for sparse vectors', function() {
+      var tableSize = 1 << 16;
+      var maxNumberOfKeys = 1 << 17;
+      var p = 10000;
+      var outNzP = 0;
+      var outValueP = 1000;
+      var outIndexP = 2000;
+
+      mod.math_sparse_builder_create(p, tableSize, maxNumberOfKeys);
+      expect(mod.math_sparse_builder_size(p)).to.equal(0);
+      
+      mod.math_sparse_builder_add(p, 100, 1.0, 1.0);
+      mod.math_sparse_builder_add(p, 100, -2.0, 2.0);
+      mod.math_sparse_builder_add(p, 10, 2.0, 1.0);
+      expect(mod.math_sparse_builder_size(p)).to.equal(2);
+      
+      mod.math_sparse_builder_build(p, outNzP, outValueP, outIndexP);
+      expect(I4[outNzP >> 2]).to.equal(2);
+      expect(I4[outIndexP >> 2]).to.equal(100);
+      expect(I4[(outIndexP + 4) >> 2]).to.equal(10);
+      expect(F4[outValueP >> 2]).to.be.closeTo(-3.0, 0.00001);
+      expect(F4[(outValueP + 4) >> 2]).to.equal(2.0);
+    });
   });
-  
+      
   describe('handles unicode:', function() {        
     it('utf16-to-utf8 conversion', function() {
       var str = '';

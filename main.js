@@ -421,6 +421,9 @@ function updateLazyRange(from, to, foiP, soiP, weightP,
   }
 }
 
+// MurmurHash3 was written by Austin Appleby, and is placed in the public
+// domain. The author hereby disclaims copyright to this source code.
+
 /**
  * Returns a signed 32-bit hash value by using MurmurHash3_x86_32.
  *
@@ -1073,20 +1076,45 @@ function updateJointScores(featureScoreP, forwardScoreP,
 
 /* global CMP_FUNCTION_TABLE */
 
-// LICENSE issue
-// original C code is copyrighted by John Wiley & Sons Inc.
-// http://www.cs.dartmouth.edu/~doug/qsort.c
-// we will rewrite this code to BSD's qsort
+/*-
+ * Copyright (c) 1992, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /**
  * Sorts things quickly.
  *
- * qsortBM uses an improved version of the quick sort algorithm developed by
- * Jon L. Bentley and M. Douglas McIlroy in 1993.
- *
- * TODO: the original B&M variably changes the size used for swap,
- * though currently this implementation swaps data byte by byte.
- * This issue will be solved soon.
+ * <code>qsortBM</code> uses an improved version of the quick sort algorithm
+ * developed by Jon L. Bentley and M. Douglas McIlroy in 1993.
+ * The code itself was ported from BSD's qsort implementation.
  *
  * @param {int} inP - byte offset to an array
  * @param {int} n - number of elements of the specified array
@@ -1129,6 +1157,10 @@ function qsortBM(inP, n, es, cmpId) {
   /*
    * Main
    */
+  // TODO: the original B&M variably changes the size used for swap,
+  // though currently this implementation swaps data byte by byte.
+  // This issue will be solved soon.
+  
   // this variable is used only for convenience to compare this code
   // with the original source code of B&M
   a = inP;
@@ -1180,8 +1212,9 @@ function qsortBM(inP, n, es, cmpId) {
   }
   
   // PVINIT
-  // Unlike the original C implementation, we always swap here, since
-  // in ECMAScript it is impossible to obtain the address of a local variable
+  // Unlike the original C implementation of the paper,
+  // we always swap here, since in ECMAScript it is impossible to obtain
+  // the address of a local variable
   pv = a;
   swap(pv, pm, es);
   
@@ -1246,6 +1279,9 @@ function qsortBM(inP, n, es, cmpId) {
     pc = (pc - es) | 0;
   }
   
+  // TODO:
+  // BSD's code switch to insertion sort here depending on the swap size
+  
   pn = (a + imul(n, es)) | 0;
   s = min((pa - a) | 0, (pb - pa) | 0);
   vecswap(a, (pb - s) | 0, s);
@@ -1259,6 +1295,9 @@ function qsortBM(inP, n, es, cmpId) {
   
   s = (pd - pc) | 0;
   if ((s | 0) > (es | 0)) {
+    // Unlike the BSD's implementation (but similar to the original C code)
+    // we recursively call the function here
+    // since ECMAScript does not have GOTO
     qsortBM((pn - s) | 0, ((s | 0) / (es | 0)) | 0, es, cmpId);
   }
 }
@@ -2573,6 +2612,341 @@ function rounding(p, len, m, degree) {
   }
 }
 
+/********************
+ * SparseBuilder
+ *
+ * A builder to create a double-array sparse vector.
+ * This implementation uses a hash map where
+ * a key is limited to an unsigned 32-bit integer and
+ * a value is limited to a 32-bit float.
+ *
+ * For efficiency, the maximum number of keys must be specified at creation.
+ *
+ * +-------+---+---+---+---+---+---+
+ * |  TMP  |TBS|LEN|MNK|LLP|FRP|FLG| (more-->)
+ * +-------+---+---+---+---+---+---+
+ *
+ * +===============+===============+
+ * |... BUCKETS ...|... ENTRIES ...|
+ * +===============+===============+
+ *
+ * TMP: free 64-bit space to allocate temporary variables
+ * TBS: table size
+ * LEN: current number of items in this map
+ * MNK: maximum number of keys this map can contain
+ * LLP: relative byte offset to the linked list
+ * FRP: relative byte offset to the next free entry space
+ * FLG: flags
+ * BUCKETS: hash table
+ * ENTRIES: a sequence of entries
+ *
+ * This data structure uses 
+ * 32 + tableSize * 4 (bytes) + maxNumberOfKeys * 12 (bytes)
+ *
+ * This hash map uses separated chaining with linked lists as collision
+ * resolution. Each bucket uses signed 32-bit integer as a pointer to the
+ * first entry of a linked list. 0 denotes the key is not used.
+ *
+ * Each entry occupies 12 bytes.
+ *
+ * +---+---+---+
+ * |KEY|VAL|NXT|
+ * +---+---+---+
+ *
+ * KEY: 32-bit unsigned value for a key
+ * VAL: 32-bit float value for a value
+ * NXT: relative byte offset to the next entry
+ *
+ * NXT == 0 indicates that the entry is the last one in a linked list.
+ * NXT == 0xffffffff indicates that the entry is free and can be
+ * reallocated, and in this case KEY represents the relative byte offset to
+ * next free space.
+ ********************/
+
+/**
+ * Creates a new sparse vector builder.
+ *
+ * `tableSize` must be a power of 2. No validation is employed.
+ *
+ * This map uses (32 + tableSize * 4 + maxNumberOfKeys * 12) at <code>p</code>.
+ *
+ * @param {int} p - byte offset
+ * @param {int} tableSize - size of table
+ * @param {int} maxNumberOfKeys - unsigned 32-bit integer
+ *   to specify the maximum number of keys
+ */
+function sparseBuilderCreate(p, tableSize, maxNumberOfKeys) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  tableSize = tableSize | 0;
+  maxNumberOfKeys = maxNumberOfKeys | 0;
+  
+  /*
+   * Local variables
+   */
+  var linkedListP = 0; // byte offset to the first linked list entry
+  
+  /*
+   * Main
+   */
+  I4[(p + 0) >> 2] = 0;
+  I4[(p + 4) >> 2] = 0;
+  I4[(p + 8) >> 2] = tableSize;
+  I4[(p + 12) >> 2] = 0;
+  I4[(p + 16) >> 2] = maxNumberOfKeys;
+  linkedListP = (32 + (tableSize << 2)) | 0;
+  I4[(p + 20) >> 2] = linkedListP;
+  I4[(p + 24) >> 2] = linkedListP;
+}
+
+/**
+ * Updates the value by the following formula in 32-bit precision
+ * map[key] = coef * map[key] + value
+ *
+ * @param {int} p - byte offset
+ * @param {int} key - 32-bit unsigned integer
+ * @param {double} value - 64-bit float
+ * @param {double} coef - 64-bit float.
+ */
+function sparseBuilderAdd(p, key, value, coef) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  key = key | 0;
+  value = +value;
+  coef = +coef;
+
+  /*
+   * Local variables
+   */
+  var TMP1 = 0;
+  var TMP2 = 4;
+  var LEN = 12;
+  var MNK = 16;
+  var FRP = 24;
+  var lenP = 0;
+  var mnkP = 0;
+  var frpP = 0;
+  var freeAbsP = 0; // byte offset for a new entry
+  var entryP = 0;
+  var prevP = 0;
+  var valueAbsP = 0;
+  var v = 0.0;
+  var currentSize = 0;
+  var maximumNumberOfKeys = 0;
+
+  /*
+   * Main
+   */
+  lenP = (p + LEN) | 0;
+  mnkP = (p + MNK) | 0;
+  frpP = (p + FRP) | 0;
+    
+  _find(p, key);
+  entryP = I4[(p + TMP1) >> 2] | 0;
+  prevP = I4[(p + TMP2) >> 2] | 0;
+
+  if ((entryP | 0) != 0) {
+    // Key matched
+    valueAbsP = (p + entryP + 4) | 0;
+    v = +F4[valueAbsP >> 2];
+    v = v + value * coef;
+    F4[valueAbsP >> 2] = v;
+    return;
+  }
+
+  currentSize = I4[lenP >> 2] | 0;
+  maximumNumberOfKeys = I4[mnkP >> 2] | 0;
+  
+  if ((currentSize | 0) == (maximumNumberOfKeys | 0)) {       
+    return;
+  }
+
+  // Add a new entry
+  freeAbsP = (p + (U4[frpP >> 2] | 0)) | 0;
+  I4[(p + prevP) >> 2] = (freeAbsP - p) | 0;
+  I4[freeAbsP >> 2] = key;
+  freeAbsP = (freeAbsP + 4) | 0;
+  F4[freeAbsP >> 2] = value;
+  freeAbsP = (freeAbsP + 4) | 0;
+  I4[freeAbsP >> 2] = 0; // space for the next linked list entry
+  freeAbsP = (freeAbsP + 4) | 0;
+  U4[frpP >> 2] = (freeAbsP - p) | 0;
+
+  // increment the number of entries
+  I4[lenP >> 2] = (currentSize + 1) | 0;
+}
+
+/**
+ * Find an entry for a key.
+ *
+ * After this operation, byte offset to the start of an entry (relative to
+ * the start of this map) is written into the first 32-bit of TMP
+ * relative byte offset to a position where the pointer to the entry is
+ * written into the second 32-bit of TMP.
+ *
+ * When the key is not found, the first 32-bit of TMP will be 0.
+ * The second 32-bit of TMP will be ...
+ *
+ * @param {int} p - byte offset
+ * @param {int} key - 32-bit unsigned integer
+ */
+function _find(p, key) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  key = key | 0;
+  
+  /*
+   * Local variables
+   */
+  var TMP1 = 0;
+  var TMP2 = 4;
+  var TBS = 8;
+  var TABLE_START = 32;
+  var SEED = 42; // 42 is a seed chosen arbitrarily
+  var mask = 0;
+  var hashValue = 0;
+  var k = 0;
+  var prevP = 0;
+  var nextP = 0;
+  var entryP = 0;
+  var tmp1P = 0;
+  
+  /*
+   * Main
+   */
+  tmp1P = (p + TMP1) | 0;
+
+  mask = ((I4[(p + TBS) >> 2] >>> 0) - 1) >>> 0;
+  I4[tmp1P >> 2] = key;
+  hashValue = MurmurHash3_x86_32(tmp1P, 4, SEED) | 0;
+
+  prevP = (TABLE_START + ((hashValue & mask) << 2)) | 0;
+  nextP = I4[(p + prevP) >> 2] | 0;
+  
+  // while (nextP is not empty and key is not matched)
+  while (((nextP | 0) != 0) & ((k | 0) != (key | 0))) {
+    entryP = nextP;
+    k = I4[(p + entryP) >> 2] | 0;
+    prevP = entryP;
+    nextP = U4[((p + entryP + 8) | 0) >> 2] | 0;
+  }
+  
+  I4[(p + TMP2) >> 2] = prevP | 0;
+
+  if ((k | 0) == (key | 0)) {
+    // Key matched
+    I4[tmp1P >> 2] = entryP | 0;
+  } else {
+    I4[tmp1P >> 2] = 0;
+  }
+}
+
+/**
+ * Returns the number of entries contained in this builder.
+ *
+ * @param {int} p - byte offset
+ * @returns {signed} - size 
+ */
+function sparseBuilderSize(p) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+
+  /*
+   * Local variables
+   */
+  var LEN = 12;
+
+  /*
+   * Main
+   */
+  return I4[(p + LEN) >> 2] | 0;
+}
+
+/**
+ * Exactly 4 bytes will be writen into <code>outNzP</code>.
+ * At most 4 * I4[outNzP >> 2] bytes will be written into each
+ * <code>outValueP</code> and <code>outIndexP</code>
+ */
+function sparseBuilderBuild(p, outNzP, outValueP, outIndexP) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  outNzP = outNzP | 0;
+  outValueP = outValueP | 0;
+  outIndexP = outIndexP| 0;
+
+  /*
+   * Local variables
+   */
+  var endP = 0;
+  var linkedListP = 0;
+  var value = 0.0;
+  var nz = 0;
+  
+  /*
+   * Main
+   */
+  linkedListP = (p + (I4[(p + 20) >> 2] | 0)) | 0;
+  endP = (linkedListP + imul((sparseBuilderSize(p) | 0) << 2, 3)) | 0;
+  
+  for (; (linkedListP | 0) < (endP | 0); linkedListP = (linkedListP + 12) | 0) {
+    value = +F4[(linkedListP + 4) >> 2];
+    if (value != 0.0) {
+      F4[outValueP >> 2] = value;
+      I4[outIndexP >> 2] = I4[linkedListP >> 2] | 0;
+      outValueP = (outValueP + 4) | 0;
+      outIndexP = (outIndexP + 4) | 0;
+      nz = (nz + 1) | 0;
+    }
+  }
+  
+  I4[outNzP >> 2] = nz;
+}
+
+function sparseBuilderByteLength(tableSize, maxNumberOfKeys) {
+  /*
+   * Type annotations
+   */
+  tableSize = tableSize | 0;
+  maxNumberOfKeys = maxNumberOfKeys | 0;
+
+  /*
+   * Main
+   */
+  return (32 + (tableSize << 2) + imul(maxNumberOfKeys << 2, 3)) | 0;
+}
+
+/*
+ * Copyright 2001-2004 Unicode, Inc.
+ * 
+ * Disclaimer
+ * 
+ * This source code is provided as is by Unicode, Inc. No claims are
+ * made as to fitness for any particular purpose. No warranties of any
+ * kind are expressed or implied. The recipient agrees to determine
+ * applicability of information provided. If this file has been
+ * purchased on magnetic or optical media from Unicode, Inc., the
+ * sole remedy for any claim will be exchange of defective media
+ * within 90 days of receipt.
+ * 
+ * Limitations on Rights to Redistribute This Code
+ * 
+ * Unicode, Inc. hereby grants the right to freely use the information
+ * supplied in this file in the creation of products supporting the
+ * Unicode Standard, and to make copies of this file in any form
+ * for internal or external distribution as long as this notice
+ * remains attached.
+ */
+
 /**
  * Based on ConvertUTF.c by Unicode, Inc.
  * Endian dependent.
@@ -3713,6 +4087,13 @@ return {
   math_sparse_susdot: susdot,
   math_sparse_sort: sort,
   math_sparse_unique: unique,
+  
+  math_sparse_builder_create : sparseBuilderCreate,
+  math_sparse_builder_add : sparseBuilderAdd,
+  math_sparse_builder_size : sparseBuilderSize,
+  math_sparse_builder_build : sparseBuilderBuild,
+  math_sparse_builder_byteLength : sparseBuilderByteLength,
+  
   maxFloat32: maxFloat32,
   sumFloat32: sumFloat32,
   sumInt32: sumInt32,

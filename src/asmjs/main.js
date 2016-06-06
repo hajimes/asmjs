@@ -25,11 +25,18 @@ import learn_crf_sufferLoss from './learn/crf/sufferLoss';
 import learn_crf_getByteSize from './learn/crf/getByteSize';
 import learn_crf_viterbi from './learn/crf/viterbi';
 
+import math_l0 from './math/l0';
+import math_rounding from './math/rounding';
+
 import math_sparse_susdot from './math/sparse/susdot';
 import math_sparse_sort from './math/sparse/sort';
 import math_sparse_unique from './math/sparse/unique';
-import math_l0 from './math/l0';
-import math_rounding from './math/rounding';
+
+import math_sparse_builder_create from './math/sparse/builder/create';
+import math_sparse_builder_add from './math/sparse/builder/add';
+import math_sparse_builder_size from './math/sparse/builder/size';
+import math_sparse_builder_build from './math/sparse/builder/build';
+import math_sparse_builder_byteLength from './math/sparse/builder/byteLength';
 
 import convertUtf16toUtf8 from './unicode/convertUtf16toUtf8';
 import convertUtf8toUtf16 from './unicode/convertUtf8toUtf16';
@@ -86,6 +93,13 @@ var EXPORTS = {
   math_sparse_susdot: math_sparse_susdot,
   math_sparse_sort: math_sparse_sort,
   math_sparse_unique: math_sparse_unique,
+  
+  math_sparse_builder_create : math_sparse_builder_create,
+  math_sparse_builder_add : math_sparse_builder_add,
+  math_sparse_builder_size : math_sparse_builder_size,
+  math_sparse_builder_build : math_sparse_builder_build,
+  math_sparse_builder_byteLength : math_sparse_builder_byteLength,
+  
   maxFloat32: maxFloat32,
   sumFloat32: sumFloat32,
   sumInt32: sumInt32,
