@@ -154,14 +154,10 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   
   // reuse these spaces
   // gradientNzP = normalizationFactorP;
-  // gradientValueP = featureHashedValueP;
-  // gradientIndexP = featureHashedIndexP;
+  gradientValueP = featureHashedValueP;
+  gradientIndexP = featureHashedIndexP;
   gradientNzP = tmpP;
   tmpP = (tmpP + 4) | 0;
-  gradientValueP = tmpP;
-  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
-  gradientIndexP = tmpP;
-  tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
 
   //
   // Main routine
