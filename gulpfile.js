@@ -45,7 +45,7 @@
   gulp.task('istanbul', ['build', 'jshint'], shell.task([ISTANBUL_COMMAND]));
 
   gulp.task('jshint', () => {
-    return gulp.src('src/*/*.js')
+    return gulp.src('src/**/*.js')
       .pipe(jshint())
       .pipe(jshint.reporter(stylish))
       .pipe(jshint.reporter('fail'));

@@ -10,6 +10,12 @@
  * scale that the current time is i, the previous state is j,
  * and the current state is k.
  *
+ * Note: the above structure is actually a design mistake.
+ * a memory allocation like float[time][currentState][previousState]
+ * should lead to cleaner code and can reduce cache misses during
+ * gradient computation and viterbi.
+ * We may (or may not) refactor this point in the future.
+ *
  * Data will be overwrriten into a table of feature scores.
  */
 export default function updateJointScores(featureScoreP, forwardScoreP,

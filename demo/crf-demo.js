@@ -4,7 +4,7 @@
   var MAX_PATH_LENGTH = 2048;
   var MAX_NUMBER_OF_STATES = 32;
   var DEV_TEST_CYCLE = 5000;
-  var ROUNDING_TEST_ROUND = 20000;
+  var ROUNDING_TEST_ROUND = 80000;
   
   var crfMod = {};
   var heapSize = 1 << 29;
@@ -720,7 +720,7 @@
         showPerformance(fps);
         now = t;
         
-        if (fps < 60) {
+        if (fps < 80) {
           if (trainBatchSize > 1) {
             trainBatchSize -= 1;
           } else {

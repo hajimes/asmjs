@@ -35,13 +35,13 @@ export default function updateGradient(nzP, valueP, indexP,
   /*
    * Local variables
    */
+  var i = 0;
+  var v = 0.0;
+
   var time = 0;
   var cur = 0;
   var prev = 0;
-  var transitionIndexSave = 0;
-  var transitionScorePSave = 0;
-  var prob = 0.0;
-  var i = 0;
+
   var nz = 0;
   var totalNz = 0;
   var value = 0.0;
@@ -49,12 +49,16 @@ export default function updateGradient(nzP, valueP, indexP,
   var coef = 0.0;
   var correctState = 0;
   var correctPreviousState = 0;
-  var valuePSave = 0;
-  var indexPSave = 0;
   var tmpValuePSave = 0;
   var tmpIndexPSave = 0;
+  var transitionIndexSave = 0;
   var transitionFromAnyIndex = 0;
   var transitionFromAnyIndexSave = 0;
+
+  var nosBytes = 0;
+  var jointScoreStepPerPrevLoop = 0;
+  var jointScoreStepPerCurLoop = 0;
+  var transitionIndexStepPerPrevLoop = 0;
   
   /*
    * Main
@@ -66,9 +70,16 @@ export default function updateGradient(nzP, valueP, indexP,
   transitionFromAnyIndex = (transitionIndex + imul(numberOfStates + 1, numberOfStates)) | 0;
   transitionFromAnyIndexSave = transitionFromAnyIndex;
 
+  nosBytes = numberOfStates << 2;
+  jointScoreStepPerPrevLoop = ((-imul(nosBytes, numberOfStates) | 0) + 4) | 0;
+  jointScoreStepPerCurLoop = imul(nosBytes, numberOfStates - 1) | 0;
+  transitionIndexStepPerPrevLoop = ((-imul(numberOfStates,
+    numberOfStates) | 0) + 1) | 0;
+
+
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-    prob = +F4[jointScoreP >> 2];
-    coef = exp(prob);
+    v = +F4[jointScoreP >> 2];
+    coef = exp(v);
     
     if ((cur | 0) == (correctState | 0)) {
       coef = coef - 1.0;
@@ -119,82 +130,84 @@ export default function updateGradient(nzP, valueP, indexP,
   nzP = (nzP + 4) | 0;
   correctPathP = (correctPathP + 4) | 0;
   correctPreviousState = correctState;
-  transitionFromAnyIndex = transitionFromAnyIndexSave;
-
+  transitionIndexSave = transitionIndex;
+  
   for (time = 1; (time | 0) < (chainLength | 0); time = (time + 1) | 0) {
-    transitionIndexSave = transitionIndex;
-    transitionScorePSave = transitionScoreP;
     nz = I4[nzP >> 2] | 0;
-    
     correctState = I4[correctPathP >> 2] | 0;
+    transitionFromAnyIndex = transitionFromAnyIndexSave;
+    transitionIndex = transitionIndexSave;
 
-    valuePSave = valueP;
-    indexPSave = indexP;
+    for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
+      coef = 0.0;
 
-    for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
-
-      transitionFromAnyIndexSave = transitionFromAnyIndex;
-      
-      for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
-        prob = +F4[jointScoreP >> 2];
-        coef = exp(prob);
+      for (prev = 0; (prev | 0) < (numberOfStates | 0); prev = (prev + 1) | 0) {
+        v = +F4[jointScoreP >> 2];
+        v = exp(v);
 
         if ((cur | 0) == (correctState | 0) &
             (prev | 0) == (correctPreviousState | 0)) {
-              coef = coef - 1.0;
+          v = v - 1.0;
         }
-
-        I4[tmpIndexP >> 2] = biasIndex | 0;
-        F4[tmpValueP >> 2] = coef;
-        tmpIndexP = (tmpIndexP + 4) | 0;
-        tmpValueP = (tmpValueP + 4) | 0;
-        totalNz = (totalNz + 1) | 0;
+        
+        coef = coef + v;
 
         I4[tmpIndexP >> 2] = transitionIndex | 0;
-        F4[tmpValueP >> 2] = coef;
+        F4[tmpValueP >> 2] = v;
         tmpIndexP = (tmpIndexP + 4) | 0;
         tmpValueP = (tmpValueP + 4) | 0;
         totalNz = (totalNz + 1) | 0;
 
-        I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
-        F4[tmpValueP >> 2] = coef;
-        tmpIndexP = (tmpIndexP + 4) | 0;
-        tmpValueP = (tmpValueP + 4) | 0;
-        totalNz = (totalNz + 1) | 0;
-
-        for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
-          value = +F4[valueP >> 2];
-          index = I4[indexP >> 2] | 0;
-      
-          F4[tmpValueP >> 2] = value * coef;
-          I4[tmpIndexP >> 2] = index;
-
-          valueP = (valueP + 4) | 0;
-          indexP = (indexP + 4) | 0;
-          tmpValueP = (tmpValueP + 4) | 0;
-          tmpIndexP = (tmpIndexP + 4) | 0;
-          totalNz = (totalNz + 1) | 0;
-        }
-
-        jointScoreP = (jointScoreP + 4) | 0;
-        transitionIndex = (transitionIndex + 1) | 0;
-        transitionFromAnyIndex = (transitionFromAnyIndex + 1) | 0;
-        transitionScoreP = (transitionScoreP + 4) | 0;
+        jointScoreP = (jointScoreP + nosBytes) | 0;
+        transitionIndex = (transitionIndex + numberOfStates) | 0;
       }
       
-      valueP = valuePSave;
-      indexP = indexPSave;
-      transitionFromAnyIndex = transitionFromAnyIndexSave;
+      I4[tmpIndexP >> 2] = biasIndex | 0;
+      F4[tmpValueP >> 2] = coef;
+      tmpIndexP = (tmpIndexP + 4) | 0;
+      tmpValueP = (tmpValueP + 4) | 0;
+      totalNz = (totalNz + 1) | 0;
+      
+      I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
+      F4[tmpValueP >> 2] = coef;
+      tmpIndexP = (tmpIndexP + 4) | 0;
+      tmpValueP = (tmpValueP + 4) | 0;
+      totalNz = (totalNz + 1) | 0;
+
+      for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
+        value = +F4[valueP >> 2];
+        index = I4[indexP >> 2] | 0;
+    
+        F4[tmpValueP >> 2] = value * coef;
+        I4[tmpIndexP >> 2] = index;
+
+        valueP = (valueP + 4) | 0;
+        indexP = (indexP + 4) | 0;
+        tmpValueP = (tmpValueP + 4) | 0;
+        tmpIndexP = (tmpIndexP + 4) | 0;
+        totalNz = (totalNz + 1) | 0;
+      }
+      
+      transitionFromAnyIndex = (transitionFromAnyIndex + 1) | 0;
+
+      // from jointScores[time][numberOfStates][cur]
+      // to jointScores[time][0][cur + 1]
+      jointScoreP = (jointScoreP + jointScoreStepPerPrevLoop) | 0;
+      
+      // from transitionIndices[numberOfStates + 1][cur]
+      // to transitionIndices[1][cur + 1]
+      transitionIndex = (transitionIndex + transitionIndexStepPerPrevLoop) | 0;
     }
-
-    valueP = (valueP + imul((nz << 2), numberOfStates)) | 0;
-    indexP = (indexP + imul((nz << 2), numberOfStates)) | 0;
-
     nzP = (nzP + 4) | 0;
-    transitionIndex = transitionIndexSave;
-    transitionScoreP = transitionScorePSave;
+
     correctPathP = (correctPathP + 4) | 0;
     correctPreviousState = correctState;
+
+    // Note that jointScores[time][0][numberOfStates]
+    // is the same as jointScores[time][1][0], where
+    // p(jointScores[time][1][0]) + numberOfStates * (numberOfStates - 1) * 4
+    // = p(jointScores[time + 1][0][0])
+    jointScoreP = (jointScoreP + jointScoreStepPerCurLoop) | 0;
   }
 
   tmpValueP = tmpValuePSave;
