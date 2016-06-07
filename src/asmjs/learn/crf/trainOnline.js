@@ -112,15 +112,19 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   transitionScoreTableSize = (imul(numberOfStates + 1, numberOfStates) +
     numberOfStates) | 0;
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  gradientMaxSize = 
-    (imul(totalNz, transitionScoreTableSize) + 
-    imul(featureScoreTableSize, 2)) | 0;
+  
+  // this size can be slightly tighter, but we leave some margin for safety
+  gradientMaxSize = (
+    imul(totalNz, numberOfStates) + // state features
+    imul(chainLength, transitionScoreTableSize) + // transition features
+    1 // bias term
+  ) | 0;
 
   biasIndex = (dimension + transitionScoreTableSize) | 0;
   transitionIndex = dimension;
 
-  // We only need (imul(totalNz, numberOfStates) << 2) bytes at feature hashing
-  // but we allocate slightly larger bytes so that later the space can be used
+  // We only need (imul(totalNz, numberOfStates) * 4) bytes at feature hashing
+  // but we allocate slightly larger bytes so that later the space can be reused
   // as an output space for the gradient calculation.
   featureHashedValueP = tmpP;
   tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
@@ -153,11 +157,9 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
   tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
   
   // reuse these spaces
-  // gradientNzP = normalizationFactorP;
+  gradientNzP = normalizationFactorP;
   gradientValueP = featureHashedValueP;
   gradientIndexP = featureHashedIndexP;
-  gradientNzP = tmpP;
-  tmpP = (tmpP + 4) | 0;
 
   //
   // Main routine
@@ -202,6 +204,7 @@ export default function trainOnline(instanceP, numberOfStates, dimension, round,
     numberOfStates, chainLength,
     tmpValueP, tmpIndexP,
     gradientNzP, gradientValueP, gradientIndexP);
+
   nz = I4[gradientNzP >> 2] | 0;
   adagradUpdateTemporary(nz, gradientValueP, gradientIndexP, foiP, soiP);
 }

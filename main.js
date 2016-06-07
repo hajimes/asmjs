@@ -1575,14 +1575,15 @@ function updateGradient(nzP, valueP, indexP,
   var prev = 0;
 
   var nz = 0;
-  var totalNz = 0;
   var value = 0.0;
   var index = 0;
   var coef = 0.0;
+  var totalCoef = 0.0;
   var correctState = 0;
   var correctPreviousState = 0;
   var tmpValuePSave = 0;
   var tmpIndexPSave = 0;
+  var tmpNz = 0;
   var transitionIndexSave = 0;
   var transitionFromAnyIndex = 0;
   var transitionFromAnyIndexSave = 0;
@@ -1591,6 +1592,14 @@ function updateGradient(nzP, valueP, indexP,
   var jointScoreStepPerPrevLoop = 0;
   var jointScoreStepPerCurLoop = 0;
   var transitionIndexStepPerPrevLoop = 0;
+  
+  // variables for assertion testing
+  // var totalNz = sumInt32(nzP, chainLength) | 0;
+  // var assertedMaxNz =
+  //   imul(totalNz, numberOfStates) + // state features
+  //   imul(chainLength, imul(numberOfStates + 1, numberOfStates)) + // transition features
+  //   imul(chainLength, numberOfStates) + // transition from any features
+  //   1; // bias term
   
   /*
    * Main
@@ -1608,7 +1617,6 @@ function updateGradient(nzP, valueP, indexP,
   transitionIndexStepPerPrevLoop = ((-imul(numberOfStates,
     numberOfStates) | 0) + 1) | 0;
 
-
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     v = +F4[jointScoreP >> 2];
     coef = exp(v);
@@ -1616,25 +1624,19 @@ function updateGradient(nzP, valueP, indexP,
     if ((cur | 0) == (correctState | 0)) {
       coef = coef - 1.0;
     }
-    
-    I4[tmpIndexP >> 2] = biasIndex | 0;
-    F4[tmpValueP >> 2] = coef;
-
-    tmpIndexP = (tmpIndexP + 4) | 0;
-    tmpValueP = (tmpValueP + 4) | 0;
-    totalNz = (totalNz + 1) | 0;
+    totalCoef = totalCoef + coef;
 
     I4[tmpIndexP >> 2] = transitionIndex | 0;
     F4[tmpValueP >> 2] = coef;
     tmpIndexP = (tmpIndexP + 4) | 0;
     tmpValueP = (tmpValueP + 4) | 0;
-    totalNz = (totalNz + 1) | 0;
+    tmpNz = (tmpNz + 1) | 0;
     
     I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
     F4[tmpValueP >> 2] = coef;
     tmpIndexP = (tmpIndexP + 4) | 0;
     tmpValueP = (tmpValueP + 4) | 0;
-    totalNz = (totalNz + 1) | 0;
+    tmpNz = (tmpNz + 1) | 0;
 
     for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
       value = +F4[valueP >> 2];
@@ -1647,7 +1649,7 @@ function updateGradient(nzP, valueP, indexP,
       indexP = (indexP + 4) | 0;
       tmpValueP = (tmpValueP + 4) | 0;
       tmpIndexP = (tmpIndexP + 4) | 0;
-      totalNz = (totalNz + 1) | 0;
+      tmpNz = (tmpNz + 1) | 0;
     }
     
     transitionIndex = (transitionIndex + 1) | 0;
@@ -1683,28 +1685,23 @@ function updateGradient(nzP, valueP, indexP,
         }
         
         coef = coef + v;
+        totalCoef = totalCoef + coef;
 
         I4[tmpIndexP >> 2] = transitionIndex | 0;
         F4[tmpValueP >> 2] = v;
         tmpIndexP = (tmpIndexP + 4) | 0;
         tmpValueP = (tmpValueP + 4) | 0;
-        totalNz = (totalNz + 1) | 0;
+        tmpNz = (tmpNz + 1) | 0;
 
         jointScoreP = (jointScoreP + nosBytes) | 0;
         transitionIndex = (transitionIndex + numberOfStates) | 0;
       }
       
-      I4[tmpIndexP >> 2] = biasIndex | 0;
-      F4[tmpValueP >> 2] = coef;
-      tmpIndexP = (tmpIndexP + 4) | 0;
-      tmpValueP = (tmpValueP + 4) | 0;
-      totalNz = (totalNz + 1) | 0;
-      
       I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
       F4[tmpValueP >> 2] = coef;
       tmpIndexP = (tmpIndexP + 4) | 0;
       tmpValueP = (tmpValueP + 4) | 0;
-      totalNz = (totalNz + 1) | 0;
+      tmpNz = (tmpNz + 1) | 0;
 
       for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
         value = +F4[valueP >> 2];
@@ -1717,7 +1714,7 @@ function updateGradient(nzP, valueP, indexP,
         indexP = (indexP + 4) | 0;
         tmpValueP = (tmpValueP + 4) | 0;
         tmpIndexP = (tmpIndexP + 4) | 0;
-        totalNz = (totalNz + 1) | 0;
+        tmpNz = (tmpNz + 1) | 0;
       }
       
       transitionFromAnyIndex = (transitionFromAnyIndex + 1) | 0;
@@ -1741,11 +1738,23 @@ function updateGradient(nzP, valueP, indexP,
     // = p(jointScores[time + 1][0][0])
     jointScoreP = (jointScoreP + jointScoreStepPerCurLoop) | 0;
   }
+  
+  I4[tmpIndexP >> 2] = biasIndex | 0;
+  F4[tmpValueP >> 2] = totalCoef;
+  tmpIndexP = (tmpIndexP + 4) | 0;
+  tmpValueP = (tmpValueP + 4) | 0;
+  tmpNz = (tmpNz + 1) | 0;
+
+  // Assertion for tmpNz
+  // if (tmpNz > assertedMaxNz) {
+  //   throw new Error('assertion failed; tmpNz in gradient computation : ' +
+  //     tmpNz + ', ' + assertedMaxNz);
+  // }
 
   tmpValueP = tmpValuePSave;
   tmpIndexP = tmpIndexPSave;
 
-  unique(totalNz, tmpValueP, tmpIndexP, outNzP, outValueP, outIndexP);
+  unique(tmpNz, tmpValueP, tmpIndexP, outNzP, outValueP, outIndexP);
 }
 
 function updateLazyAt(index, foiP, soiP, weightP,
@@ -2126,15 +2135,19 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   transitionScoreTableSize = (imul(numberOfStates + 1, numberOfStates) +
     numberOfStates) | 0;
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  gradientMaxSize = 
-    (imul(totalNz, transitionScoreTableSize) + 
-    imul(featureScoreTableSize, 2)) | 0;
+  
+  // this size can be slightly tighter, but we leave some margin for safety
+  gradientMaxSize = (
+    imul(totalNz, numberOfStates) + // state features
+    imul(chainLength, transitionScoreTableSize) + // transition features
+    1 // bias term
+  ) | 0;
 
   biasIndex = (dimension + transitionScoreTableSize) | 0;
   transitionIndex = dimension;
 
-  // We only need (imul(totalNz, numberOfStates) << 2) bytes at feature hashing
-  // but we allocate slightly larger bytes so that later the space can be used
+  // We only need (imul(totalNz, numberOfStates) * 4) bytes at feature hashing
+  // but we allocate slightly larger bytes so that later the space can be reused
   // as an output space for the gradient calculation.
   featureHashedValueP = tmpP;
   tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
@@ -2167,15 +2180,9 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
   tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
   
   // reuse these spaces
-  // gradientNzP = normalizationFactorP;
+  gradientNzP = normalizationFactorP;
   gradientValueP = featureHashedValueP;
   gradientIndexP = featureHashedIndexP;
-  gradientNzP = tmpP;
-  tmpP = (tmpP + 4) | 0;
-  // gradientValueP = tmpP;
-  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
-  // gradientIndexP = tmpP;
-  // tmpP = (tmpP + (gradientMaxSize << 2)) | 0;
 
   //
   // Main routine
@@ -2220,6 +2227,7 @@ function trainOnline(instanceP, numberOfStates, dimension, round,
     numberOfStates, chainLength,
     tmpValueP, tmpIndexP,
     gradientNzP, gradientValueP, gradientIndexP);
+
   nz = I4[gradientNzP >> 2] | 0;
   updateTemporary(nz, gradientValueP, gradientIndexP, foiP, soiP);
 }
@@ -2487,7 +2495,7 @@ function predict(instanceP, numberOfStates, stateDimension,
 }
 
 /**
- * Returns the byte size used by this CRF implementation.
+ * Returns the byte size used by this CRF implementation during training.
  * This value does not include weight vector and other denses.
  */
 function getByteSize(numberOfStates,
@@ -2513,11 +2521,14 @@ function getByteSize(numberOfStates,
    * Main
    */
   stateScoreTableSize = imul(maxChainLength, numberOfStates);
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  transitionScoreTableSize = (imul(numberOfStates + 1, numberOfStates) +
+    numberOfStates) | 0;
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  gradientMaxSize = 
-    (imul(maxTotalNz, transitionScoreTableSize) + 
-    imul(featureScoreTableSize, 2)) | 0;
+  gradientMaxSize = (
+    imul(maxTotalNz, numberOfStates) + // state features
+    imul(maxChainLength, transitionScoreTableSize) + // transition features
+    1 // bias term
+  ) | 0;
   
   // feature hashed values
   result = (result + (gradientMaxSize << 2)) | 0;
@@ -2545,15 +2556,6 @@ function getByteSize(numberOfStates,
 
   // tmp vec indices
   result = (result + (gradientMaxSize << 2)) | 0;
-
-  // gradient nz
-  result = (result + 4) | 0;
-
-  // gradient vec values
-  // result = (result + (gradientMaxSize << 2)) | 0;
-
-  // gradient vec indices
-  // result = (result + (gradientMaxSize << 2)) | 0;
   
   return result | 0;
 }

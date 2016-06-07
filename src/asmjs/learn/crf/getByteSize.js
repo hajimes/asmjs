@@ -1,5 +1,5 @@
 /**
- * Returns the byte size used by this CRF implementation.
+ * Returns the byte size used by this CRF implementation during training.
  * This value does not include weight vector and other denses.
  */
 export default function getByteSize(numberOfStates,
@@ -25,11 +25,14 @@ export default function getByteSize(numberOfStates,
    * Main
    */
   stateScoreTableSize = imul(maxChainLength, numberOfStates);
-  transitionScoreTableSize = imul(numberOfStates + 1, numberOfStates);
+  transitionScoreTableSize = (imul(numberOfStates + 1, numberOfStates) +
+    numberOfStates) | 0;
   featureScoreTableSize = imul(stateScoreTableSize, numberOfStates);
-  gradientMaxSize = 
-    (imul(maxTotalNz, transitionScoreTableSize) + 
-    imul(featureScoreTableSize, 2)) | 0;
+  gradientMaxSize = (
+    imul(maxTotalNz, numberOfStates) + // state features
+    imul(maxChainLength, transitionScoreTableSize) + // transition features
+    1 // bias term
+  ) | 0;
   
   // feature hashed values
   result = (result + (gradientMaxSize << 2)) | 0;
@@ -57,15 +60,6 @@ export default function getByteSize(numberOfStates,
 
   // tmp vec indices
   result = (result + (gradientMaxSize << 2)) | 0;
-
-  // gradient nz
-  result = (result + 4) | 0;
-
-  // gradient vec values
-  // result = (result + (gradientMaxSize << 2)) | 0;
-
-  // gradient vec indices
-  // result = (result + (gradientMaxSize << 2)) | 0;
   
   return result | 0;
 }

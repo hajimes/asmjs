@@ -43,14 +43,15 @@ export default function updateGradient(nzP, valueP, indexP,
   var prev = 0;
 
   var nz = 0;
-  var totalNz = 0;
   var value = 0.0;
   var index = 0;
   var coef = 0.0;
+  var totalCoef = 0.0;
   var correctState = 0;
   var correctPreviousState = 0;
   var tmpValuePSave = 0;
   var tmpIndexPSave = 0;
+  var tmpNz = 0;
   var transitionIndexSave = 0;
   var transitionFromAnyIndex = 0;
   var transitionFromAnyIndexSave = 0;
@@ -59,6 +60,14 @@ export default function updateGradient(nzP, valueP, indexP,
   var jointScoreStepPerPrevLoop = 0;
   var jointScoreStepPerCurLoop = 0;
   var transitionIndexStepPerPrevLoop = 0;
+  
+  // variables for assertion testing
+  // var totalNz = sumInt32(nzP, chainLength) | 0;
+  // var assertedMaxNz =
+  //   imul(totalNz, numberOfStates) + // state features
+  //   imul(chainLength, imul(numberOfStates + 1, numberOfStates)) + // transition features
+  //   imul(chainLength, numberOfStates) + // transition from any features
+  //   1; // bias term
   
   /*
    * Main
@@ -76,7 +85,6 @@ export default function updateGradient(nzP, valueP, indexP,
   transitionIndexStepPerPrevLoop = ((-imul(numberOfStates,
     numberOfStates) | 0) + 1) | 0;
 
-
   for (cur = 0; (cur | 0) < (numberOfStates | 0); cur = (cur + 1) | 0) {
     v = +F4[jointScoreP >> 2];
     coef = exp(v);
@@ -84,25 +92,19 @@ export default function updateGradient(nzP, valueP, indexP,
     if ((cur | 0) == (correctState | 0)) {
       coef = coef - 1.0;
     }
-    
-    I4[tmpIndexP >> 2] = biasIndex | 0;
-    F4[tmpValueP >> 2] = coef;
-
-    tmpIndexP = (tmpIndexP + 4) | 0;
-    tmpValueP = (tmpValueP + 4) | 0;
-    totalNz = (totalNz + 1) | 0;
+    totalCoef = totalCoef + coef;
 
     I4[tmpIndexP >> 2] = transitionIndex | 0;
     F4[tmpValueP >> 2] = coef;
     tmpIndexP = (tmpIndexP + 4) | 0;
     tmpValueP = (tmpValueP + 4) | 0;
-    totalNz = (totalNz + 1) | 0;
+    tmpNz = (tmpNz + 1) | 0;
     
     I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
     F4[tmpValueP >> 2] = coef;
     tmpIndexP = (tmpIndexP + 4) | 0;
     tmpValueP = (tmpValueP + 4) | 0;
-    totalNz = (totalNz + 1) | 0;
+    tmpNz = (tmpNz + 1) | 0;
 
     for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
       value = +F4[valueP >> 2];
@@ -115,7 +117,7 @@ export default function updateGradient(nzP, valueP, indexP,
       indexP = (indexP + 4) | 0;
       tmpValueP = (tmpValueP + 4) | 0;
       tmpIndexP = (tmpIndexP + 4) | 0;
-      totalNz = (totalNz + 1) | 0;
+      tmpNz = (tmpNz + 1) | 0;
     }
     
     transitionIndex = (transitionIndex + 1) | 0;
@@ -151,28 +153,23 @@ export default function updateGradient(nzP, valueP, indexP,
         }
         
         coef = coef + v;
+        totalCoef = totalCoef + coef;
 
         I4[tmpIndexP >> 2] = transitionIndex | 0;
         F4[tmpValueP >> 2] = v;
         tmpIndexP = (tmpIndexP + 4) | 0;
         tmpValueP = (tmpValueP + 4) | 0;
-        totalNz = (totalNz + 1) | 0;
+        tmpNz = (tmpNz + 1) | 0;
 
         jointScoreP = (jointScoreP + nosBytes) | 0;
         transitionIndex = (transitionIndex + numberOfStates) | 0;
       }
       
-      I4[tmpIndexP >> 2] = biasIndex | 0;
-      F4[tmpValueP >> 2] = coef;
-      tmpIndexP = (tmpIndexP + 4) | 0;
-      tmpValueP = (tmpValueP + 4) | 0;
-      totalNz = (totalNz + 1) | 0;
-      
       I4[tmpIndexP >> 2] = transitionFromAnyIndex | 0;
       F4[tmpValueP >> 2] = coef;
       tmpIndexP = (tmpIndexP + 4) | 0;
       tmpValueP = (tmpValueP + 4) | 0;
-      totalNz = (totalNz + 1) | 0;
+      tmpNz = (tmpNz + 1) | 0;
 
       for (i = 0; (i | 0) < (nz | 0); i = (i + 1) | 0) {
         value = +F4[valueP >> 2];
@@ -185,7 +182,7 @@ export default function updateGradient(nzP, valueP, indexP,
         indexP = (indexP + 4) | 0;
         tmpValueP = (tmpValueP + 4) | 0;
         tmpIndexP = (tmpIndexP + 4) | 0;
-        totalNz = (totalNz + 1) | 0;
+        tmpNz = (tmpNz + 1) | 0;
       }
       
       transitionFromAnyIndex = (transitionFromAnyIndex + 1) | 0;
@@ -209,9 +206,21 @@ export default function updateGradient(nzP, valueP, indexP,
     // = p(jointScores[time + 1][0][0])
     jointScoreP = (jointScoreP + jointScoreStepPerCurLoop) | 0;
   }
+  
+  I4[tmpIndexP >> 2] = biasIndex | 0;
+  F4[tmpValueP >> 2] = totalCoef;
+  tmpIndexP = (tmpIndexP + 4) | 0;
+  tmpValueP = (tmpValueP + 4) | 0;
+  tmpNz = (tmpNz + 1) | 0;
+
+  // Assertion for tmpNz
+  // if (tmpNz > assertedMaxNz) {
+  //   throw new Error('assertion failed; tmpNz in gradient computation : ' +
+  //     tmpNz + ', ' + assertedMaxNz);
+  // }
 
   tmpValueP = tmpValuePSave;
   tmpIndexP = tmpIndexPSave;
 
-  unique(totalNz, tmpValueP, tmpIndexP, outNzP, outValueP, outIndexP);
+  unique(tmpNz, tmpValueP, tmpIndexP, outNzP, outValueP, outIndexP);
 }

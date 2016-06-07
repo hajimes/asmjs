@@ -1,9 +1,9 @@
 (function() {
   'use strict';
   
-  var MAX_PATH_LENGTH = 2048;
-  var MAX_NUMBER_OF_STATES = 32;
-  var DEV_TEST_CYCLE = 5000;
+  var MAX_PATH_LENGTH = 512;
+  var MAX_NUMBER_OF_STATES = 64;
+  var DEV_TEST_CYCLE = 1000;
   var ROUNDING_TEST_ROUND = 80000;
   
   var crfMod = {};
@@ -128,8 +128,16 @@
     }
     
     for (i = 0; i < this.size; i += 1) {
-      result.precision[i] = result.tp[i] / (result.tp[i] + result.fp[i]);
-      result.recall[i] = result.tp[i] / (result.tp[i] + result.fn[i]);
+      if (result.tp[i] + result.fp[i] === 0.0) {
+        result.precision[i] = 0.0;
+      } else {
+        result.precision[i] = result.tp[i] / (result.tp[i] + result.fp[i]);
+      }
+      if (result.tp[i] + result.fn[i] === 0.0) {
+        result.recall[i] = 0.0;
+      } else {
+        result.recall[i] = result.tp[i] / (result.tp[i] + result.fn[i]);        
+      }
       
       result.macroPrecision += result.precision[i];
       result.macroRecall += result.recall[i];
@@ -246,9 +254,11 @@
 
     this.tmp2P = p;
     p += this.mod.learn_crf_getByteSize(this.numberOfStates, MAX_PATH_LENGTH,
-      MAX_PATH_LENGTH * 32);
+      MAX_PATH_LENGTH * 40);
     
     if (p >= this.heapSize) {
+      console.log(this.mod.learn_crf_getByteSize(this.numberOfStates, MAX_PATH_LENGTH,
+        MAX_PATH_LENGTH * 40));
       throw new Error('memory allocation exceeded the heap size');
     }
     
