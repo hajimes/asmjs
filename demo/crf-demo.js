@@ -1,9 +1,9 @@
-(function() {
+require(['../main'], function(myAsmjsModule) {
   'use strict';
   
   var MAX_PATH_LENGTH = 512;
   var MAX_NUMBER_OF_STATES = 64;
-  var DEV_TEST_CYCLE = 1000;
+  var DEV_TEST_CYCLE = 10000;
   var ROUNDING_TEST_ROUND = 80000;
   
   var crfMod = {};
@@ -205,7 +205,7 @@
     this.heap = heap;
     this.I4 = new Int32Array(heap);
     this.F4 = new Float32Array(heap);
-    this.mod = window.myAsmjsModule(window, {}, heap);
+    this.mod = myAsmjsModule(window, {}, heap);
     
     this.tmpP = p;
     p += tmpAllocation;
@@ -886,14 +886,16 @@
 
     d3.select('#start').on('click', start);
     d3.select('#stop').on('click', stop);
-  
+
     d3.select("#upload-train").on("change", uploadTrain);
     d3.select("#upload-dev").on("change", uploadDev);
-  
-    loadModuleAsync('../main.js', function() {
-      isAsmModuleLoaded = true;
-    });
+
+    isAsmModuleLoaded = true;
+
+    // loadModuleAsync('../main.js', function() {
+    //   isAsmModuleLoaded = true;
+    // });
   }
 
   main();
-})();
+});
