@@ -1,5 +1,6 @@
 html {
   min-width: 1040px;
+  background-color: #fefefe;
 }
 
 h1 {
@@ -33,7 +34,7 @@ body {
 .btn {
   width: 145px;
   display: inline-block;
-  margin-bottom: 0;
+  margin-bottom: 50 px;
   font-weight: normal;
   text-align: center;
   white-space: nowrap;
@@ -42,4 +43,19 @@ body {
   background-image: none;
   border: 1px solid transparent;
   -webkit-user-select: none;
+}
+
+div.section {
+  position:relative;
+  margin:0 0 8px 0px;
+  border-top: 1px solid #E5E5E0;
+}
+
+#footer {
+  margin-top: 10 px;
+  clear: both;
+}
+
+#footer .inner {
+  margin: 10 px;
 }
