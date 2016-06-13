@@ -156,7 +156,7 @@ require(['./crf'], function(CRF) {
   
   function showRound(round) {
     if ((crf !== undefined) && (crf !== null)) {
-      d3.select('#round').text(round);
+      d3.select('#round').text('round: ' + round);
     } else {
       d3.select('#round').text('N/A');
     }
@@ -164,9 +164,9 @@ require(['./crf'], function(CRF) {
 
   function showDevLoss(loss) {
     if ((crf !== undefined) && (crf !== null)) {
-      d3.select('#dev-loss').text('dev loss: ' + loss);
+      d3.select('#dev-loss').text('test loss: ' + loss);
     } else {
-      d3.select('#round').text('N/A');
+      d3.select('#dev-loss').text('N/A');
     }
   }
   
@@ -179,11 +179,11 @@ require(['./crf'], function(CRF) {
   }
   
   function showCumulativeLoss(cumulativeLoss) {
-    d3.select('#cumulative-loss').text(cumulativeLoss);
+    d3.select('#cumulative-loss').text('Cumulative loss: ' + cumulativeLoss);
   }
 
   function showAveragedLoss(averagedLoss) {
-    d3.select('#averaged-loss').text(averagedLoss);
+    d3.select('#averaged-loss').text('Averaged loss: ' + averagedLoss);
   }
   
   function start() {
@@ -214,23 +214,15 @@ require(['./crf'], function(CRF) {
 
         crf = CRF.create(heapSize);
         try {   
-          crf.parseDataString(fileReader.result);
+          crf.parseDataString(fileReader.result, 'train');
         } catch (e) {
           alert('Error occurred: ' + e.message);
         }
         
-        d3.select('#instance-size').html('instance size: ' + 3);
-        //
-        // crf = new CRF(heapSize,
-        //   Object.getOwnPropertyNames(info.labels));
-        //
-        //   try {
-        //     for (i = 0; i < parsedData.data.length; i += 1) {
-        //       crf.appendInstance(parsedData.data[i]);
-        //     }
+        d3.select('#train-size').html(crf.numberOfTrainingData);
+        d3.select('#train-class').html(Array.from(crf.labelSet).length);
 
         isTrainUploaded = true;
-        // console.log(parsedData.data);
       };
     
       fileReader.readAsText(uploadFile);
@@ -239,6 +231,8 @@ require(['./crf'], function(CRF) {
         'Try IE10+ or other browsers.');
     }
   }
+  
+  
   
   function uploadDev() {
     if (!isTrainUploaded) {
@@ -259,8 +253,13 @@ require(['./crf'], function(CRF) {
         try {
           crf.parseDataString(fileReader.result, 'dev');
         } catch (e) {
-          alert('Error occurred during handling development data: ' + e.message);
+          alert('Error occurred during handling test data: ' + e.message);
         }
+        
+        d3.select('#test-size').html(crf.numberOfDevData);
+        
+        console.log(crf.labels);
+        
         // info = getDataSetInfo(devData);
         //
         // console.log(devData);

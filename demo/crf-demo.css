@@ -18,6 +18,15 @@ body {
   width: 960px;
 }
 
+.input-file {
+	width: 0.1px;
+	height: 0.1px;
+	opacity: 0;
+	overflow: hidden;
+	position: absolute;
+	z-index: -1;
+}
+
 .btn-large {
   padding: 10px 16px;
   font-size: 18px;
@@ -32,9 +41,9 @@ body {
 }
 
 .btn {
-  width: 145px;
+  width: 200px;
   display: inline-block;
-  margin-bottom: 50 px;
+  margin-bottom: 0px;
   font-weight: normal;
   text-align: center;
   white-space: nowrap;
@@ -43,6 +52,31 @@ body {
   background-image: none;
   border: 1px solid transparent;
   -webkit-user-select: none;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+.dataset-info {
+  margin-top: 20px;
+}
+
+tr {
+  border-top: black solid 1px;
+  border-bottom: black solid 1px;
+}
+
+th {
+  text-align: right;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+td {
+  text-align: right;
+  padding-left: 5px;
+  padding-right: 5px;
 }
 
 div.section {

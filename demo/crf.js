@@ -1,115 +1,11 @@
-define(['../main'], function(asmlib) {
+define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
   /********************
    * Private constants
    ********************/
-  var MAX_PATH_LENGTH = 512;
+  var MAX_PATH_LENGTH = 2048;
   var MAX_NUMBER_OF_STATES = 64;
   var ROUNDING_TEST_ROUND = 80000;
-  
-  function ConfusionMatrix(size) {
-    var i = 0;
-    var j = 0;
-    
-    this.table = [];
-    this.size = size;
-    this.total = 0;
-    
-    for (i = 0; i < size; i += 1) {
-      this.table.push([]);
-      for (j = 0; j < size; j += 1) {
-        this.table[i][j] = 0.0;
-      }
-    }
-  }
-  
-  ConfusionMatrix.prototype.put = function(correct, predicted) {
-    this.table[correct][predicted] += 1.0;
-    this.total += 1;
-  };
-  
-  ConfusionMatrix.prototype.report = function() {
-    var i = 0;
-    var j = 0;
-    
-    var result = {
-      full: this.table,
-      accuracy: 0.0,
-      labelCount: [],
-      precision: [],
-      recall: [],
-      macroPrecision: 0.0,
-      macroRecall: 0.0,
-      macroF1: 0.0,
-      tp: [],
-      fp: [],
-      fn: [],
-      f1: [],
-    };
-    
-    var v = 0.0;
-    
-    for (i = 0; i < this.size; i += 1) {
-      result.labelCount[i] = 0;
-      result.tp[i] = 0;
-      result.fp[i]= 0;
-      result.fn[i] = 0;
-    }
-    
-    for (i = 0; i < this.size; i += 1) {
-      for (j = 0; j < this.size; j += 1) {
-        v = this.table[i][j];
-        if (i === j) {
-          result.accuracy += v;
-          result.tp[i] += v;
-        } else {
-          result.fp[j] += v;
-          result.fn[i] += v;
-        }
-      }
-    }
-    
-    for (i = 0; i < this.size; i += 1) {
-      if (result.tp[i] + result.fp[i] === 0.0) {
-        result.precision[i] = 0.0;
-      } else {
-        result.precision[i] = result.tp[i] / (result.tp[i] + result.fp[i]);
-      }
-      if (result.tp[i] + result.fn[i] === 0.0) {
-        result.recall[i] = 0.0;
-      } else {
-        result.recall[i] = result.tp[i] / (result.tp[i] + result.fn[i]);        
-      }
-      
-      result.macroPrecision += result.precision[i];
-      result.macroRecall += result.recall[i];
-      
-      result.f1[i] = 2 * result.precision[i] * result.recall[i] /
-        (result.precision[i] + result.recall[i]);
-    }
-    
-    result.macroPrecision /= this.size;
-    result.macroRecall /= this.size;
-    result.macroF1 = 2 * result.macroPrecision * result.macroRecall /
-    (result.macroPrecision + result.macroRecall);
-    
-    result.accuracy /= this.total;
 
-    return result;
-  };
-  
-  ConfusionMatrix.prototype.clear = function() {
-    var i = 0;
-    var j = 0;
-    
-    for (i = 0; i < this.size; i += 1) {
-      for (j = 0; j < this.size; j += 1) {
-        this.table[i][j] = 0.0;
-      }
-    }
-    
-    this.total = 0;
-  };
-  
   /**
    * Facade object for the backend asm.js module.
    *
@@ -137,7 +33,8 @@ define(['../main'], function(asmlib) {
     this.NZ_STORE_SIZE = 1 << 23;
     this.CORRECT_PATH_STORE_SIZE = 1 << 22;
   
-    this.labels = labels;
+    // this.labels = labels;
+    this.labels = [];
     this.labelSet = new Set();
     this.numberOfStates = this.labels.length;
   
@@ -224,7 +121,7 @@ define(['../main'], function(asmlib) {
     this.devIdCurrent = 0;
     this.trainDevCycle = 0;
   
-    this.confusionMatrix = new ConfusionMatrix(this.numberOfStates);
+    this.confusionMatrix = {};
   
     this.numberOfTrainingData = 0;
     this.numberOfDevData = 0;
@@ -251,7 +148,6 @@ define(['../main'], function(asmlib) {
   };
   
   CRF.initializeTrainer = function() {
-    
   };
 
   CRF.prototype.trainOnline = function(instanceId) {
@@ -294,7 +190,9 @@ define(['../main'], function(asmlib) {
     if (devSize === undefined) {
       throw new Error('dev size undefined');
     }
-      
+    
+    this.confusionMatrix = new ConfusionMatrix(this.numberOfStates);
+    
     this.devLoss = 0.0;
     this.devIdCurrent = 0;
     this.devSize = devSize | 0;
@@ -313,6 +211,8 @@ define(['../main'], function(asmlib) {
     );
   
     console.log('l0: ' + this.mod.math_l0(this.weightP, this.totalDimension));
+  
+    console.log(this.totalDimension);
   
     if (this.round >= ROUNDING_TEST_ROUND) {
       this.mod.math_rounding(this.weightP, this.totalDimension, 2, 1);
@@ -510,6 +410,7 @@ define(['../main'], function(asmlib) {
     var pathLength = 0;
     var nz = 0;
     var key = '';
+    var labelId = 0;
   
     type = (type === undefined) ? 'train' : type;
   
@@ -533,8 +434,23 @@ define(['../main'], function(asmlib) {
       
       this.appendNz(nz);
     
-      this.labelSet.add(item.label);
-      this.appendCorrectPath(Array.from(this.labelSet).indexOf(item.label));
+      if (type === 'train') {
+        if (this.labelSet.has(item.label)) {
+          labeldId = this.labels.indexOf(item.label);
+          this.appendCorrectPath(labelId);
+        } else {
+          this.labelSet.add(item.label);
+          this.labels.push(item.label);
+          labeldId = this.labels.indexOf(item.label);
+          labelId = Array.from(this.labelSet).indexOf(item.label);          
+        }
+      } else {
+        labelId = this.labels.indexOf(item.label);
+        if (labelId < 0)  {
+          throw new Error('invalid label');
+        }
+        this.appendCorrectPath(labelId);
+      }
       
       for (j = 0; j < nz; j += 1) {
         key = item.keys[j];
@@ -636,7 +552,7 @@ define(['../main'], function(asmlib) {
     }
 
     if (datum.items.length > 0) {
-      this.appendInstance(datum);
+      this.appendInstance(datum, type);
     }
   };
   
