@@ -1,10 +1,12 @@
 define([], function() {
+  'use strict';
+
   function ConfusionMatrix(size) {
     var i = 0;
     var j = 0;
     
     if (size <= 0) {
-      throw new RangeEror('size must be more than 0');
+      throw new RangeError('size must be more than 0');
     }
     
     this.table = [];

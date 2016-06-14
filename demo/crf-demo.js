@@ -11,8 +11,8 @@ require(['./crf'], function(CRF) {
   var isTrainUploaded = false;
   var isDevUploaded = false;
   
-  var DEV_TEST_CYCLE = 10000;
-  var ROUNDING_TEST_ROUND = 80000;
+  var DEV_TEST_CYCLE = 8000;
+  var ROUNDING_TEST_ROUND = 8000000;
 
   // Based on jQuery
   function loadModuleAsync(url, callback) {
@@ -84,6 +84,7 @@ require(['./crf'], function(CRF) {
       var i = 0;
       var t = 0;
       var id = 0;
+      var l0 = 0;
       
       if (isTraining) {
         setTimeout(loopSub, 1);
@@ -98,7 +99,14 @@ require(['./crf'], function(CRF) {
               if (t === false) {
                 isProcessingDev = false;
                 crf.trainDevCycle = 0;
-                console.log(crf.confusionMatrix.report());
+                l0 = crf.l0();
+                showNumberOfActiveFeatures(l0);
+                showMacroF1(crf.confusionMatrix.report().macroF1);
+                showCompressionSize(compressionSize(
+                  crf.totalDimension,
+                  l0
+                ));
+                // console.log(crf.confusionMatrix.report());
                 break;
               }
             }
@@ -108,6 +116,7 @@ require(['./crf'], function(CRF) {
             for (i = 0; i < trainBatchSize; i += 1) {
               id = (Math.random() * crf.numberOfTrainingData) | 0;
 
+              // console.log(crf.inspectInstance(id));
               crf.trainOnline(id);
             }
           }
@@ -156,7 +165,7 @@ require(['./crf'], function(CRF) {
   
   function showRound(round) {
     if ((crf !== undefined) && (crf !== null)) {
-      d3.select('#round').text('round: ' + round);
+      d3.select('#round').text(formatNumber(round));
     } else {
       d3.select('#round').text('N/A');
     }
@@ -164,7 +173,7 @@ require(['./crf'], function(CRF) {
 
   function showDevLoss(loss) {
     if ((crf !== undefined) && (crf !== null)) {
-      d3.select('#dev-loss').text('test loss: ' + loss);
+      d3.select('#dev-loss').text(loss);
     } else {
       d3.select('#dev-loss').text('N/A');
     }
@@ -175,15 +184,59 @@ require(['./crf'], function(CRF) {
   }
   
   function showDataPerSec(dps) {
-    d3.select('#dps').text('Data per sec: ' + dps.toFixed(1));
+    d3.select('#dps').text(dps.toFixed(1));
   }
   
   function showCumulativeLoss(cumulativeLoss) {
-    d3.select('#cumulative-loss').text('Cumulative loss: ' + cumulativeLoss);
+    d3.select('#cumulative-loss').text(cumulativeLoss.toFixed(5));
   }
 
   function showAveragedLoss(averagedLoss) {
-    d3.select('#averaged-loss').text('Averaged loss: ' + averagedLoss);
+    d3.select('#averaged-loss').text(averagedLoss.toFixed(5));
+  }
+
+  function showNumberOfFeatures(n) {
+    d3.select('#number-of-features').text(formatNumber(n));
+  }
+
+  function showAICLosss(n) {
+    d3.select('#active-features').text(formatNumber(n));
+  }
+
+  function showNumberOfActiveFeatures(n) {
+    d3.select('#active-features').text(formatNumber(n));
+  }
+  
+  function showMacroF1(n) {
+    d3.select('#dev-f1').text(n.toFixed(4));
+  }
+    
+  function showCompressionSize(n) {
+    d3.select('#comp-size').text(formatNumber(n));
+  }
+  
+  function compressionSize(dim, activeFeatures) {
+    console.log('dim: ' + dim);
+    console.log('active' + activeFeatures);
+    var ratioOfOnes = activeFeatures / dim;
+    var ef = sizeOfEliasFano(dim, ratioOfOnes);
+    
+    return ef * dim / 8 + activeFeatures * 0.75;
+  }
+  
+  function sizeOfEliasFano(size, ratioOfOnes) {
+    var numberOfOnes = 0;
+    var baseSize = 0;
+
+    numberOfOnes = size * ratioOfOnes;
+    baseSize = 1.92 * numberOfOnes;
+
+    if (ratioOfOnes === 0) {
+      return baseSize/ size;
+    }
+
+    // return (baseSize + numberOfOnes * Math.log2(size / numberOfOnes)) / size;
+    return (baseSize + numberOfOnes * Math.log2(size / numberOfOnes) + 1.22 * numberOfOnes) / size;
   }
   
   function start() {
@@ -220,7 +273,10 @@ require(['./crf'], function(CRF) {
         }
         
         d3.select('#train-size').html(crf.numberOfTrainingData);
-        d3.select('#train-class').html(Array.from(crf.labelSet).length);
+        d3.select('#train-class').html(crf.numberOfStates);
+        
+        showNumberOfFeatures(crf.featureSet.size * crf.numberOfStates + 
+          (crf.numberOfStates) * (crf.numberOfStates + 1) + 1);
 
         isTrainUploaded = true;
       };
@@ -231,8 +287,6 @@ require(['./crf'], function(CRF) {
         'Try IE10+ or other browsers.');
     }
   }
-  
-  
   
   function uploadDev() {
     if (!isTrainUploaded) {

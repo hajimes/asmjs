@@ -25,7 +25,7 @@
       <br>
       <div>
         <input type="file" id="upload-dev"  class="input-file" />
-        <label for="upload-dev" class="btn btn-primary btn-large">Choose test data</label>
+        <label for="upload-dev" class="btn btn-primary btn-large">Choose dev data</label>
         <table class="dataset-info">
           <tr><th>Number of instances</th><td id="test-size">-</td></tr>
         </table>
@@ -33,14 +33,43 @@
     </div>
 
     <div class="section">
-      <p id="number-of-states"></p>
-      <p id="instance-size"></p>
-      <p id="round"></p>
-      <p id="fps"></p>
-      <p id="dps"></p>
-      <p id="cumulative-loss"></p>
-      <p id="averaged-loss"></p>
-      <p id="dev-loss"></p>
+      <h2>Hyperparameters</h2>
+      <table>
+        <tbody>
+          <tr><th><a title="If this parameter is high, training can converge faster. On the other hand, it may converge before the optimal performance is achieved. Technically this is &eta; of the Adagrad hyperparameters">General learning rate (&eta; )</a></th>
+            <td id="hyperparameter-eta">-</td></tr>
+
+          <tr><th><a title="If this parameter is high, training can converge faster. On the other hand, it may converge before the optimal performance is achieved. Technically this is &delta; of the Adagrad hyperparameters">Frequency-aware learning rate (&delta;)</a></th>
+            <td id="hyperparameter-delta">-</td></tr>
+
+          <tr><th><a title="If this parameter is high, the number of active features will get lower, leading to a smaller size of the result. On the other hand, lowering this parameter too much can decrease the accuracy of the model. Technically this is &lambda; of the AdaGrad hyperparameters.">Regularization strength (&lambda;)</a></th>
+            <td id="hyperparameter-lambda">-</td></tr>
+
+          <tr><th><a title="If this parameter is low, the result can be smaller. On the other hand, lowering this parameter too much decreases the accuracy of the model.">Strength of feature hashing</a></th><td>-</td></tr>
+
+          <tr><th><a title="Denotes the strength of randomized rounding compression 'm.n'. If the value (m + n) is low, the result will be more compact. On the hand, lowering (m + n) too much decreases the accuracy of the model.">Type of randomized rounding</a></th><td>3.2</td></tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Training info</h2>
+      <table>
+        <tbody>
+          <tr><th>Round</th><td id="round">-</td></tr>
+          <tr><th>Performance (fps)</th><td id="fps">-</td></tr>
+          <tr><th>Performance (data per sec.)</th><td id="dps">-</td></tr>
+          <tr><th>Cumulative loss</th><td id="cumulative-loss">-</td></tr>
+          <tr><th>Averaged loss</th><td id="averaged-loss">-</td></tr>
+          <tr><th>Cumulative loss on dev data</th><td id="dev-loss">-</td></tr>
+          <tr><th># of feaures</th><td id="number-of-features">-</td></tr>
+          <tr><th># of active feaures</th><td id="active-features">-</td></tr>
+          <tr><th>Macro F1</th><td id="dev-f1">-</td></tr>
+          <tr><th>Estimated byte size of the resulting model</th><td id="comp-size">-</td></tr>
+        </tbody>
+      </table>
+
       <button id="start" type="button" class="btn btn-primary btn-large ">Start</button>
       <button id="stop" type="button" class="btn btn-primary btn-large ">Stop</button>
     </div>
@@ -49,6 +78,10 @@
       <h2>Settings</h2>
       <p id="heap-size"></p>
       <label for="heap-size">Heap size</label>
+    </div>
+    
+    <div class="faq">
+      <h2>FAQ</h2>
     </div>
 
 

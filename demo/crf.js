@@ -1,10 +1,13 @@
 define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
+  'use strict';
+  
   /********************
    * Private constants
    ********************/
   var MAX_PATH_LENGTH = 2048;
   var MAX_NUMBER_OF_STATES = 64;
-  var ROUNDING_TEST_ROUND = 80000;
+  var ROUNDING_TEST_ROUND = 8000000;
+  var INSTANCE_HEADER_BYTE_SIZE = 28;
 
   /**
    * Facade object for the backend asm.js module.
@@ -21,7 +24,7 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
     var global = {};
     var heap = new ArrayBuffer(heapSize);
     var tmpAllocation = 1 << 14;
-    var stateDimension = 1 << 24;
+    var stateDimension = 1 << 20;
     var totalDimension = 0;
     var numberOfStates = 0;
   
@@ -35,8 +38,8 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
   
     // this.labels = labels;
     this.labels = [];
-    this.labelSet = new Set();
     this.numberOfStates = this.labels.length;
+    this.numberOfStates = 3;
   
     if (this.numberOfStates < 0 || this.numberOfStates >= MAX_NUMBER_OF_STATES) {
       throw new Error('invalid number of labels: ' + this.numberOfStates);
@@ -125,6 +128,8 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
   
     this.numberOfTrainingData = 0;
     this.numberOfDevData = 0;
+    
+    this.featureSet = new Set();
   
     for (var i = 0; i < this.totalDimension; i += 1) {
       this._F4[(this.soiP + (i << 2)) >> 2] = 1.0;
@@ -132,13 +137,13 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
   }
   
   CRF.create = function(heapSize) {
+    heapSize = heapSize | 0;
+
     var global = {};
     
     if (heapSize === undefined) {
       throw new TypeError('undefined heapSize');
     }
-    
-    heapSize = heapSize | 0;
     
     if (heapSize < (1 << 24)) {
       throw new RangeError('heapSize must be at least 1 << 24');
@@ -153,10 +158,8 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
   CRF.prototype.trainOnline = function(instanceId) {
     var loss = 0.0;
   
-    this.numberOfStates = this.labelSet.size;
-  
     this.mod.learn_crf_trainOnline(
-      this.trainingSetP + (28 * instanceId),
+      this.trainingSetP + (INSTANCE_HEADER_BYTE_SIZE * instanceId),
       this.numberOfStates,
       this.stateDimension,
       this.round,
@@ -223,7 +226,8 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
 
   CRF.prototype.predictDev = function() {
     var i = 0;
-    var instanceByteOffset = this.developmentSetP + (28 * this.devIdCurrent);
+    var instanceByteOffset = this.developmentSetP +
+      (INSTANCE_HEADER_BYTE_SIZE * this.devIdCurrent);
     var predicted = [];
     var pathLength = 0;
     var inspectedInstance = {};
@@ -264,6 +268,10 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
   CRF.prototype.averagedLoss = function() {
     return this.cumulativeLoss / this.round;
   };
+  
+  CRF.prototype.l0 = function() {
+    return this.mod.math_l0(this.weightP, this.totalDimension);
+  }
 
   CRF.prototype.inspectInstance = function(instanceId, type) {
     var i = 0;
@@ -271,9 +279,11 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
     var result = {};
   
     if (type === 'dev') {
-      byteOffset = this.developmentSetP + (28 * instanceId);
+      byteOffset = this.developmentSetP +
+        (INSTANCE_HEADER_BYTE_SIZE * instanceId);
     } else {
-      byteOffset = this.trainingSetP + (28 * instanceId);
+      byteOffset = this.trainingSetP +
+        (INSTANCE_HEADER_BYTE_SIZE * instanceId);
     }
   
     result.pathLength = this._I4[(byteOffset + 4) >> 2];
@@ -295,16 +305,36 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
     result.valuesFirstPosition = [];
     result.indicesFirstPosition = [];
 
-    for (i = 0; i < result.pathLength; i += 1) {
+    for (i = 0; i < result.nz[0]; i += 1) {
       result.valuesFirstPosition.push(
         this._F4[(result.valueByteOffset + (i << 2)) >> 2]
       );
       result.indicesFirstPosition.push(
-        this._I4[(result.indexByteOffset + (i << 2)) >> 2]
+        this._I4[(result.indexByteOffset + (i << 2)) >> 2] >>> 0
       );
     }
   
     return result;
+  };
+
+  CRF.prototype.getLabelId = function(label, appendable) {
+    var labelId = 0;
+    
+    appendable = (appendable === undefined) ? false : appendable;
+    
+    labelId = this.labels.indexOf(label);
+    
+    if (labelId < 0) {
+      if (appendable) {
+        labelId = this.labels.length;
+        this.labels.push(label);
+        this.numberOfStates = this.labels.length;
+      } else {
+        throw new TypeError('invalid label: '  + label);
+      }
+    }
+    
+    return labelId;
   };
 
   CRF.prototype.appendInstanceHeader = function(pathLength, type) {
@@ -334,9 +364,9 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
     this._I4[(freePointer + 24) >> 2] = this.correctPathFreeP;
   
     if (type === 'dev') {
-      this.developmentSetFreeP += 28;
+      this.developmentSetFreeP += INSTANCE_HEADER_BYTE_SIZE;
     } else {
-      this.trainingSetFreeP += 28;      
+      this.trainingSetFreeP += INSTANCE_HEADER_BYTE_SIZE;      
     }
   };
 
@@ -352,13 +382,13 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
   };
 
   CRF.prototype.appendCorrectPath = function(stateId) {
+    stateId |= 0;
+
     if (this.correctPathFreeP >= (this.correctPathP +
         this.CORRECT_PATH_STORE_SIZE)) {
       throw new Error('supervisory data store exhausted; allocate larger space');
     }
-  
-    stateId |= 0;
-  
+   
     this._I4[this.correctPathFreeP >> 2] = stateId;
     this.correctPathFreeP += 4;
   };
@@ -372,10 +402,11 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
     this._F4[this.valueFreeP >> 2] = value
     this.valueFreeP += 4;
   
+    this.featureSet.add(key);
+  
     this._I4[this.keyFreeP >> 2] = key;
     this.keyFreeP += 4;
   };
-
 
   /**
    * Appends an instance object into the heap.
@@ -433,28 +464,17 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
       }
       
       this.appendNz(nz);
-    
+      
       if (type === 'train') {
-        if (this.labelSet.has(item.label)) {
-          labeldId = this.labels.indexOf(item.label);
-          this.appendCorrectPath(labelId);
-        } else {
-          this.labelSet.add(item.label);
-          this.labels.push(item.label);
-          labeldId = this.labels.indexOf(item.label);
-          labelId = Array.from(this.labelSet).indexOf(item.label);          
-        }
+        labelId = this.getLabelId(item.label, true);
       } else {
-        labelId = this.labels.indexOf(item.label);
-        if (labelId < 0)  {
-          throw new Error('invalid label');
-        }
-        this.appendCorrectPath(labelId);
+        labelId = this.getLabelId(item.label);
       }
+      this.appendCorrectPath(labelId);
       
       for (j = 0; j < nz; j += 1) {
         key = item.keys[j];
-        setUTF16LE(this.heap, this.tmpP, key);
+        setUTF16LE(this._U1, this.tmpP, key);
         hashValue = this.mod.hash(this.tmpP, key.length * 2, 0);
         this.appendKeyValue(hashValue | 0, +(item.values[j]));
       }

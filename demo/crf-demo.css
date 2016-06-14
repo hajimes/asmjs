@@ -69,12 +69,15 @@ tr {
 
 th {
   text-align: right;
+  width: 250px;
   padding-left: 5px;
   padding-right: 5px;
+  font-family: "Times New Roman", Serif;
 }
 
 td {
   text-align: right;
+  width: 250px;
   padding-left: 5px;
   padding-right: 5px;
 }
