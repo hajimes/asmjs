@@ -1,4 +1,4 @@
-require(['./crf'], function(CRF) {
+require(['../main', '../src/facade/crf'], function(asmlib, CRF) {
   'use strict';
   
   var crf = {};
@@ -199,10 +199,6 @@ require(['./crf'], function(CRF) {
     d3.select('#number-of-features').text(formatNumber(n));
   }
 
-  function showAICLosss(n) {
-    d3.select('#active-features').text(formatNumber(n));
-  }
-
   function showNumberOfActiveFeatures(n) {
     d3.select('#active-features').text(formatNumber(n));
   }
@@ -213,6 +209,14 @@ require(['./crf'], function(CRF) {
     
   function showCompressionSize(n) {
     d3.select('#comp-size').text(formatNumber(n));
+  }
+  
+  function showMemTotal(n) {
+    d3.select('#mem-total').text(formatNumber(n));
+  }
+  
+  function showMemFree(n) {
+    d3.select('#mem-free').text(formatNumber(n));
   }
   
   function compressionSize(dim, activeFeatures) {
@@ -265,7 +269,7 @@ require(['./crf'], function(CRF) {
         var info = {};
         var i = 0;
 
-        crf = CRF.create(heapSize);
+        crf = CRF.create(asmlib, heapSize);
         try {   
           crf.parseDataString(fileReader.result, 'train');
         } catch (e) {
@@ -312,6 +316,8 @@ require(['./crf'], function(CRF) {
         
         d3.select('#test-size').html(crf.numberOfDevData);
         
+        showMemFree(crf.meminfo().free);
+        
         console.log(crf.labels);
         
         // info = getDataSetInfo(devData);
@@ -336,8 +342,7 @@ require(['./crf'], function(CRF) {
   }
   
   function main() {
-    d3.select('#heap-size')
-      .html('heap size: ' + formatNumber(heapSize) + ' bytes');
+    showMemTotal(heapSize);
 
     d3.select('#start').on('click', start);
     d3.select('#stop').on('click', stop);

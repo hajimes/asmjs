@@ -164,6 +164,29 @@ describe('This handwritten asm.js module', function() {
       }
       expect(isResultValid).to.be.true;
     });
+    
+    it('fast operation for finding the next highest power of 2', function() {
+      expect(mod.bit_nextHighestPowerOfTwo(1)).to.equal(1);
+      expect(mod.bit_nextHighestPowerOfTwo(2)).to.equal(2);
+      expect(mod.bit_nextHighestPowerOfTwo(4)).to.equal(4);
+      expect(mod.bit_nextHighestPowerOfTwo(1 << 30)).to.equal(1 << 30);
+
+      expect(mod.bit_nextHighestPowerOfTwo(3)).to.equal(4);
+      expect(mod.bit_nextHighestPowerOfTwo(5)).to.equal(8);
+      expect(mod.bit_nextHighestPowerOfTwo((1 << 29) + 1)).to.equal(1 << 30);
+
+      // results are signed
+      expect(mod.bit_nextHighestPowerOfTwo((1 << 30) + 1)).
+        to.equal((1 << 31) | 0);
+      expect(mod.bit_nextHighestPowerOfTwo((1 << 31) >>> 0)).
+        to.equal((1 << 31) | 0);
+      
+      // returns 0 for invalid inputs
+      expect(mod.bit_nextHighestPowerOfTwo(0)).to.equal(0);
+      expect(mod.bit_nextHighestPowerOfTwo(((1 << 31) >>> 0) + 1)).to.equal(0);
+      expect(mod.bit_nextHighestPowerOfTwo(0xffffffff)).to.equal(0);
+      expect(mod.bit_nextHighestPowerOfTwo(-1)).to.equal(0);
+    });
   });
 
   describe('implements ufmap', function() {

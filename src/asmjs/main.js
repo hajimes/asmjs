@@ -1,6 +1,8 @@
 /* jshint unused: false */
 import bit_deBruijnSelect from './bit/deBruijnSelect';
 import bit_deBruijnSelectInit from './bit/deBruijnSelectInit';
+import bit_eliasFano from './bit/eliasFano';
+import bit_nextHighestPowerOfTwo from './bit/nextHighestPowerOfTwo';
 import bit_popcount from './bit/popcount';
 
 import maxFloat32 from './math/maxFloat32';
@@ -71,6 +73,8 @@ var _CMP_FUNCTION_TABLE = [compareInt32, compareUint32, compareSparseVectorEleme
 var EXPORTS = {
   bit_deBruijnSelect: bit_deBruijnSelect,
   bit_deBruijnSelectInit: bit_deBruijnSelectInit,
+  bit_eliasFano: bit_eliasFano,
+  bit_nextHighestPowerOfTwo: bit_nextHighestPowerOfTwo,
   bit_popcount: bit_popcount,
 
   learn_adagrad_updateLazyRange: learn_adagrad_updateLazyRange,

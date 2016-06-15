@@ -1,4 +1,4 @@
-define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
+define(['./confusion-matrix'], function(ConfusionMatrix) {
   'use strict';
   
   /********************
@@ -14,12 +14,12 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
    *
    * Use a factory method <code>CRF.create</code> to create a new instance.
    */
-  function CRF(heapSize, labels) {
-    this.heapSize = heapSize | 0;
-  
+  function CRF(asmlib, heapSize, labels) {    
+    heapSize = heapSize | 0;
     if (heapSize < (1 << 24)) {
       throw new Error('heapSize too small');
     }
+    this.heapSize = heapSize | 0;
   
     var global = {};
     var heap = new ArrayBuffer(heapSize);
@@ -112,6 +112,8 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
         MAX_PATH_LENGTH * 40));
       throw new Error('memory allocation exceeded the heap size');
     }
+    
+    this._crfMemoryAllocationEnd = p;
   
     this.round = 1;
   
@@ -136,7 +138,7 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
     }
   }
   
-  CRF.create = function(heapSize) {
+  CRF.create = function(asmlib, heapSize) {
     heapSize = heapSize | 0;
 
     var global = {};
@@ -149,7 +151,7 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
       throw new RangeError('heapSize must be at least 1 << 24');
     }
 
-    return new CRF(heapSize, []);
+    return new CRF(asmlib, heapSize, []);
   };
   
   CRF.initializeTrainer = function() {
@@ -271,7 +273,16 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
   
   CRF.prototype.l0 = function() {
     return this.mod.math_l0(this.weightP, this.totalDimension);
-  }
+  };
+
+  CRF.prototype.meminfo = function() {
+    var t = this._crfMemoryAllocationEnd;
+
+    return {
+      total: this.heapSize,
+      free: this.heapSize - t
+    };
+  };
 
   CRF.prototype.inspectInstance = function(instanceId, type) {
     var i = 0;
@@ -399,7 +410,7 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
       throw new Error('key-value store exhausted; allocate larger space');
     }
 
-    this._F4[this.valueFreeP >> 2] = value
+    this._F4[this.valueFreeP >> 2] = value;
     this.valueFreeP += 4;
   
     this.featureSet.add(key);
@@ -485,7 +496,7 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
     } else {
       this.numberOfDevData += 1;
     }
-  }
+  };
 
   function getDataSetInfo(dataSet) {
     var info = {
@@ -604,10 +615,10 @@ define(['../main', './confusion-matrix'], function(asmlib, ConfusionMatrix) {
       if (split.length === 2) {
         value = parseFloat(split[1]);
         if (isNaN(value) || !isFinite(value) || value === -0) {
-          throw new TypeError(`Invalid format for a field: ${field}`);
+          throw new TypeError('Invalid format for a field: ' + field);
         }
       } else if (field.match(/[^\\](\:)$/) !== null || split.length !== 1) {
-        throw new TypeError(`Invalid format for a field: ${field}`);
+        throw new TypeError('Invalid format for a field: ' + field);
       }
   
       key = split[0].replace('\\\\', '\\').replace('\\:', ':');

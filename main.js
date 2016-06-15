@@ -128,6 +128,131 @@ function deBruijnSelectInit(outP) {
 }
 
 /**
+ * @param {int} p - byte offset to 32-bit unsigned integers
+ * @param {int} len - length of the input
+ */
+function eliasFano(p, len, outP) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  len = len | 0;
+  outP = outP | 0;
+  
+  /*
+   * Local variables
+   */
+  var lastItem = 0.0;
+  var lowerBitsSizeLog2 = 0;
+  var lowerBitsSize = 0;
+  var numberOfBuckets = 0;
+  var t = 0.0;
+  
+  /*
+   * Main
+   */
+
+  // sort
+  
+  lastItem = +(U4[(p + ((len - 1) << 2)) >> 2] >>> 0);
+  
+  t = lastItem / (+(len | 0));
+  
+  // ceil(log2(t))
+  // lowerBitsSizeLog2 = ~~ceil(+log2(lastItem / (+(len | 0))));
+  
+  if ((lowerBitsSizeLog2 | 0) == 0) {
+    lowerBitsSizeLog2 = 1;
+  }
+  lowerBitsSize = (1 << lowerBitsSizeLog2) | 0;
+  numberOfBuckets = ~~ceil(lastItem / +(lowerBitsSize | 0));
+  
+  createLowerBits(p, len, lowerBitsSizeLog2, outP);
+}
+
+function createLowerBits(p, len, lowerBitsSizeLog2, outP) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  len = len | 0;
+  lowerBitsSizeLog2 = lowerBitsSizeLog2 | 0;
+  outP = outP | 0;
+
+  
+  /*
+   * Local variables
+   */
+  var end = 0;
+  var mask = 0;
+  
+  var v = 0;
+  var bitIndex = 0;
+  var bitLength = 0;
+  var crossing = 0;
+  var byteOffset = 0;
+  var bitOffset = 0;
+  
+  
+  /*
+   * Main
+   */
+  end = (p + (len << 2)) | 0;
+  bitLength = lowerBitsSizeLog2;
+  
+  for (p = 0; (p | 0) < (end | 0); p = (p + 4) | 0) {
+    v = U4[p >> 2] & mask;
+    
+    // idiom: bit output stream
+    byteOffset = bitIndex >>> 5;
+    bitOffset = bitIndex & 0x1f;
+    crossing = (bitOffset + bitLength - 1) >>> 5;
+    U4[byteOffset >> 2] = U4[byteOffset >> 2] | (v << bitOffset);
+    U4[(byteOffset + 4) >> 2] = U4[(byteOffset + 4) >> 2]
+      | (v << bitOffset);
+  }
+}
+
+/**
+ * Returns the next highest power of 2 for a positive unsigned 32-bit integer
+ * in [1, 2^31]. The returned value will be signed due to asm.js constraints,
+ * so use <code>>></code> for unsigned type cast. (Specifically, this returns
+ * -2147483648 if the input is in (2^30, 2^31]).
+ *
+ * If the given value is already a power of 2, this function returns the same
+ * value. If the given value is 0 or more than 2^31, this function returns 0.
+ *
+ * This algorithm was first devised by Pete Hart and William Lewis in February
+ * of 1997, and later independetly discovered by Sean Anderson in
+ * Semptember 14, 2001. 
+ *
+ * @param {int} v - unsigned 32-bit integer
+ * @returns {signed} - next highest power of 2
+ */
+function nextHighestPowerOfTwo(v) {
+  /*
+   * Type annotations
+   */
+  v = v | 0;
+
+  /*
+   * Main
+   */
+  v = v >>> 0;
+  v = (v - 1) >>> 0;
+
+  v = v | (v >>> 1);
+  v = v | (v >>> 2);
+  v = v | (v >>> 4);
+  v = v | (v >>> 8);
+  v = v | (v >>> 16);
+
+  v = (v + 1) >>> 0;
+  
+  return v | 0;
+}
+
+/**
  * Fast <code>popcount</code> (also known as sideways addition)
  * for 32-bit integers, that is, counting non-zero bits in an integer.
  * 
@@ -4085,6 +4210,8 @@ var CMP_FUNCTION_TABLE = [compareInt32, compareUint32, compareSparseVectorElemen
 return {
   bit_deBruijnSelect: deBruijnSelect,
   bit_deBruijnSelectInit: deBruijnSelectInit,
+  bit_eliasFano: eliasFano,
+  bit_nextHighestPowerOfTwo: nextHighestPowerOfTwo,
   bit_popcount: popcount,
 
   learn_adagrad_updateLazyRange: updateLazyRange,
