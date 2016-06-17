@@ -10,12 +10,13 @@
  *
  * This algorithm was first devised by Pete Hart and William Lewis in February
  * of 1997, and later independetly discovered by Sean Anderson in
- * Semptember 14, 2001. 
+ * Semptember 14, 2001.
+ * See http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
  *
  * @param {int} v - unsigned 32-bit integer
  * @returns {signed} - next highest power of 2
  */
-export default function nextHighestPowerOfTwo(v) {
+export default function nextPow2(v) {
   /*
    * Type annotations
    */

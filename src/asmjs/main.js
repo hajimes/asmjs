@@ -2,8 +2,10 @@
 import bit_deBruijnSelect from './bit/deBruijnSelect';
 import bit_deBruijnSelectInit from './bit/deBruijnSelectInit';
 import bit_eliasFano from './bit/eliasFano';
-import bit_nextHighestPowerOfTwo from './bit/nextHighestPowerOfTwo';
+import bit_eliasFanoByteSize from './bit/eliasFanoByteSize';
+import bit_nextPow2 from './bit/nextPow2';
 import bit_popcount from './bit/popcount';
+import bit_readBits from './bit/readBits';
 
 import maxFloat32 from './math/maxFloat32';
 import sumFloat32 from './math/sumFloat32';
@@ -74,8 +76,10 @@ var EXPORTS = {
   bit_deBruijnSelect: bit_deBruijnSelect,
   bit_deBruijnSelectInit: bit_deBruijnSelectInit,
   bit_eliasFano: bit_eliasFano,
-  bit_nextHighestPowerOfTwo: bit_nextHighestPowerOfTwo,
+  bit_eliasFanoByteSize: bit_eliasFanoByteSize,
+  bit_nextPow2: bit_nextPow2,
   bit_popcount: bit_popcount,
+  bit_readBits: bit_readBits,
 
   learn_adagrad_updateLazyRange: learn_adagrad_updateLazyRange,
   learn_crf_trainOnline: learn_crf_trainOnline,

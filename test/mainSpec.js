@@ -102,6 +102,23 @@ describe('This handwritten asm.js module', function() {
   })
 
   describe('implements efficient bitwise operations such as', function() {
+    it('Elias-Fano for rank-select on sparse bitsets', function() {
+      var deBruijnTableP = 0;
+      var p = 1000;
+      var outP = 10000;
+      var seq = [];
+      
+      mod.bit_deBruijnSelectInit(deBruijnTableP);
+
+      seq = [0, 10, 42, 50];
+      putUint32(U4, p, seq);
+      mod.bit_eliasFano(p, seq.length, deBruijnTableP, outP);
+      expect(U4[outP >> 2]).to.equal(seq.length);
+      expect(U4[(outP + 4) >> 2]).to.equal(51);
+      expect(U4[(outP + 8) >> 2]).to.equal(4); // Math.ceil(Math.log2(51 / 4))
+      expect(U4[(outP + 12) >> 2]).to.equal(0);
+    });
+    
     it('popcount to count the number of bits in a 32-bit integer', function () {
       expect(mod.bit_popcount(0)).to.equal(0);
       expect(mod.bit_popcount(7)).to.equal(3);
@@ -166,26 +183,59 @@ describe('This handwritten asm.js module', function() {
     });
     
     it('fast operation for finding the next highest power of 2', function() {
-      expect(mod.bit_nextHighestPowerOfTwo(1)).to.equal(1);
-      expect(mod.bit_nextHighestPowerOfTwo(2)).to.equal(2);
-      expect(mod.bit_nextHighestPowerOfTwo(4)).to.equal(4);
-      expect(mod.bit_nextHighestPowerOfTwo(1 << 30)).to.equal(1 << 30);
+      expect(mod.bit_nextPow2(1)).to.equal(1);
+      expect(mod.bit_nextPow2(2)).to.equal(2);
+      expect(mod.bit_nextPow2(4)).to.equal(4);
+      expect(mod.bit_nextPow2(1 << 30)).to.equal(1 << 30);
 
-      expect(mod.bit_nextHighestPowerOfTwo(3)).to.equal(4);
-      expect(mod.bit_nextHighestPowerOfTwo(5)).to.equal(8);
-      expect(mod.bit_nextHighestPowerOfTwo((1 << 29) + 1)).to.equal(1 << 30);
+      expect(mod.bit_nextPow2(3)).to.equal(4);
+      expect(mod.bit_nextPow2(5)).to.equal(8);
+      expect(mod.bit_nextPow2((1 << 29) + 1)).to.equal(1 << 30);
 
       // results are signed
-      expect(mod.bit_nextHighestPowerOfTwo((1 << 30) + 1)).
+      expect(mod.bit_nextPow2((1 << 30) + 1)).
         to.equal((1 << 31) | 0);
-      expect(mod.bit_nextHighestPowerOfTwo((1 << 31) >>> 0)).
+      expect(mod.bit_nextPow2((1 << 31) >>> 0)).
         to.equal((1 << 31) | 0);
       
       // returns 0 for invalid inputs
-      expect(mod.bit_nextHighestPowerOfTwo(0)).to.equal(0);
-      expect(mod.bit_nextHighestPowerOfTwo(((1 << 31) >>> 0) + 1)).to.equal(0);
-      expect(mod.bit_nextHighestPowerOfTwo(0xffffffff)).to.equal(0);
-      expect(mod.bit_nextHighestPowerOfTwo(-1)).to.equal(0);
+      expect(mod.bit_nextPow2(0)).to.equal(0);
+      expect(mod.bit_nextPow2(((1 << 31) >>> 0) + 1)).to.equal(0);
+      expect(mod.bit_nextPow2(0xffffffff)).to.equal(0);
+      expect(mod.bit_nextPow2(-1)).to.equal(0);
+    });
+    
+    it('read n bits (n in [0, 32]) from an arbitrary bit position', function() {
+      // Currently this test assumes little-endian environments.
+      // In big-endian machines, it will fail.
+      // It also assumes 0b... of ES6 is implemented in the browser
+      var p = 1000;
+      var a = [];
+
+      a = [
+        0b11100000000000000000000000101000,
+        0b10000000000000000000000000000101, 
+      ];
+
+      putUint32(U4, p, a);
+
+      expect(mod.bit_readBits(p, 0, 4) >>> 0).to.equal(0b1000);
+      expect(mod.bit_readBits(p, 1, 4) >>> 0).to.equal(0b0100);
+      expect(mod.bit_readBits(p, 2, 4) >>> 0).to.equal(0b1010);
+      expect(mod.bit_readBits(p, 3, 4) >>> 0).to.equal(0b0101);
+      expect(mod.bit_readBits(p, 28, 2) >>> 0).to.equal(0b10);
+      expect(mod.bit_readBits(p, 31, 2) >>> 0).to.equal(0b11);
+      expect(mod.bit_readBits(p, 28, 8) >>> 0).to.equal(0b1011110);
+      expect(mod.bit_readBits(p, 32, 8) >>> 0).to.equal(0b101);
+      expect(mod.bit_readBits(p, 62, 8) >>> 0).to.equal(0b10);
+      expect(mod.bit_readBits(p, 63, 8) >>> 0).to.equal(0b1);
+      expect(mod.bit_readBits(p, 64, 8) >>> 0).to.equal(0);
+      expect(mod.bit_readBits(p, 0, 31) >>> 0)
+        .to.equal(0b1100000000000000000000000101000);
+      expect(mod.bit_readBits(p, 0, 32) >>> 0)
+        .to.equal(0b11100000000000000000000000101000);
+      expect(mod.bit_readBits(p, 1, 32) >>> 0)
+        .to.equal(0b11110000000000000000000000010100);
     });
   });
 
