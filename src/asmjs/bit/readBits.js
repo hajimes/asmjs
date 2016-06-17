@@ -1,6 +1,8 @@
 /**
  * Retrieves (bitLength) bits from a heap.
- * p must be a multiple of 4.
+ *
+ * <code>p</code> must be a multiple of 4. If this condition is violated,
+ * the behavior is undefined.
  *
  * @param {number} p - base index in bytes which must be aligned to 4 bytes
  * @param {number} bitIndex - relative index in bits
@@ -27,7 +29,7 @@ export default function readBits(p, bitIndex, bitLength) {
 
   /*
    * Main
-   */ 
+   */
   byteOffset = (p + (bitIndex >>> 3)) | 0;
   bitOffset = bitIndex & 0x1f;
 

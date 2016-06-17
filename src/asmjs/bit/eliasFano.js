@@ -19,7 +19,7 @@ import nextPow2 from './nextPow2';
  * LBS: lower bits size, or the number of bits per item in lower bits
  * FLG: reserved space for future expansions
  */
-
+    
 /**
  * Creates an Elias-Fano structure for a sequence of unsigned integers.
  *
@@ -67,6 +67,7 @@ export default function eliasFano(p, len, deBruijnTableP, outP) {
    * Main
    */
 
+  // TODO: initialize to zero for outP
   // TODO: sort and unique here
   
   lim = (+(U4[(p + ((len - 1) << 2)) >> 2] >>> 0)) + 1.0;
@@ -171,8 +172,8 @@ function createHigherBits(p, len, lowerBitsSize, outP) {
   var v = 0;
   var bitIndex = 0;
   var bitLength = 0;
-  var crossing = 0;
   var byteOffset = 0;
+  var crossing = 0;
   var bitOffset = 0;
 
   /*
@@ -186,7 +187,7 @@ function createHigherBits(p, len, lowerBitsSize, outP) {
     bitLength = (unarySize + 1) | 0;
     
     // bit output stream idiom
-    byteOffset = bitIndex >>> 5;
+    byteOffset = bitIndex >>> 3;
     bitOffset = bitIndex & 0x1f;
     crossing = (bitOffset + bitLength - 1) >>> 5;
     U4[byteOffset >> 2] = U4[byteOffset >> 2] | (v << bitOffset);

@@ -237,6 +237,22 @@ describe('This handwritten asm.js module', function() {
       expect(mod.bit_readBits(p, 1, 32) >>> 0)
         .to.equal(0b11110000000000000000000000010100);
     });
+    
+    it('write n bits (n in [0, 32]) to an arbitrary bit position', () =>  {
+      mod.bit_writeBits(1000, 0, 4, 3);
+      expect(mod.bit_readBits(1000, 0, 4)).to.equal(3);
+
+      mod.bit_writeBits(2000, 4, 4, 3);
+      expect(mod.bit_readBits(2000, 4, 4)).to.equal(3);
+
+      mod.bit_writeBits(3000, 31, 2, 3);
+      expect(mod.bit_readBits(3000, 31, 2)).to.equal(3);
+
+      mod.bit_writeBits(4000, 30, 4, 9);
+      expect(mod.bit_readBits(4000, 0, 32))
+        .to.equal(0b01000000000000000000000000000000);
+      expect(mod.bit_readBits(4000, 30, 4)).to.equal(9);
+    });
   });
 
   describe('implements ufmap', function() {

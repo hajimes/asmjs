@@ -6,6 +6,7 @@ import bit_eliasFanoByteSize from './bit/eliasFanoByteSize';
 import bit_nextPow2 from './bit/nextPow2';
 import bit_popcount from './bit/popcount';
 import bit_readBits from './bit/readBits';
+import bit_writeBits from './bit/writeBits';
 
 import maxFloat32 from './math/maxFloat32';
 import sumFloat32 from './math/sumFloat32';
@@ -80,6 +81,7 @@ var EXPORTS = {
   bit_nextPow2: bit_nextPow2,
   bit_popcount: bit_popcount,
   bit_readBits: bit_readBits,
+  bit_writeBits: bit_writeBits,
 
   learn_adagrad_updateLazyRange: learn_adagrad_updateLazyRange,
   learn_crf_trainOnline: learn_crf_trainOnline,
