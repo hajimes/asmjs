@@ -507,6 +507,7 @@ function writeBits(p, bitIndex, bitLength, value) {
   p = p | 0;
   bitIndex = bitIndex | 0;
   bitLength = bitLength | 0;
+  value = value | 0;
   
   /*
    * Local variables
