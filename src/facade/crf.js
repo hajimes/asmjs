@@ -275,6 +275,16 @@ define(['./confusion-matrix'], function(ConfusionMatrix) {
     return this.mod.math_l0(this.weightP, this.totalDimension);
   };
 
+  CRF.prototype.estimateCompressedSize = function() {    
+    this.mod.bit_deBruijnSelectInit(this._crfMemoryAllocationEnd);
+    
+    var l0 = this.mod.math_l0(this.weightP, this.totalDimension);
+    
+    return this.mod.bit_eliasFanoByteSize(this.totalDimension, l0,  
+      this._crfMemoryAllocationEnd,
+      this._crfMemoryAllocationEnd + 32) + l0 * 0.75;
+  };
+
   CRF.prototype.meminfo = function() {
     var t = this._crfMemoryAllocationEnd;
 

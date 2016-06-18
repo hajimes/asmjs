@@ -102,10 +102,7 @@ require(['../main', '../src/facade/crf'], function(asmlib, CRF) {
                 l0 = crf.l0();
                 showNumberOfActiveFeatures(l0);
                 showMacroF1(crf.confusionMatrix.report().macroF1);
-                showCompressionSize(compressionSize(
-                  crf.totalDimension,
-                  l0
-                ));
+                showCompressionSize(crf.estimateCompressedSize());
                 // console.log(crf.confusionMatrix.report());
                 break;
               }
@@ -226,21 +223,6 @@ require(['../main', '../src/facade/crf'], function(asmlib, CRF) {
     var ef = sizeOfEliasFano(dim, ratioOfOnes);
     
     return ef * dim / 8 + activeFeatures * 0.75;
-  }
-  
-  function sizeOfEliasFano(size, ratioOfOnes) {
-    var numberOfOnes = 0;
-    var baseSize = 0;
-
-    numberOfOnes = size * ratioOfOnes;
-    baseSize = 1.92 * numberOfOnes;
-
-    if (ratioOfOnes === 0) {
-      return baseSize/ size;
-    }
-
-    // return (baseSize + numberOfOnes * Math.log2(size / numberOfOnes)) / size;
-    return (baseSize + numberOfOnes * Math.log2(size / numberOfOnes) + 1.22 * numberOfOnes) / size;
   }
   
   function start() {

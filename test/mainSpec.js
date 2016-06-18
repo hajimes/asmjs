@@ -106,6 +106,10 @@ describe('This handwritten asm.js module', function() {
       var deBruijnTableP = 0;
       var p = 1000;
       var outP = 10000;
+      var tmpP = 20000;
+      var lowerBitsSize = 0;
+      var lowerBitsP = 0;
+      var higherBitsP = 0;
       var seq = [];
       
       mod.bit_deBruijnSelectInit(deBruijnTableP);
@@ -115,8 +119,50 @@ describe('This handwritten asm.js module', function() {
       mod.bit_eliasFano(p, seq.length, deBruijnTableP, outP);
       expect(U4[outP >> 2]).to.equal(seq.length);
       expect(U4[(outP + 4) >> 2]).to.equal(51);
-      expect(U4[(outP + 8) >> 2]).to.equal(4); // Math.ceil(Math.log2(51 / 4))
+      lowerBitsSize = 4; // Math.ceil(Math.log2(51 / 4))
+      expect(U4[(outP + 8) >> 2]).to.equal(lowerBitsSize);
       expect(U4[(outP + 12) >> 2]).to.equal(0);
+      lowerBitsP = outP + 16;
+      expect(mod.bit_readBits(lowerBitsP, 0, lowerBitsSize)).to.equal(0);
+      expect(mod.bit_readBits(lowerBitsP, 4, lowerBitsSize)).to.equal(10);
+      expect(mod.bit_readBits(lowerBitsP, 8, lowerBitsSize)).to.equal(10);
+      expect(mod.bit_readBits(lowerBitsP, 12, lowerBitsSize)).to.equal(2);
+      higherBitsP = lowerBitsP + 4;
+      expect(mod.bit_readBits(higherBitsP, 0, 3)).to.equal(6); // LSB 011 MSB
+      expect(mod.bit_readBits(higherBitsP, 3, 3)).to.equal(4); // LSB 001 MSB
+      expect(mod.bit_readBits(higherBitsP, 6, 2)).to.equal(2); // LSB 01 MSB
+      
+      expect(mod.bit_eliasFanoSucc(0, outP, deBruijnTableP, tmpP)).to.equal(0);
+      expect(mod.bit_eliasFanoSucc(1, outP, deBruijnTableP, tmpP)).to.equal(10);
+      expect(mod.bit_eliasFanoSucc(9, outP, deBruijnTableP, tmpP)).to.equal(10);
+      expect(mod.bit_eliasFanoSucc(10, outP, deBruijnTableP, tmpP))
+        .to.equal(10);
+      expect(mod.bit_eliasFanoSucc(11, outP, deBruijnTableP, tmpP))
+        .to.equal(42);
+      expect(mod.bit_eliasFanoSucc(42, outP, deBruijnTableP, tmpP))
+        .to.equal(42);
+      expect(mod.bit_eliasFanoSucc(43, outP, deBruijnTableP, tmpP))
+        .to.equal(50);
+      expect(mod.bit_eliasFanoSucc(50, outP, deBruijnTableP, tmpP))
+        .to.equal(50);
+
+      expect(mod.bit_eliasFanoSucc(51, outP, deBruijnTableP, tmpP))
+        .to.equal(0xffffffff | 0);
+
+      // The real usage is 22 bytes but its space must be aligned to 4 bytes
+      expect(mod.bit_eliasFanoByteSize(50, seq.length, deBruijnTableP, tmpP))
+        .to.equal(24);
+
+      seq = [0, 10, 42, 50, 12933, 192839, 7818723];
+      p = 3000;
+      outP = 40000;
+      tmpP = 50000;
+      putUint32(U4, p, seq);
+      mod.bit_eliasFano(p, seq.length, deBruijnTableP, outP);
+      expect(mod.bit_eliasFanoSucc(76888, outP, deBruijnTableP, tmpP))
+        .to.equal(192839);
+      expect(mod.bit_eliasFanoSucc(192839, outP, deBruijnTableP, tmpP))
+        .to.equal(192839);
     });
     
     it('popcount to count the number of bits in a 32-bit integer', function () {

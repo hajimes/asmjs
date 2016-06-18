@@ -10,23 +10,25 @@ import readBits from './readBits';
  * (It is ok because in situations where 0xffffffff is a valid value,
  * that is, if maxValue = 0xffffffff, n is never higher than maxValue).
  */
-export default function eliasFanoSucc(n, lowerBitsP, higherBitsP, len, maxValue,
-    lowerBitsSize, deBruijnTableP, tmpP) {
+export default function eliasFanoSucc(n, eliasFanoP, deBruijnTableP, tmpP) {
   /*
    * Type annotations
    */
   n = n | 0;
-  lowerBitsP = lowerBitsP | 0;
-  higherBitsP = higherBitsP | 0;
-  len = len | 0;
-  maxValue = maxValue | 0;
-  lowerBitsSize = lowerBitsSize | 0;
+  eliasFanoP = eliasFanoP | 0;
   deBruijnTableP = deBruijnTableP | 0;
   tmpP = tmpP | 0;
 
   /*
    * Local variables
    */
+  var lowerBitsSize = 0;
+  var len = 0;
+  var maxValue = 0;
+  var lowerBitsP = 0;
+  var lowerBitsByteSize = 0;
+  var higherBitsP = 0;
+  
   var bitPosition = 0;
   var bucketId = 0;
   var itemId = 0;
@@ -37,15 +39,24 @@ export default function eliasFanoSucc(n, lowerBitsP, higherBitsP, len, maxValue,
   var t2 = 0;
   var bit = 0;
   var v = 0;
+  var lowBits = 0;
 
   /*
    * Main
    */
   n = n >>> 0;
   
+  len = U4[eliasFanoP >> 2] | 0;
+  maxValue = ((U4[(eliasFanoP + 4) >> 2] | 0) - 1) | 0;
+  lowerBitsSize = U4[(eliasFanoP + 8) >> 2] | 0;
+  
   if ((n | 0) > (maxValue | 0)) {
-    return 0xffffffff;
+    return 0xffffffff | 0;
   }
+  
+  lowerBitsP = (eliasFanoP + 16) | 0;
+  lowerBitsByteSize = (((imul(lowerBitsSize, len) - 1) >>> 5) + 1) << 2;
+  higherBitsP = (lowerBitsP + lowerBitsByteSize) | 0;
   
   //
   // Step 1: rank0 on upperBits
@@ -69,24 +80,28 @@ export default function eliasFanoSucc(n, lowerBitsP, higherBitsP, len, maxValue,
     // TODO: speed comparison
     // popcount is generally faster than de Bruijn
     // but in extremely sparse cases de Bruijn might be better
-    
-    // TODO: check invalid cases to prevent infinite loops
-    bitBlock = U4[higherBitsP >> 2] | 0;
-    numberOfZeros = (numberOfZeros + (32 - popcount(bitBlock))) | 0;
-
     previousNumberOfZeros = numberOfZeros;
-    bitPosition = (bitPosition + 8) | 0;
+    
+    bitBlock = U4[higherBitsP >> 2] | 0;
+    numberOfZeros = (numberOfZeros + (popcount(~bitBlock) | 0)) | 0;
+
+    bitPosition = (bitPosition + 32) | 0;
     higherBitsP = (higherBitsP + 4) | 0;
+
+    if ((bitPosition | 0) > (maxValue | 0)) {
+      // error - prevent infinite loops
+      return 0xffffffff | 0;
+    }
   }
   // unread one bit block
-  bitPosition = (bitPosition - 8); // ?
+  bitPosition = (bitPosition - 32) | 0; // ?
   numberOfZeros = previousNumberOfZeros;
 
   // re-read the block by using de Bruijn
-  t = deBruijnSelect(deBruijnTableP, bitBlock, tmpP);
+  t = deBruijnSelect(deBruijnTableP, ~bitBlock, tmpP) | 0;
   // the t2-th 0 in the bit block is our target ("t2-th" is also 0-based)
   t2 = (bucketId - numberOfZeros) | 0;
-  t = U1[(tmpP + t2) | 0]; // now t contains the inner bit index
+  t = U1[(tmpP + t2) >> 0] | 0; // now t contains the inner bit index
   bitPosition = (bitPosition + t) | 0;
   
   // There are (bucketId + 1) 0s in the first (bitPosition + 1) bits,
@@ -124,8 +139,9 @@ export default function eliasFanoSucc(n, lowerBitsP, higherBitsP, len, maxValue,
     bit = (bitBlock >>> t) & 1;
     
     if (bit) {
-      v = ((bucketId << lowerBitsSize) +
-        readBits(lowerBitsP, itemId, lowerBitsSize)) | 0;
+      lowBits = readBits(lowerBitsP, imul(itemId, lowerBitsSize),
+        lowerBitsSize) | 0;
+      v = ((bucketId << lowerBitsSize) + lowBits) | 0;
       if ((v | 0) >= (n | 0)) {
         break;
       }

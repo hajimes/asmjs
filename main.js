@@ -167,6 +167,49 @@ function nextPow2(v) {
   return v | 0;
 }
 
+/**
+ * Writes (bitLength) bits into a heap.
+ *
+ * <code>p</code> must be a multiple of 4. <code>value</code> must be less
+ * than <code>2^bitLength</code>. Destination must be initialized to 0 
+ * beforehand. If these conditions are violated, the behavior is undefined.
+ *
+ * @param {number} p - base index in bytes which must be aligned to 4 bytes
+ * @param {number} bitIndex - relative index in bits
+ * @param {number} bitLength - length in bits (<= 32)
+ * @param {number} value - values to be written
+ */
+function writeBits(p, bitIndex, bitLength, value) {
+  /*
+   * Type annotations
+   */
+  p = p | 0;
+  bitIndex = bitIndex | 0;
+  bitLength = bitLength | 0;
+  value = value | 0;
+  
+  /*
+   * Local variables
+   */
+  var byteOffset = 0;
+  var bitOffset = 0;
+  var mask = 0;
+
+  /*
+   * Main
+   */
+  byteOffset = (p + (bitIndex >>> 3)) | 0;
+  bitOffset = bitIndex & 0x1f;
+
+  // When we need some bits from the next, mask becomes 0xffffffff, otherwise 0.
+  mask = -((bitOffset + bitLength - 1) >>> 5) | 0;
+  
+  U4[byteOffset >> 2] = U4[byteOffset >> 2] | (value << bitOffset);
+  byteOffset = (byteOffset + 4) | 0;
+  U4[byteOffset >> 2] = U4[byteOffset >> 2] |
+    (mask & (value >>> (32 - bitOffset)));
+}
+
 /*
  * Implementation note:
  * Currently
@@ -194,15 +237,14 @@ function nextPow2(v) {
  *
  * Before using this function, perform deBruijnSelectInit to precompute a table
  * at <code>deBruijnTableP</code>.
- *
- * If length is 1, ra      [2^31 + 1, 2^32 - 1] are disallowed.
+ * Also, destination of outP must be initialized to 0 beforehand.
  *
  * Although Elias-Fano can be more efficient by using an auxiliary "rank-select"
  * strucure, currently this code does not implement the strategy.
  *
  * This data structure uses n log (m / n)  + O(n) bits where n is the number
  * of items and m is the maximum value of in a sequence.
- * The exact size in bytes can be estimated by using eliasFanoEstimateByteSize.
+ * The exact size in bytes can be estimated by using eliasFanoByteSize.
  *
  * @param {int} p - byte offset to 32-bit unsigned integers
  * @param {int} len - length of the input
@@ -223,9 +265,13 @@ function eliasFano(p, len, deBruijnTableP, outP) {
    * Local variables
    */
   var lim = 0.0;
-  var lowerBitsSize = 0;
+  var lowerBitsSize = 0; // size in bits per item in the sequence of lower bits
   var lowerBitsSizePow2 = 0;
   var numberOfBuckets = 0;
+
+  // total size of the sequence of lower bits, aligned to 4 bytes
+  var lowerBitsByteSize = 0;
+
   var t = 0.0;
   var t2 = 0;
   
@@ -258,8 +304,11 @@ function eliasFano(p, len, deBruijnTableP, outP) {
 
   outP = (outP + 16) | 0; // header size
 
+  // aligned to 4 bytes
+  lowerBitsByteSize = (((imul(lowerBitsSize, len) - 1) >>> 5) + 1) << 2;
+
   createLowerBits(p, len, lowerBitsSize, outP);
-  outP = (outP + imul(lowerBitsSize, len)) | 0; // TODO: correct this to align Uint32
+  outP = (outP + lowerBitsByteSize) | 0;
 
   createHigherBits(p, len, lowerBitsSize, outP);
   
@@ -280,14 +329,8 @@ function createLowerBits(p, len, lowerBitsSize, outP) {
    */
   var end = 0;
   var mask = 0;
-  
-  // variables for the bit output stream idiom
   var v = 0;
   var bitIndex = 0;
-  var bitLength = 0;
-  var crossing = 0;
-  var byteOffset = 0;
-  var bitOffset = 0;
   
   /*
    * Main
@@ -297,20 +340,12 @@ function createLowerBits(p, len, lowerBitsSize, outP) {
   }
 
   end = (p + (len << 2)) | 0;
-  bitLength = lowerBitsSize;
-  mask = 1 << lowerBitsSize;
+  mask = ((1 << lowerBitsSize) - 1) | 0;
   
-  for (p = 0; (p | 0) < (end | 0); p = (p + 4) | 0) {
+  
+  for (; (p | 0) < (end | 0); p = (p + 4) | 0) {
     v = U4[p >> 2] & mask;
-    
-    // bit output stream idiom
-    byteOffset = bitIndex >>> 5;
-    bitOffset = bitIndex & 0x1f;
-    crossing = (bitOffset + bitLength - 1) >>> 5;
-    U4[byteOffset >> 2] = U4[byteOffset >> 2] | (v << bitOffset);
-    U4[(byteOffset + 4) >> 2] = U4[(byteOffset + 4) >> 2]
-      | (v << bitOffset);
-
+    writeBits(outP, bitIndex, lowerBitsSize, v);
     bitIndex = (bitIndex + lowerBitsSize) | 0;
   }
 }
@@ -333,32 +368,19 @@ function createHigherBits(p, len, lowerBitsSize, outP) {
   var higherBits = 0;
   var previousHigherBits = 0;
   var unarySize = 0;
-
-  // variables for the bit output stream idiom
-  var v = 0;
   var bitIndex = 0;
-  var bitLength = 0;
-  var byteOffset = 0;
-  var crossing = 0;
-  var bitOffset = 0;
 
   /*
    * Main
    */
   end = (p + (len << 2)) | 0;
-  
-  for (p = 0; (p | 0) < (end | 0); p = (p + 4) | 0) {
+  bitIndex = 1;
+
+  for (; (p | 0) < (end | 0); p = (p + 4) | 0) {
     higherBits = U4[p >> 2] >>> lowerBitsSize;
     unarySize = (higherBits - previousHigherBits) | 0;
-    bitLength = (unarySize + 1) | 0;
-    
-    // bit output stream idiom
-    byteOffset = bitIndex >>> 3;
-    bitOffset = bitIndex & 0x1f;
-    crossing = (bitOffset + bitLength - 1) >>> 5;
-    U4[byteOffset >> 2] = U4[byteOffset >> 2] | (v << bitOffset);
-    U4[(byteOffset + 4) >> 2] = U4[(byteOffset + 4) >> 2]
-      | (v << bitOffset);
+
+    writeBits(outP, bitIndex, (unarySize + 1) | 0, 1 << unarySize);
     
     previousHigherBits = higherBits;
     bitIndex = (bitIndex + unarySize + 1) | 0;
@@ -369,14 +391,16 @@ function createHigherBits(p, len, lowerBitsSize, outP) {
  * Calculates the exact byte size required by the Elias-Fano structure for a
  * sequence of unique 32-bit unsigned integers.
  *
+ * This code uses 4 bytes at tmpP.
+ *
  * In terms of space complexity, this structure uses B(m, n) + O(n) bits,
  * where B(m, n) = log2(ceil(binomial_coefficient(m, n))).
  */
-function eliasFanoByteSize(maxValue, len, deBruijnTableP, outP) {
+function eliasFanoByteSize(maxValue, len, deBruijnTableP, tmpP) {
   maxValue = maxValue | 0;
   len = len | 0;
   deBruijnTableP = deBruijnTableP | 0;
-  outP = outP | 0;
+  tmpP = tmpP | 0;
   
   /*
    * Local variables
@@ -385,7 +409,6 @@ function eliasFanoByteSize(maxValue, len, deBruijnTableP, outP) {
   var lowerBitsByteSize = 0;
   var higherBitsByteSize = 0;
 
-  var lim = 0.0;
   var lowerBitsSize = 0;
   var lowerBitsSizePow2 = 0;
   var numberOfBuckets = 0;
@@ -396,20 +419,21 @@ function eliasFanoByteSize(maxValue, len, deBruijnTableP, outP) {
    * Main
    */
   headerByteSize = 16;
-  lim = (+(maxValue | 0)) + 1.0;
-  t = lim / (+(len | 0));
+  t = (+(maxValue | 0)) + 1.0;
+  t = t / (+(len | 0));
   t2 = (nextPow2(~~ceil(t)) | 0) >>> 0;
-  t2 = deBruijnSelect(deBruijnTableP, t2, outP) | 0;
-  lowerBitsSize = U1[outP >> 0] | 0;
+  t2 = deBruijnSelect(deBruijnTableP, t2, tmpP) | 0;
+  lowerBitsSize = U1[tmpP >> 0] | 0;
   lowerBitsSizePow2 = (1 << lowerBitsSize) | 0;
-  numberOfBuckets = ~~ceil(lim / +(lowerBitsSizePow2 | 0));
+  numberOfBuckets = ~~ceil(t / +(lowerBitsSizePow2 | 0));
 
   // conversion from bit size to byte size
   // TODO: imul(len, beta) must be in [1, 2^32 - 1]. Check this.
-  lowerBitsByteSize = (((imul(len, lowerBitsSize) - 1) >>> 3) + 1) | 0;
+  lowerBitsByteSize = (((imul(lowerBitsSize, len) - 1) >>> 5) + 1) << 2;
+
   // conversion from bit size to byte size
   // TODO: len + numberOfBuckets must be in [1, 2^32 - 1]. Check this.
-  higherBitsByteSize = ((((len + numberOfBuckets) - 1) >>> 3) + 1) | 0;
+  higherBitsByteSize = ((((len + numberOfBuckets) - 1) >>> 5) + 1) << 2;
 
   return (headerByteSize + lowerBitsByteSize + higherBitsByteSize) | 0;
 }
@@ -489,46 +513,155 @@ function readBits(p, bitIndex, bitLength) {
 }
 
 /**
- * Writes (bitLength) bits into a heap.
+ * Returns the smallest value in an Elias-Fano set which is equal to or more
+ * than a given value <code>n</code>.
  *
- * <code>p</code> must be a multiple of 4. <code>value</code> must be less
- * than <code>2^bitLength</code>. Destination must be initialized to 0 
- * beforehand. If these conditions are violated, the behavior is undefined.
- *
- * @param {number} p - base index in bytes which must be aligned to 4 bytes
- * @param {number} bitIndex - relative index in bits
- * @param {number} bitLength - length in bits (<= 32)
- * @param {number} value - values to be written
+ * If n is higher than maxValue, this code returns 0xffffffff.
+ * (It is ok because in situations where 0xffffffff is a valid value,
+ * that is, if maxValue = 0xffffffff, n is never higher than maxValue).
  */
-function writeBits(p, bitIndex, bitLength, value) {
+function eliasFanoSucc(n, eliasFanoP, deBruijnTableP, tmpP) {
   /*
    * Type annotations
    */
-  p = p | 0;
-  bitIndex = bitIndex | 0;
-  bitLength = bitLength | 0;
-  value = value | 0;
-  
+  n = n | 0;
+  eliasFanoP = eliasFanoP | 0;
+  deBruijnTableP = deBruijnTableP | 0;
+  tmpP = tmpP | 0;
+
   /*
    * Local variables
    */
-  var byteOffset = 0;
-  var bitOffset = 0;
-  var mask = 0;
+  var lowerBitsSize = 0;
+  var len = 0;
+  var maxValue = 0;
+  var lowerBitsP = 0;
+  var lowerBitsByteSize = 0;
+  var higherBitsP = 0;
+  
+  var bitPosition = 0;
+  var bucketId = 0;
+  var itemId = 0;
+  var numberOfZeros = 0;
+  var previousNumberOfZeros = 0;
+  var bitBlock = 0;
+  var t = 0;
+  var t2 = 0;
+  var bit = 0;
+  var v = 0;
+  var lowBits = 0;
 
   /*
    * Main
    */
-  byteOffset = (p + (bitIndex >>> 3)) | 0;
-  bitOffset = bitIndex & 0x1f;
-
-  // When we need some bits from the next, mask becomes 0xffffffff, otherwise 0.
-  mask = -((bitOffset + bitLength - 1) >>> 5) | 0;
+  n = n >>> 0;
   
-  U4[byteOffset >> 2] = U4[byteOffset >> 2] | (value << bitOffset);
-  byteOffset = (byteOffset + 4) | 0;
-  U4[byteOffset >> 2] = U4[byteOffset >> 2] |
-    (mask & (value >>> (32 - bitOffset)));
+  len = U4[eliasFanoP >> 2] | 0;
+  maxValue = ((U4[(eliasFanoP + 4) >> 2] | 0) - 1) | 0;
+  lowerBitsSize = U4[(eliasFanoP + 8) >> 2] | 0;
+  
+  if ((n | 0) > (maxValue | 0)) {
+    return 0xffffffff | 0;
+  }
+  
+  lowerBitsP = (eliasFanoP + 16) | 0;
+  lowerBitsByteSize = (((imul(lowerBitsSize, len) - 1) >>> 5) + 1) << 2;
+  higherBitsP = (lowerBitsP + lowerBitsByteSize) | 0;
+  
+  //
+  // Step 1: rank0 on upperBits
+  // the position of the n-th bucket can be retrived by finding the n-th 0.
+  //
+  
+  // If n is in Elias-Fano, it must be in the (n >> lowerBitsSize)-th bucket,
+  // where indexing is 0-based.
+  // For example, if lowerBitsSize is 2, then the bucket range is
+  // 4 (= 2^lowerBitsSize), and the first bucket represents [0, 4),
+  // the second [4, 8), etc. In this case, 0 is in (0 >> 2) = 0-th bucket,
+  // 3 is in (3 >> 2) = 0-th bucket, and 4 is in (4 >> 2) = 1st bucket.
+  bucketId = n >> lowerBitsSize;
+  
+  // Since the starting position of a bucket is marked with a 0 in the
+  // upper-bits, we can retrieve the position of a bucket by using
+  // rank0(bucketId), that is, finding the (bucketId)-th 0.
+  // Note that due to 0-based indexing, if bucketId = 4, we need to see 5 zeros.
+  // We therefore use <= (rather than <) in the following while loop.
+  while ((numberOfZeros | 0) <= (bucketId | 0)) {
+    // TODO: speed comparison
+    // popcount is generally faster than de Bruijn
+    // but in extremely sparse cases de Bruijn might be better
+    previousNumberOfZeros = numberOfZeros;
+    
+    bitBlock = U4[higherBitsP >> 2] | 0;
+    numberOfZeros = (numberOfZeros + (popcount(~bitBlock) | 0)) | 0;
+
+    bitPosition = (bitPosition + 32) | 0;
+    higherBitsP = (higherBitsP + 4) | 0;
+
+    if ((bitPosition | 0) > (maxValue | 0)) {
+      // error - prevent infinite loops
+      return 0xffffffff | 0;
+    }
+  }
+  // unread one bit block
+  bitPosition = (bitPosition - 32) | 0; // ?
+  numberOfZeros = previousNumberOfZeros;
+
+  // re-read the block by using de Bruijn
+  t = deBruijnSelect(deBruijnTableP, ~bitBlock, tmpP) | 0;
+  // the t2-th 0 in the bit block is our target ("t2-th" is also 0-based)
+  t2 = (bucketId - numberOfZeros) | 0;
+  t = U1[(tmpP + t2) >> 0] | 0; // now t contains the inner bit index
+  bitPosition = (bitPosition + t) | 0;
+  
+  // There are (bucketId + 1) 0s in the first (bitPosition + 1) bits,
+  // indicating that (bitPosition - bucketId) 1s so far. So the next 1
+  // represents (bitPosition - bucketId)-th item (0-based) in the set.
+  itemId = (bitPosition - bucketId) | 0;
+
+  //
+  // Step 2: searching
+  // Search the value we want
+
+  // TODO: iteratively applying select1 may be faster than
+  // the linear search implemented here.
+  
+  // Note that since we have already treated the invalid case (n > maxValue)
+  // before, there is at least one 1 after the position we retrieved,
+  // demanding that this loop should terminate if inputs are valid.
+  // If bit position exceeds maxValue, something wrong happened.
+  while (1) {
+    bitPosition = (bitPosition + 1) | 0;
+    t = (t + 1) | 0;
+    
+    if ((bitPosition | 0) > (maxValue | 0)) {
+      // error
+      v = 0xffffffff;
+      break;
+    }
+
+    if ((t | 0) >= 32) {
+      higherBitsP = (higherBitsP + 4) | 0;
+      bitBlock = U4[higherBitsP >> 2] | 0;
+      t = 0;
+    }
+
+    bit = (bitBlock >>> t) & 1;
+    
+    if (bit) {
+      lowBits = readBits(lowerBitsP, imul(itemId, lowerBitsSize),
+        lowerBitsSize) | 0;
+      v = ((bucketId << lowerBitsSize) + lowBits) | 0;
+      if ((v | 0) >= (n | 0)) {
+        break;
+      }
+      itemId = (itemId + 1) | 0;
+    } else {
+      bucketId = (bucketId + 1) | 0;
+    }
+  }  
+
+  return v | 0;
 }
 
 /**
@@ -4465,6 +4598,7 @@ return {
   bit_deBruijnSelect: deBruijnSelect,
   bit_deBruijnSelectInit: deBruijnSelectInit,
   bit_eliasFano: eliasFano,
+  bit_eliasFanoSucc: eliasFanoSucc,
   bit_eliasFanoByteSize: eliasFanoByteSize,
   bit_nextPow2: nextPow2,
   bit_popcount: popcount,

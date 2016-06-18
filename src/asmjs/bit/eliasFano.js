@@ -1,5 +1,6 @@
 import deBruijnSelect from './deBruijnSelect';
 import nextPow2 from './nextPow2';
+import writeBits from './writeBits';
 
 /*
  * Implementation note:
@@ -28,15 +29,14 @@ import nextPow2 from './nextPow2';
  *
  * Before using this function, perform deBruijnSelectInit to precompute a table
  * at <code>deBruijnTableP</code>.
- *
- * If length is 1, ra      [2^31 + 1, 2^32 - 1] are disallowed.
+ * Also, destination of outP must be initialized to 0 beforehand.
  *
  * Although Elias-Fano can be more efficient by using an auxiliary "rank-select"
  * strucure, currently this code does not implement the strategy.
  *
  * This data structure uses n log (m / n)  + O(n) bits where n is the number
  * of items and m is the maximum value of in a sequence.
- * The exact size in bytes can be estimated by using eliasFanoEstimateByteSize.
+ * The exact size in bytes can be estimated by using eliasFanoByteSize.
  *
  * @param {int} p - byte offset to 32-bit unsigned integers
  * @param {int} len - length of the input
@@ -57,9 +57,13 @@ export default function eliasFano(p, len, deBruijnTableP, outP) {
    * Local variables
    */
   var lim = 0.0;
-  var lowerBitsSize = 0;
+  var lowerBitsSize = 0; // size in bits per item in the sequence of lower bits
   var lowerBitsSizePow2 = 0;
   var numberOfBuckets = 0;
+
+  // total size of the sequence of lower bits, aligned to 4 bytes
+  var lowerBitsByteSize = 0;
+
   var t = 0.0;
   var t2 = 0;
   
@@ -92,8 +96,11 @@ export default function eliasFano(p, len, deBruijnTableP, outP) {
 
   outP = (outP + 16) | 0; // header size
 
+  // aligned to 4 bytes
+  lowerBitsByteSize = (((imul(lowerBitsSize, len) - 1) >>> 5) + 1) << 2;
+
   createLowerBits(p, len, lowerBitsSize, outP);
-  outP = (outP + imul(lowerBitsSize, len)) | 0; // TODO: correct this to align Uint32
+  outP = (outP + lowerBitsByteSize) | 0;
 
   createHigherBits(p, len, lowerBitsSize, outP);
   
@@ -114,14 +121,8 @@ function createLowerBits(p, len, lowerBitsSize, outP) {
    */
   var end = 0;
   var mask = 0;
-  
-  // variables for the bit output stream idiom
   var v = 0;
   var bitIndex = 0;
-  var bitLength = 0;
-  var crossing = 0;
-  var byteOffset = 0;
-  var bitOffset = 0;
   
   /*
    * Main
@@ -131,20 +132,12 @@ function createLowerBits(p, len, lowerBitsSize, outP) {
   }
 
   end = (p + (len << 2)) | 0;
-  bitLength = lowerBitsSize;
-  mask = 1 << lowerBitsSize;
+  mask = ((1 << lowerBitsSize) - 1) | 0;
   
-  for (p = 0; (p | 0) < (end | 0); p = (p + 4) | 0) {
+  
+  for (; (p | 0) < (end | 0); p = (p + 4) | 0) {
     v = U4[p >> 2] & mask;
-    
-    // bit output stream idiom
-    byteOffset = bitIndex >>> 5;
-    bitOffset = bitIndex & 0x1f;
-    crossing = (bitOffset + bitLength - 1) >>> 5;
-    U4[byteOffset >> 2] = U4[byteOffset >> 2] | (v << bitOffset);
-    U4[(byteOffset + 4) >> 2] = U4[(byteOffset + 4) >> 2]
-      | (v << bitOffset);
-
+    writeBits(outP, bitIndex, lowerBitsSize, v);
     bitIndex = (bitIndex + lowerBitsSize) | 0;
   }
 }
@@ -167,32 +160,19 @@ function createHigherBits(p, len, lowerBitsSize, outP) {
   var higherBits = 0;
   var previousHigherBits = 0;
   var unarySize = 0;
-
-  // variables for the bit output stream idiom
-  var v = 0;
   var bitIndex = 0;
-  var bitLength = 0;
-  var byteOffset = 0;
-  var crossing = 0;
-  var bitOffset = 0;
 
   /*
    * Main
    */
   end = (p + (len << 2)) | 0;
-  
-  for (p = 0; (p | 0) < (end | 0); p = (p + 4) | 0) {
+  bitIndex = 1;
+
+  for (; (p | 0) < (end | 0); p = (p + 4) | 0) {
     higherBits = U4[p >> 2] >>> lowerBitsSize;
     unarySize = (higherBits - previousHigherBits) | 0;
-    bitLength = (unarySize + 1) | 0;
-    
-    // bit output stream idiom
-    byteOffset = bitIndex >>> 3;
-    bitOffset = bitIndex & 0x1f;
-    crossing = (bitOffset + bitLength - 1) >>> 5;
-    U4[byteOffset >> 2] = U4[byteOffset >> 2] | (v << bitOffset);
-    U4[(byteOffset + 4) >> 2] = U4[(byteOffset + 4) >> 2]
-      | (v << bitOffset);
+
+    writeBits(outP, bitIndex, (unarySize + 1) | 0, 1 << unarySize);
     
     previousHigherBits = higherBits;
     bitIndex = (bitIndex + unarySize + 1) | 0;
