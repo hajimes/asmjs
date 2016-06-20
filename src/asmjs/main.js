@@ -1,12 +1,14 @@
 /* jshint unused: false */
 import bit_deBruijnSelect from './bit/deBruijnSelect';
 import bit_deBruijnSelectInit from './bit/deBruijnSelectInit';
+import bit_deBruijnSelectNoTable from './bit/deBruijnSelectNoTable';
 import bit_eliasFano from './bit/eliasFano';
 import bit_eliasFanoByteSize from './bit/eliasFanoByteSize';
 import bit_eliasFanoSucc from './bit/eliasFanoSucc';
 import bit_nextPow2 from './bit/nextPow2';
 import bit_popcount from './bit/popcount';
 import bit_readBits from './bit/readBits';
+import bit_select from './bit/select';
 import bit_writeBits from './bit/writeBits';
 
 import maxFloat32 from './math/maxFloat32';
@@ -77,12 +79,14 @@ var _CMP_FUNCTION_TABLE = [compareInt32, compareUint32, compareSparseVectorEleme
 var EXPORTS = {
   bit_deBruijnSelect: bit_deBruijnSelect,
   bit_deBruijnSelectInit: bit_deBruijnSelectInit,
+  bit_deBruijnSelectNoTable: bit_deBruijnSelectNoTable,
   bit_eliasFano: bit_eliasFano,
   bit_eliasFanoSucc: bit_eliasFanoSucc,
   bit_eliasFanoByteSize: bit_eliasFanoByteSize,
   bit_nextPow2: bit_nextPow2,
   bit_popcount: bit_popcount,
   bit_readBits: bit_readBits,
+  bit_select: bit_select,
   bit_writeBits: bit_writeBits,
 
   learn_adagrad_updateLazyRange: learn_adagrad_updateLazyRange,

@@ -178,7 +178,38 @@ describe('This handwritten asm.js module', function() {
       expect(mod.bit_popcount(-2147483648)).to.equal(1);
     });
     
-    it('fast select operation for words with a de Bruijn sequence', function() {
+    it('bitwise select with a naive method', function() {
+      var i = 0;
+      var isResultValid = true;
+      var p = 1000;
+      var outP = 2000;
+      var numberOfOnes = 0;
+
+      numberOfOnes = mod.bit_select(1, outP);
+      expect(numberOfOnes).to.equal(1);
+      expect(U1[outP]).to.equal(0);
+
+      numberOfOnes = mod.bit_select(2, outP);
+      expect(numberOfOnes).to.equal(1);
+      expect(U1[outP]).to.equal(1);
+      
+      numberOfOnes = mod.bit_select(0x80003001, outP);
+      expect(numberOfOnes).to.equal(4);
+      expect(U1[outP]).to.equal(0);
+      expect(U1[outP + 1]).to.equal(12);
+      expect(U1[outP + 2]).to.equal(13);
+      expect(U1[outP + 3]).to.equal(31);
+  
+      numberOfOnes = mod.bit_select(0xffffffff, outP);
+      expect(numberOfOnes).to.equal(32);
+      isResultValid = true;
+      for (i = 0; i < 32; i += 1) {
+        isResultValid = isResultValid && (U1[outP + i] === i);
+      }
+      expect(isResultValid).to.be.true;
+    });
+    
+    it('fast bitwise select with a de Bruijn sequence', function() {
       var i = 0;
       var isTableValid = true;
       var isResultValid = true;
@@ -220,6 +251,37 @@ describe('This handwritten asm.js module', function() {
       expect(U1[outP + 3]).to.equal(31);
   
       numberOfOnes = mod.bit_deBruijnSelect(p, 0xffffffff, outP);
+      expect(numberOfOnes).to.equal(32);
+      isResultValid = true;
+      for (i = 0; i < 32; i += 1) {
+        isResultValid = isResultValid && (U1[outP + i] === i);
+      }
+      expect(isResultValid).to.be.true;
+    });
+    
+    it('fast bitwise select with a de Bruijn seq (w/o table)', function() {
+      var i = 0;
+      var isResultValid = true;
+      var p = 1000;
+      var outP = 2000;
+      var numberOfOnes = 0;
+
+      numberOfOnes = mod.bit_deBruijnSelectNoTable(1, outP);
+      expect(numberOfOnes).to.equal(1);
+      expect(U1[outP]).to.equal(0);
+
+      numberOfOnes = mod.bit_deBruijnSelectNoTable(2, outP);
+      expect(numberOfOnes).to.equal(1);
+      expect(U1[outP]).to.equal(1);
+      
+      numberOfOnes = mod.bit_deBruijnSelectNoTable(0x80003001, outP);
+      expect(numberOfOnes).to.equal(4);
+      expect(U1[outP]).to.equal(0);
+      expect(U1[outP + 1]).to.equal(12);
+      expect(U1[outP + 2]).to.equal(13);
+      expect(U1[outP + 3]).to.equal(31);
+  
+      numberOfOnes = mod.bit_deBruijnSelectNoTable(0xffffffff, outP);
       expect(numberOfOnes).to.equal(32);
       isResultValid = true;
       for (i = 0; i < 32; i += 1) {
